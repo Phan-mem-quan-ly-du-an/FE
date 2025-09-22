@@ -1,4 +1,4 @@
-import "./HomePage.css";
+import "../../assets/css/HomePage.css";
 import HomeCard from "./components/HomeCard";
 
 function HomePage() {

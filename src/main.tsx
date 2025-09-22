@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "react-oidc-context";
 import App from "./App";
-import "./index.css";
+import "./assets/css/index.css";
 
 const redirectUri = window.location.origin;
 const authority = import.meta.env.VITE_COGNITO_AUTHORITY as string;
