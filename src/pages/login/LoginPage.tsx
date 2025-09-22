@@ -1,8 +1,16 @@
+import { useEffect } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link } from "react-router-dom";
 
 function LoginPage() {
   const auth = useAuth();
+
+  // Tự động chuyển hướng đến trang đăng nhập khi truy cập /login
+  useEffect(() => {
+    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
+      auth.signinRedirect();
+    }
+  }, [auth.isLoading, auth.isAuthenticated, auth.activeNavigator]);
 
   const signOutRedirect = async () => {
     try {
@@ -13,7 +21,7 @@ function LoginPage() {
     }
   };
 
-  if (auth.isLoading) {
+  if (auth.isLoading || auth.activeNavigator === "signinRedirect") {
     return <div>Loading...</div>;
   }
 
@@ -39,13 +47,7 @@ function LoginPage() {
     );
   }
 
-  // Nếu người dùng chưa xác thực, hiển thị nút đăng nhập
-  return (
-    <div>
-      <h2>Vui lòng đăng nhập để tiếp tục</h2>
-      <button onClick={() => auth.signinRedirect()}>Đăng nhập</button>
-    </div>
-  );
+  return <div>Đang chuyển hướng đến trang đăng nhập…</div>;
 }
 
 export default LoginPage;

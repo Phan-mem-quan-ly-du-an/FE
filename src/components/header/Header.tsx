@@ -23,9 +23,9 @@ function Header() {
         <Link to="/">Home</Link>
         <Link to="/about">About</Link>
         {auth.isAuthenticated ? (
-          <button onClick={handleLogoutClick}>Đăng xuất</button>
+          <button className="nav-button" onClick={handleLogoutClick}>Đăng xuất</button>
         ) : (
-          <button onClick={handleLoginClick}>Đăng nhập</button>
+          <button className="nav-button" onClick={handleLoginClick}>Đăng nhập</button>
         )}
       </nav>
     </header>
