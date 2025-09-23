@@ -22,3 +22,31 @@
 .nav a:hover {
   text-decoration: underline;
 }
+
+/* Nút trong header: đồng bộ tông tối, bo tròn, hover rõ ràng */
+.nav-button {
+  margin-left: 15px;
+  padding: 6px 12px;
+  background-color: #3a3f4b;
+  color: #ffffff;
+  border: 1px solid #4b5261;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.02s ease;
+}
+
+.nav-button:hover {
+  background-color: #4b5261;
+  border-color: #5a6274;
+}
+
+.nav-button:active {
+  transform: translateY(1px);
+}
+
+.nav-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.25);
+}
