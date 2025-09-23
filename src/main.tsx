@@ -16,6 +16,8 @@ const cognitoAuthConfig = {
     post_logout_redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email phone',
+    // Explicitly set Cognito logout endpoint; some Cognito tenants omit this from discovery
+   
     onSigninCallback: () => {
         window.history.replaceState({}, document.title, window.location.pathname);
     },
