@@ -39,7 +39,7 @@ export const initialState = {
   leftsidbarSizeType: LEFT_SIDEBAR_SIZE_TYPES.DEFAULT,
   leftSidebarViewType: LEFT_SIDEBAR_VIEW_TYPES.DEFAULT,
   leftSidebarImageType: LEFT_SIDEBAR_IMAGE_TYPES.NONE,
-  preloader: PERLOADER_TYPES.DISABLE,
+  preloader: PERLOADER_TYPES.ENABLE,
   sidebarVisibilitytype: SIDEBAR_VISIBILITY_TYPES.SHOW
 };
 
