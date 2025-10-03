@@ -6,8 +6,10 @@ import { useDispatch } from "react-redux";
 import { useProfile } from "../Components/Hooks/UserHooks";
 
 import { logoutUser } from "../slices/auth/login/thunk";
+import {useAuth} from "react-oidc-context";
 
 const AuthProtected = (props : any) =>{
+    const auth = useAuth();
   const dispatch : any = useDispatch();
   const { userProfile, loading, token } = useProfile();
   
@@ -24,9 +26,7 @@ const AuthProtected = (props : any) =>{
     */
 
   if (!userProfile && loading && !token) {
-    return (
-      <Navigate to={{ pathname: "/login"}} />
-    );
+      return auth.signinRedirect()
   }
 
   return <>{props.children}</>;

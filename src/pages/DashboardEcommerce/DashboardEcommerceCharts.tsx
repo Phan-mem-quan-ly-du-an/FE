@@ -1,5 +1,6 @@
 import React from "react";
 import ReactApexChart from "react-apexcharts";
+import { useAuth } from "react-oidc-context"
 
 import getChartColorsArray from "../../Components/Common/ChartsDynamicColor";
 
@@ -157,6 +158,20 @@ const StoreVisitsCharts = ({ dataColors }: any) => {
     },
     colors: chartDonutBasicColors,
   };
+    const auth = useAuth();
+
+    if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
+
+    if (!auth.isAuthenticated || !auth.user?.id_token) {
+        return (
+            <div className="container">
+                <p>Bạn chưa đăng nhập.</p>
+                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>
+                    Đăng nhập
+                </button>
+            </div>
+        );
+    }
   return (
     <React.Fragment>
       <ReactApexChart dir="ltr"

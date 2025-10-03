@@ -8,6 +8,7 @@ import VerticalLayout from "../Layouts/index";
 //routes
 import { authProtectedRoutes, publicRoutes } from "./allRoutes";
 import AuthProtected  from './AuthProtected';
+import {AuthProvider} from "react-oidc-context";
 
 const Index = () => {
     return (
@@ -32,9 +33,9 @@ const Index = () => {
                         <Route
                             path={route.path}
                             element={
-                                <AuthProtected>
+                                <AuthProvider>
                                     <VerticalLayout>{route.component}</VerticalLayout>
-                                </AuthProtected>}
+                                </AuthProvider>}
                             key={idx}
                         />
                     ))}
