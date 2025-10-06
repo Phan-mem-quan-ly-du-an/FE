@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 //Layouts
 import NonAuthLayout from "../Layouts/NonAuthLayout";
@@ -7,8 +7,7 @@ import VerticalLayout from "../Layouts/index";
 
 //routes
 import { authProtectedRoutes, publicRoutes } from "./allRoutes";
-import AuthProtected  from './AuthProtected';
-import {AuthProvider} from "react-oidc-context";
+import AuthProtected from './AuthProtected';
 
 const Index = () => {
     return (
@@ -33,13 +32,18 @@ const Index = () => {
                         <Route
                             path={route.path}
                             element={
-                                <AuthProvider>
+                                <AuthProtected>
                                     <VerticalLayout>{route.component}</VerticalLayout>
-                                </AuthProvider>}
+                                </AuthProtected>
+                            }
                             key={idx}
                         />
                     ))}
                 </Route>
+
+                {/*<Route path="/" element={<Navigate to="/job-landing" replace />} />*/}
+                {/*<Route path="*" element={<Navigate to="/job-landing" replace />} />*/}
+
             </Routes>
         </React.Fragment>
     );

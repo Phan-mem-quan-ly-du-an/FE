@@ -245,6 +245,7 @@ import PageBlogOverview from "pages/Pages/Blogs/Overview";
 
 
 
+
 const authProtectedRoutes = [
   { path: "/dashboard-analytics", component: <DashboardAnalytics /> },
   { path: "/dashboard-crm", component: <DashboardCrm /> },
@@ -461,8 +462,8 @@ const authProtectedRoutes = [
 ];
 
 const publicRoutes = [
-  { path: "/logout", component: <Logout /> },
-  { path: "/login", component: <Login /> },
+    { path: "/logout", component: <Logout /> },
+    { path: "/login", component: <Login /> },
   { path: "/forgot-password", component: <ForgetPasswordPage /> },
   { path: "/register", component: <Register /> },
 

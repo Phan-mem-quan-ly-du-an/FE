@@ -1,40 +1,30 @@
-import PropTypes from "prop-types";
-import React, { useEffect } from "react";
-import { Navigate } from "react-router-dom";
-
-import { logoutUser } from "../../slices/thunks";
-
-//redux
-import { useSelector, useDispatch } from "react-redux";
-
+import React, { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 import withRouter from "../../Components/Common/withRouter";
-import { createSelector } from "reselect";
+import { logoutUser } from "../../slices/thunks";
+import { useAuth } from "react-oidc-context";
 
 const Logout = () => {
-  const dispatch = useDispatch<any>();
+    const dispatch = useDispatch<any>();
+    const auth = useAuth();
+    const ran = useRef(false);
 
-  const logoutData = createSelector(
-    (state: any) => state.Login,
-    (login) => ({
-      isUserLogout: login.isUserLogout
-    })
-  );
-  // Inside your component
-  const isUserLogout = useSelector(logoutData);
+    useEffect(() => {
+        if (ran.current) return;
+        ran.current = true;
 
-  useEffect(() => {
-    dispatch(logoutUser());
-  }, [dispatch]);
+        dispatch(logoutUser());
+        auth.removeUser?.();
 
-  if (isUserLogout) {
-    return <Navigate to="/login" />;
-  }
+        const hosted  = (process.env.REACT_APP_COGNITO_AUTHORITY || "").replace(/\/+$/, "");
+        const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID!;
+        const redirect = `${window.location.origin}/login`;
 
-  return <></>;
-};
+        const url = `${hosted}/logout?client_id=${encodeURIComponent(clientId)}&logout_uri=${encodeURIComponent(redirect)}`;
+        window.location.replace(url);
+    }, [dispatch, auth]);
 
-Logout.propTypes = {
-  history: PropTypes.object,
+    return null;
 };
 
 export default withRouter(Logout);

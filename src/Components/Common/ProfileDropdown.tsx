@@ -27,10 +27,17 @@ const ProfileDropdown = () => {
             <DropdownMenu className="dropdown-menu-end">
                 <h6 className="dropdown-header">Welcome {userName}!</h6>
                 <DropdownItem className='p-0'>
-                    <Link to="/logout" className="dropdown-item">
-                        <i className="mdi mdi-logout text-muted fs-16 align-middle me-1"></i>
-                        <span className="align-middle">Logout</span>
-                    </Link>
+                    <button onClick={() => {
+                        auth.removeUser()
+                        auth.signoutRedirect({
+                            id_token_hint: auth.user?.id_token,
+                            extraQueryParams: {
+                                client_id: auth.settings.client_id,
+                                logout_uri: auth.settings.redirect_uri,
+                                response_type: 'code',
+                            },
+                        });
+                    }}>Log out</button>
                 </DropdownItem>
             </DropdownMenu>
         </Dropdown>

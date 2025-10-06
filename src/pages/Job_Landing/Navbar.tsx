@@ -143,8 +143,7 @@ const Navbar = () => {
 
             <div>
               <Link to="/auth-signin-basic" className="btn btn-soft-primary">
-                <i className="ri-user-3-line align-bottom me-1"></i> Login &
-                Register
+                <i className="ri-user-3-line align-bottom me-1"></i> Login & Register
               </Link>
             </div>
           </Collapse>

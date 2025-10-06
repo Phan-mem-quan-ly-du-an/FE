@@ -4,8 +4,11 @@ import withRouter from '../Components/Common/withRouter';
 //redux
 import { useSelector } from "react-redux";
 import { createSelector } from 'reselect';
+import { useAuth } from "react-oidc-context";
 
 const NonAuthLayout = ({ children }: any) => {
+    const auth = useAuth();
+    
     const nonauthData = createSelector(
         (state) => state.Layout,
         (layoutModeType) => layoutModeType.layoutModeType

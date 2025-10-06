@@ -1,36 +1,37 @@
-import React, { useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { hasAuthParams, useAuth } from "react-oidc-context";
 import { setAuthorization } from "../helpers/api_helper";
-import { useDispatch } from "react-redux";
+import { useLocation } from "react-router-dom";
 
-import { useProfile } from "../Components/Hooks/UserHooks";
-
-import { logoutUser } from "../slices/auth/login/thunk";
-import {useAuth} from "react-oidc-context";
-
-const AuthProtected = (props : any) =>{
+const AuthProtected = ({ children }: { children: React.ReactNode }) => {
     const auth = useAuth();
-  const dispatch : any = useDispatch();
-  const { userProfile, loading, token } = useProfile();
-  
-  useEffect(() => {
-    if (userProfile && !loading && token) { // auth.Profile
-      setAuthorization(token);
-    } else if (!userProfile && loading && !token) {
-      dispatch(logoutUser());
-    }
-  }, [token, userProfile, loading, dispatch]);
+    const loc = useLocation();
+    const [tried, setTried] = useState(false);
 
-  /*
-    Navigate is un-auth access protected routes via url
-    */
+    useEffect(() => {
+        console.log(auth.isAuthenticated)
+        if (!hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading && !tried) {
+            const current = loc.pathname + loc.search + loc.hash;
+            sessionStorage.setItem("returnTo", current || "/dashboard");
+            void auth.signinRedirect({ state: current || "/dashboard" });
+            setTried(true);
+        }
+    }, [auth, loc, tried]);
 
-  if (!userProfile && loading && !token) {
-      return auth.signinRedirect()
-  }
+    useEffect(() => {
+        const token = auth.user?.access_token;
+        if (token) {
+            setAuthorization(token);
+            sessionStorage.setItem("authUser", JSON.stringify({ token, profile: auth.user?.profile }));
+        } else {
+            sessionStorage.removeItem("authUser");
+        }
+    }, [auth.user]);
 
-  return <>{props.children}</>;
+    if (auth.isLoading || auth.activeNavigator) return null;
+    if (!auth.isAuthenticated) return null;
+
+    return <>{children}</>;
 };
-
 
 export default AuthProtected;
