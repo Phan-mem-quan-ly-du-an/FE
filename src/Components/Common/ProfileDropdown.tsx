@@ -7,7 +7,7 @@ import { useAuth } from "react-oidc-context";
 const ProfileDropdown = () => {
     const auth = useAuth();
 
-    const userName = auth.user?.profile?.name || auth.user?.profile?.email || "Guest";
+    const userName = auth.user?.profile?.email;
 
     const [isProfileDropdown, setIsProfileDropdown] = useState(false);
     const toggleProfileDropdown = () => setIsProfileDropdown(!isProfileDropdown);
@@ -26,7 +26,6 @@ const ProfileDropdown = () => {
             <DropdownMenu className="dropdown-menu-end">
                 <h6 className="dropdown-header">Welcome {userName}!</h6>
                 <DropdownItem className='p-0'>
-
                     <button onClick={() => {
                         auth.removeUser()
                         auth.signoutRedirect({

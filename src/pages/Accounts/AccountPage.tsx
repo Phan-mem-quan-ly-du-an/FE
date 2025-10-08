@@ -119,10 +119,10 @@ export default function AccountPage() {
 
                         <div className="card-body border-top">
                             <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <div>
-                                    <div className="text-muted small mb-1">Cognito subject</div>
-                                    <div className="fw-medium">{fieldOrEmpty(profile.sub) || "-"}</div>
-                                </div>
+                                {/*<div>*/}
+                                {/*    <div className="text-muted small mb-1">Cognito subject</div>*/}
+                                {/*    <div className="fw-medium">{fieldOrEmpty(profile.sub) || "-"}</div>*/}
+                                {/*</div>*/}
                                 <div className="d-flex align-items-center gap-2">
                                     <button
                                         type="button"
@@ -205,7 +205,6 @@ export default function AccountPage() {
                     </div>
                 </div>
 
-                {/* Token info (optional) */}
                 <div className="col-12 col-lg-6">
                     <div className="card">
                         <div className="card-body">
@@ -213,15 +212,15 @@ export default function AccountPage() {
                             <div className="small text-break">
                                 <div className="text-muted mb-1">Id token (truncated)</div>
                                 <code className="d-block">
-                                    {auth.user?.id_token ? auth.user.id_token.slice(0, 32) + "..." : "-"}
+                                    {auth.user?.id_token as string}
                                 </code>
                             </div>
-                            <div className="small text-break mt-3">
-                                <div className="text-muted mb-1">Access token (truncated)</div>
-                                <code className="d-block">
-                                    {auth.user?.access_token ? auth.user.access_token.slice(0, 32) + "..." : "-"}
-                                </code>
-                            </div>
+                            {/*<div className="small text-break mt-3">*/}
+                            {/*    <div className="text-muted mb-1">Access token (truncated)</div>*/}
+                            {/*    <code className="d-block">*/}
+                            {/*        {auth.user?.access_token ? auth.user.access_token.slice(0, 32) + "..." : "-"}*/}
+                            {/*    </code>*/}
+                            {/*</div>*/}
                         </div>
                     </div>
                 </div>
