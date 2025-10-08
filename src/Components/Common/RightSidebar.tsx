@@ -19,7 +19,6 @@ import {
     changeSidebarImageType,
     changePreLoader,
     changeSidebarVisibility
-    // resetValue
 } from "../../slices/thunks";
 import { useSelector, useDispatch } from "react-redux";
 
