@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { hasAuthParams, useAuth } from "react-oidc-context";
-import { setAuthorization } from "../helpers/api_helper";
-import { useLocation } from "react-router-dom";
+import React, {useEffect, useState} from "react";
+import {hasAuthParams, useAuth} from "react-oidc-context";
+import {useLocation} from "react-router-dom";
 
 const AuthProtected = ({ children }: { children: React.ReactNode }) => {
     const auth = useAuth();
@@ -22,7 +21,6 @@ const AuthProtected = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const token = auth.user?.access_token;
         if (token) {
-            setAuthorization(token);
             sessionStorage.setItem("authUser", JSON.stringify({ token, profile: auth.user?.profile }));
         } else {
             sessionStorage.removeItem("authUser");
