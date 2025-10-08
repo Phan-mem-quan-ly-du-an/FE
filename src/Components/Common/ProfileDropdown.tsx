@@ -26,6 +26,7 @@ const ProfileDropdown = () => {
             <DropdownMenu className="dropdown-menu-end">
                 <h6 className="dropdown-header">Welcome {userName}!</h6>
                 <DropdownItem className='p-0'>
+
                     <button onClick={() => {
                         auth.removeUser()
                         auth.signoutRedirect({

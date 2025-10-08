@@ -1,11 +1,8 @@
-import React, { useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
+import {useEffect, useRef} from "react";
 import withRouter from "../../Components/Common/withRouter";
-import { logoutUser } from "../../slices/thunks";
-import { useAuth } from "react-oidc-context";
+import {useAuth} from "react-oidc-context";
 
 const Logout = () => {
-    const dispatch = useDispatch<any>();
     const auth = useAuth();
     const ran = useRef(false);
 
@@ -13,7 +10,6 @@ const Logout = () => {
         if (ran.current) return;
         ran.current = true;
 
-        dispatch(logoutUser());
         auth.removeUser?.();
 
         const hosted  = (process.env.REACT_APP_COGNITO_AUTHORITY || "").replace(/\/+$/, "");
@@ -22,7 +18,7 @@ const Logout = () => {
 
         const url = `${hosted}/logout?client_id=${encodeURIComponent(clientId)}&logout_uri=${encodeURIComponent(redirect)}`;
         window.location.replace(url);
-    }, [dispatch, auth]);
+    }, []);
 
     return null;
 };

@@ -18,6 +18,8 @@
     "@reduxjs/toolkit": "^2.2.8",
     "@south-paw/react-vector-maps": "^3.2.0",
     "@tanstack/match-sorter-utils": "^8.19.4",
+    "@tanstack/react-query": "^5.90.2",
+    "@tanstack/react-query-devtools": "^5.90.2",
     "@tanstack/react-table": "^8.20.5",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
