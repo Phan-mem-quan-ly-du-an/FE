@@ -12,7 +12,7 @@ import { WebStorageStateStore } from "oidc-client-ts";
 const store = configureStore({ reducer: rootReducer, devTools: true });
 
 const redirectUri = window.location.origin;
-const authority = process.env.REACT_APP_COGNITO_AUTHORITY as string; // Hosted UI, vd: https://xxx.auth.ap-southeast-2.amazoncognito.com
+const authority = process.env.REACT_APP_COGNITO_AUTHORITY as string;
 const clientId  = process.env.REACT_APP_COGNITO_CLIENT_ID as string;
 
 

@@ -7,7 +7,6 @@ import { useAuth } from "react-oidc-context";
 const ProfileDropdown = () => {
     const auth = useAuth();
 
-    // Nếu login thành công thì auth.user sẽ có profile
     const userName = auth.user?.profile?.name || auth.user?.profile?.email || "Guest";
 
     const [isProfileDropdown, setIsProfileDropdown] = useState(false);
@@ -39,6 +38,13 @@ const ProfileDropdown = () => {
                         });
                     }}>Log out</button>
                 </DropdownItem>
+                <li>
+                    <Link to="/account" className="dropdown-item">
+                        <i className="mdi mdi-account-circle-outline me-2" />
+                        My Account
+                    </Link>
+                </li>
+                <li><hr className="dropdown-divider" /></li>
             </DropdownMenu>
         </Dropdown>
     );

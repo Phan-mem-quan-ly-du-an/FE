@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.901.0",
     "@ckeditor/ckeditor5-build-classic": "^43.2.0",
     "@ckeditor/ckeditor5-react": "^9.3.0",
     "@fullcalendar/bootstrap": "^6.1.15",
@@ -12,7 +13,7 @@
     "@fullcalendar/list": "^6.1.15",
     "@fullcalendar/multimonth": "^6.1.15",
     "@fullcalendar/react": "^6.1.15",
-    "@hello-pangea/dnd": "^17.0.0",
+    "@hello-pangea/dnd": "^18.0.1",
     "@react-google-maps/api": "^2.20.3",
     "@reduxjs/toolkit": "^2.2.8",
     "@south-paw/react-vector-maps": "^3.2.0",
