@@ -10,6 +10,7 @@ const AuthProtected = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         console.log(auth.isAuthenticated)
+        console.log(auth.user?.access_token)
         if (!hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading && !tried) {
             const current = loc.pathname + loc.search + loc.hash;
             sessionStorage.setItem("returnTo", current || "/dashboard");
