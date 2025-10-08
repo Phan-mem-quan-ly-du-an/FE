@@ -15,7 +15,6 @@ const redirectUri = window.location.origin;
 const authority = process.env.REACT_APP_COGNITO_AUTHORITY as string; // Hosted UI, vd: https://xxx.auth.ap-southeast-2.amazoncognito.com
 const clientId  = process.env.REACT_APP_COGNITO_CLIENT_ID as string;
 
-
 const cognitoAuthConfig = {
     authority,
     client_id: clientId,
