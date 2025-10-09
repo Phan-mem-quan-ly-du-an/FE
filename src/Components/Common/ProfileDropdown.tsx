@@ -25,8 +25,8 @@ const ProfileDropdown = () => {
             </DropdownToggle>
             <DropdownMenu className="dropdown-menu-end">
                 <h6 className="dropdown-header">Welcome {userName}!</h6>
-                <DropdownItem className='p-0'>
-                    <button onClick={() => {
+                <DropdownItem
+                    onClick={() => {
                         auth.removeUser()
                         auth.signoutRedirect({
                             id_token_hint: auth.user?.id_token,
@@ -36,7 +36,11 @@ const ProfileDropdown = () => {
                                 response_type: 'code',
                             },
                         });
-                    }}>Log out</button>
+                    }}
+                    className="text-danger"
+                >
+                    <i className="mdi mdi-logout me-2" />
+                    Log out
                 </DropdownItem>
                 <li>
                     <Link to="/account" className="dropdown-item">

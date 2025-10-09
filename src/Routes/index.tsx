@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -40,9 +41,6 @@ const Index = () => {
                         />
                     ))}
                 </Route>
-
-                {/*<Route path="/" element={<Navigate to="/job-landing" replace />} />*/}
-                {/*<Route path="*" element={<Navigate to="/job-landing" replace />} />*/}
 
             </Routes>
         </React.Fragment>
