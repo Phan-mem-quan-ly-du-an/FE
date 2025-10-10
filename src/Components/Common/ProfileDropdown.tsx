@@ -42,13 +42,6 @@ const ProfileDropdown = () => {
                     <i className="mdi mdi-logout me-2" />
                     Log out
                 </DropdownItem>
-                <li>
-                    <Link to="/account" className="dropdown-item">
-                        <i className="mdi mdi-account-circle-outline me-2" />
-                        My Account
-                    </Link>
-                </li>
-                <li><hr className="dropdown-divider" /></li>
             </DropdownMenu>
         </Dropdown>
     );

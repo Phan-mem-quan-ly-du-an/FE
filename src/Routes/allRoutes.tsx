@@ -1,5 +1,3 @@
-import Logout from "../pages/Authentication/Logout";
-import AccountPage from "../pages/Accounts/AccountPage";
 import CompaniesRolePermissionPage from "../pages/Companies/CompaniesRolePermissionPage";
 import CompaniesPage from "../pages/Companies/CompaniesPage";
 import CompaniesMembersPage from "../pages/Companies/CompaniesMembersPage";
@@ -10,7 +8,6 @@ import RolePermissionEditPage from "../pages/Companies/RolePermissionEditPage";
 
 const authProtectedRoutes = [
     { path: "/", component: <Navigate to="/companies" /> },
-    { path: "/account", component: <AccountPage/> },
 
     // === Companies ===
     { path: "/companies", component: <CompaniesPage />},
@@ -22,7 +19,6 @@ const authProtectedRoutes = [
 ];
 
 const publicRoutes = [
-    { path: "/logout", component: <Logout/> },
 ];
 
 export {authProtectedRoutes, publicRoutes};
