@@ -154,7 +154,7 @@ export default function EditCompanyPage() {
                 {/* Row: Form */}
                 <div className="row mt-3">
                     <div className="col-12 col-lg-8 col-xl-6">
-                        <form onSubmit={onSubmit}>;
+                        <form onSubmit={onSubmit}>
                             <div className="mb-3">
                                 <label className="form-label">Name</label>
                                 <input

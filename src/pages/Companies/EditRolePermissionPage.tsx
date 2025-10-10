@@ -9,7 +9,7 @@ type Permission = {
     name: string;
 };
 
-export default function RolePermissionEditPage() {
+export default function EditRolePermissionPage() {
     const auth = useAuth();
     const params = useParams();
 
@@ -160,7 +160,7 @@ export default function RolePermissionEditPage() {
                     </div>
                 )}
 
-                {/* Row: Role ID */}
+                {/* Row: Role ID | Role Name */}
                 <div className="row mt-3">
                     <div className="col-12 col-lg-8 col-xl-6">
                         <div className="table-responsive">
@@ -168,6 +168,9 @@ export default function RolePermissionEditPage() {
                                 <thead>
                                 <tr>
                                     <th style={{width:160}}>Role ID</th>
+                                </tr>
+                                <tr>
+                                    <th style={{width:160}}>Role Name</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -178,6 +181,7 @@ export default function RolePermissionEditPage() {
                             </table>
                         </div>
                     </div>
+
                 </div>
 
                 {/* Row: Permissions (code + checkbox) */}
@@ -187,7 +191,7 @@ export default function RolePermissionEditPage() {
                             <table className="table table-striped align-middle">
                                 <thead>
                                 <tr>
-                                    <th style={{width:280}}>Permission Code</th>
+                                    <th style={{width:280}}>Permission Name</th>
                                     <th>Tick</th>
                                 </tr>
                                 </thead>
@@ -199,8 +203,8 @@ export default function RolePermissionEditPage() {
                                 {!loading && permissions.map(p => (
                                     <tr key={p.id}>
                                         <td>
-                                            <div className="fw-semibold">{p.code}</div>
-                                            {p.name && <div className="text-muted small">{p.name}</div>}
+                                            <div className="fw-semibold">{p.name}</div>
+                                            {p.code && <div className="text-muted small">{p.code}</div>}
                                         </td>
                                         <td>
                                             <input
