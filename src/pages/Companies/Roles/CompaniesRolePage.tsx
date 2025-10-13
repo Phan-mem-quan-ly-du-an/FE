@@ -1,78 +1,64 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "react-oidc-context";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCompanyRoles, deleteRole, Role } from "../../../apiCaller/companyRoles";
 
-type Role = {
-    id: number;
-    code: string;
-    name?: string | null;
-    description?: string | null;
-};
+// Use Role type from apiCaller
 
 export default function CompaniesRolePage() {
     const auth = useAuth();
-    const navigate = useNavigate();
     const { t } = useTranslation();
     const { companyId } = useParams<{ companyId: string }>();
+    const queryClient = useQueryClient();
 
     const resolvedCompanyId = companyId || "";
 
-    const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
-
-    const [roles, setRoles] = useState<Role[]>([]);
-    const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
 
-    function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
-        const idToken = auth.user?.id_token;
-        return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
-    }
+    // removed getAuthHeaders; requests rely on global client/interceptors
 
-    async function loadRoles() {
-        if (!resolvedCompanyId) { setMsg(t("CannotDetermineCompanyId")); return; }
-        setLoading(true); setMsg(null);
-        try {
-            const url = new URL(`/api/companies/${resolvedCompanyId}/roles`, base);
-            url.searchParams.set("includeGlobal", "true");
-            const res = await fetch(url.toString(), { headers: getAuthHeaders() });
-            if (!res.ok) { setMsg(t("LoadRolesError", { status: res.status, text: await res.text() })); return; }
-
-            const json = await res.json();
-            const list: Role[] = Array.isArray(json) ? json : (json?.roles || []);
-            setRoles(Array.isArray(list) ? list : []);
-        } catch (e: any) {
-            setMsg(e?.message || t("ErrorLoadingRoles"));
-        } finally {
-            setLoading(false);
-        }
-    }
+    const rolesQuery = useQuery<Role[]>({
+        queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
+        enabled: !!resolvedCompanyId && !auth.isLoading && !!auth.user?.id_token,
+        queryFn: async () => {
+            if (!resolvedCompanyId) {
+                setMsg(t("CannotDetermineCompanyId"));
+                return [];
+            }
+            setMsg(null);
+            return await getCompanyRoles(resolvedCompanyId, true);
+        },
+        staleTime: 30_000,
+    });
 
     useEffect(() => {
-        if (auth.isLoading) return;
-        if (!auth.isAuthenticated || !auth.user?.id_token) return;
-        loadRoles();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [auth.isLoading, auth.isAuthenticated, auth.user?.id_token, companyId]);
+        if (rolesQuery.isError) {
+            const anyErr: any = rolesQuery.error as any;
+            const text = anyErr?.response?.data?.error || anyErr?.message || "";
+            setMsg(t("LoadRolesError", { status: anyErr?.response?.status || "", text }));
+        }
+    }, [rolesQuery.isError, rolesQuery.error, t]);
+
+    const deleteRoleMutation = useMutation({
+        mutationFn: async (roleId: number) => deleteRole(roleId),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+        },
+        onError: async (error: any) => {
+            setMsg(t("DeleteFailed", { status: "", text: error?.message || "" }));
+        },
+    });
 
     async function handleDeleteRole(r: Role) {
         if (!r?.id) return;
         if (!window.confirm(t("DeleteRoleConfirm", { name: r.code || r.name || r.id }))) return;
         try {
-            setLoading(true);
-            const res = await fetch(new URL(`/api/roles/${r.id}`, base).toString(), {
-                method: "DELETE",
-                headers: getAuthHeaders(),
-            });
-            if (!res.ok) {
-                setMsg(t("DeleteFailed", { status: res.status, text: await res.text() }));
-                return;
-            }
-            await loadRoles();
+            setMsg(null);
+            await deleteRoleMutation.mutateAsync(r.id);
         } catch (e: any) {
             setMsg(e?.message || t("ErrorDeletingRole"));
-        } finally {
-            setLoading(false);
         }
     }
 
@@ -125,11 +111,11 @@ export default function CompaniesRolePage() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {loading && <tr><td colSpan={4} className="text-center py-5">{t("Loading")}</td></tr>}
-                                {!loading && roles.length === 0 && (
+                {rolesQuery.isLoading && <tr><td colSpan={4} className="text-center py-5">{t("Loading")}</td></tr>}
+                {!rolesQuery.isLoading && ((rolesQuery.data ?? []) as Role[]).length === 0 && (
                                     <tr><td colSpan={4} className="text-center text-muted py-5">{t("NoRoles")}</td></tr>
                                 )}
-                                {!loading && roles.map(r => (
+                {!rolesQuery.isLoading && ((rolesQuery.data ?? []) as Role[]).map((r: Role) => (
                                     <tr key={r.id}>
                                         <td className="font-monospace">{r.id}</td>
                                         <td>
@@ -140,7 +126,7 @@ export default function CompaniesRolePage() {
                                         <td>
                                             <div className="btn-group btn-group-sm">
                                                 <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/edit`}>{t("Edit")}</Link>
-                                                <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={loading}>{t("Delete")}</button>
+                                                <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={deleteRoleMutation.isPending}>{t("Delete")}</button>
                                                 <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}>{t("Permission")}</Link>
                                             </div>
                                         </td>
