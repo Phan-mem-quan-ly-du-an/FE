@@ -208,7 +208,7 @@ const ContactsGlobalFilter = () => {
         {
             options: [
                 { label: "Owner", value: "Owner" },
-                { label: "Company", value: "Company" },
+                { label: "Company Members", value: "CompanyMembers" },
                 { label: "Location", value: "Location" }
             ],
         },
@@ -245,7 +245,7 @@ const CompaniesGlobalFilter = () => {
         {
             options: [
                 { label: "Owner", value: "Owner" },
-                { label: "Company", value: "Company" },
+                { label: "Company Members", value: "CompanyMembers" },
                 { label: "Location", value: "Location" },
             ],
         },

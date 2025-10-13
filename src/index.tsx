@@ -21,7 +21,7 @@ const cognitoAuthConfig = {
     redirect_uri: redirectUri,
     post_logout_redirect_uri: `${redirectUri}/logout`,
     response_type: "code",
-    scope: "openid email phone",
+    scope: "openid email phone profile aws.cognito.signin.user.admin",
     userStore: new WebStorageStateStore({ store: window.localStorage }),
 
     onSigninCallback: () => {

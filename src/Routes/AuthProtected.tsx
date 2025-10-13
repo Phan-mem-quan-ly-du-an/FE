@@ -1,8 +1,10 @@
-import React, {useEffect, useState} from "react";
-import {hasAuthParams, useAuth} from "react-oidc-context";
-import {useLocation} from "react-router-dom";
+import React, {useEffect, useState} from 'react';
+import {hasAuthParams, useAuth} from 'react-oidc-context';
+import {useLocation} from 'react-router-dom';
+import {useEstablishSession} from '../hooks/useEstablishSession';
 
 const AuthProtected = ({children}: { children: React.ReactNode }) => {
+    useEstablishSession();
     const auth = useAuth();
     const loc = useLocation();
     const [tried, setTried] = useState(false);
@@ -10,21 +12,22 @@ const AuthProtected = ({children}: { children: React.ReactNode }) => {
     useEffect(() => {
         if (!hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading && !tried) {
             const current = loc.pathname + loc.search + loc.hash;
-            sessionStorage.setItem("returnTo", current || "/dashboard");
-            void auth.signinRedirect({state: current || "/dashboard"});
+            sessionStorage.setItem('returnTo', current);
+            void auth.signinRedirect({state: current});
             setTried(true);
         }
     }, [auth, loc, tried]);
 
     useEffect(() => {
-        const token = auth.user?.access_token;
-        if (token) {
-            localStorage.setItem('access_token', token)
-            sessionStorage.setItem("authUser", JSON.stringify({token, profile: auth.user?.profile}));
+        const idToken = auth.user?.id_token;
+        if (idToken) {
+            localStorage.setItem('id_token', idToken);
+            sessionStorage.setItem('authUser', JSON.stringify({idToken, profile: auth.user?.profile}));
         } else {
-            sessionStorage.removeItem("authUser");
+            sessionStorage.removeItem('authUser');
+            localStorage.removeItem('id_token');
         }
-    }, [auth.user]);
+    }, [auth.user?.id_token, auth.user?.profile]);
 
     if (auth.isLoading || auth.activeNavigator) return null;
     if (!auth.isAuthenticated) return null;

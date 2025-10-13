@@ -10,7 +10,7 @@ const axiosClient = axios.create({
 // Thêm interceptor để tự động gắn token
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("access_token");
+        const token = localStorage.getItem("id_token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -25,8 +25,6 @@ axiosClient.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             console.warn("Access token hết hạn hoặc không hợp lệ");
-            // ví dụ: chuyển hướng login hoặc gọi refresh token
-            // window.location.href = "/login";
         }
         return Promise.reject(error);
     }
