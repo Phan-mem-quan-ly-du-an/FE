@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type Permission = {
     id: number;
@@ -11,6 +12,7 @@ type Permission = {
 
 export default function EditRolePermissionPage() {
     const auth = useAuth();
+    const { t } = useTranslation();
     const params = useParams();
 
     const companyId = useMemo(
@@ -46,7 +48,7 @@ export default function EditRolePermissionPage() {
 
     async function loadAll() {
         if (!companyId || !roleId) {
-            setMsg("Không xác định được Company ID hoặc Role ID");
+            setMsg(t("CannotDetermineCompanyOrRoleId"));
             return;
         }
         setLoading(true);
@@ -56,7 +58,7 @@ export default function EditRolePermissionPage() {
                 headers: getAuthHeaders(),
             });
             if (!pRes.ok) {
-                setMsg(`Lỗi tải permissions: ${pRes.status} ${await pRes.text()}`);
+                setMsg(t("LoadPermissionsError", { status: pRes.status, text: await pRes.text() }));
                 setLoading(false);
                 return;
             }
@@ -77,7 +79,7 @@ export default function EditRolePermissionPage() {
                 setSelected(new Set());
             }
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi tải dữ liệu");
+            setMsg(e?.message || t("ErrorLoadingData"));
         } finally {
             setLoading(false);
         }
@@ -112,24 +114,24 @@ export default function EditRolePermissionPage() {
                 }
             );
             if (!res.ok) {
-                const t = await res.text();
-                setMsg(`Lưu thất bại: ${res.status} ${t}`);
+                const txt = await res.text();
+                setMsg(t("SaveFailed", { status: res.status, text: txt }));
                 return;
             }
-            setMsg("Đã lưu");
+            setMsg(t("Saved"));
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi lưu");
+            setMsg(e?.message || t("ErrorSaving"));
         } finally {
             setSaving(false);
         }
     }
 
-    if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
+    if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
     if (!auth.isAuthenticated || !auth.user?.id_token) {
         return (
             <div className="container">
-                <p>Bạn chưa đăng nhập.</p>
-                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>Đăng nhập</button>
+                <p>{t("NotLoggedIn")}</p>
+                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>{t("Login")}</button>
             </div>
         );
     }
@@ -141,11 +143,11 @@ export default function EditRolePermissionPage() {
                 {/* Row: Title + Back + Save */}
                 <div className="row">
                     <div className="col-12 d-sm-flex align-items-center justify-content-between">
-                        <h4 className="mb-sm-0">Edit Role Permissions</h4>
+                        <h4 className="mb-sm-0">{t("EditRolePermissions")}</h4>
                         <div className="d-flex gap-2">
-                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">Back</Link>
+                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">{t("Back")}</Link>
                             <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
-                                {saving ? "Saving..." : "Save"}
+                                {saving ? t("Saving") : t("Save")}
                             </button>
                         </div>
                     </div>
@@ -196,9 +198,9 @@ export default function EditRolePermissionPage() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {loading && <tr><td colSpan={2} className="text-center py-5">Loading...</td></tr>}
+                                {loading && <tr><td colSpan={2} className="text-center py-5">{t("Loading")}</td></tr>}
                                 {!loading && permissions.length === 0 && (
-                                    <tr><td colSpan={2} className="text-center text-muted py-5">No permissions</td></tr>
+                                    <tr><td colSpan={2} className="text-center text-muted py-5">{t("NoPermissions")}</td></tr>
                                 )}
                                 {!loading && permissions.map(p => (
                                     <tr key={p.id}>

@@ -114,6 +114,7 @@ interface TableContainerProps {
   handleCompanyClick?: any;
   handleContactClick?: any;
   handleTicketClick?: any;
+  hidePagination?: boolean;
 }
 
 const TableContainer = ({
@@ -138,6 +139,7 @@ const TableContainer = ({
   thClass,
   divClass,
   SearchPlaceholder,
+  hidePagination,
 
 }: TableContainerProps) => {
   const { t } = useTranslation();
@@ -297,6 +299,7 @@ const TableContainer = ({
         </Table>
       </div>
 
+      {!hidePagination && (
       <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
         <div className="col-sm">
           <div className="text-muted">{t('Showing')}<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> {t('of')} <span className="fw-semibold">{data.length}</span> {t('Results')}
@@ -320,6 +323,7 @@ const TableContainer = ({
           </ul>
         </div>
       </Row>
+      )}
     </Fragment>
   );
 };

@@ -1,11 +1,9 @@
-import CompaniesRolePage from '../pages/Companies/CompaniesRolePage';
+import CompaniesRolePage from '../pages/Companies/Roles/CompaniesRolePage';
 import CompaniesMembersPage from '../pages/CompanyMembers';
 import {Navigate} from 'react-router-dom';
 import CreateCompanyPage from '../pages/Companies/CreateCompanyPage';
 import EditCompanyPage from '../pages/Companies/EditCompanyPage';
-import EditRolePermissionPage from '../pages/Companies/EditRolePermissionPage';
-import CreateRolePage from '../pages/Companies/CreateRolePage';
-import EditRolePage from '../pages/Companies/EditRolePage';
+import EditRolePermissionPage from '../pages/Companies/Roles/EditRolePermissionPage';
 import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
 
@@ -26,8 +24,6 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/new', component: <CreateCompanyPage/>},
     {path: '/companies/:companyId/edit', component: <EditCompanyPage/>},
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
-    {path: '/companies/:companyId/roles/new', component: <CreateRolePage/>},
-    {path: '/companies/:companyId/roles/:roleId/edit', component: <EditRolePage/>},
 ];
 
 const publicRoutes = [];
