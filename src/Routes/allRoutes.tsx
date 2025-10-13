@@ -9,6 +9,7 @@ import CreateRolePage from '../pages/Companies/CreateRolePage';
 import EditRolePage from '../pages/Companies/EditRolePage';
 import AssignRolePage from '../pages/Companies/AssignRolePage';
 import NFTLanding from '../pages/Companies-2';
+import AccountPage from "../pages/Accounts/AccountPage";
 
 export type AuthRoute = {
     path: string;
@@ -20,7 +21,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/', component: <Navigate to="/companies"/>},
 
     // === Companies ===
-    // {path: '/companies', component: <CompaniesPage/>},
+    {path: '/account', component: <AccountPage/>},
     {path: '/companies/:companyId', component: <CompaniesMembersPage/>},
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/new', component: <CreateCompanyPage/>},
