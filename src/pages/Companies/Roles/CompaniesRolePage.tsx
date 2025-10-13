@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type Role = {
     id: number;
@@ -12,16 +13,10 @@ type Role = {
 export default function CompaniesRolePage() {
     const auth = useAuth();
     const navigate = useNavigate();
-    const params = useParams();
+    const { t } = useTranslation();
+    const { companyId } = useParams<{ companyId: string }>();
 
-    const companyId = useMemo(
-        () =>
-            (params as any).companyId ||
-            (params as any).id ||
-            window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
-            "",
-        [params]
-    );
+    const resolvedCompanyId = companyId || "";
 
     const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
 
@@ -35,19 +30,19 @@ export default function CompaniesRolePage() {
     }
 
     async function loadRoles() {
-        if (!companyId) { setMsg("Không xác định được Company ID"); return; }
+        if (!resolvedCompanyId) { setMsg(t("CannotDetermineCompanyId")); return; }
         setLoading(true); setMsg(null);
         try {
-            const url = new URL(`/api/companies/${companyId}/roles`, base);
+            const url = new URL(`/api/companies/${resolvedCompanyId}/roles`, base);
             url.searchParams.set("includeGlobal", "true");
             const res = await fetch(url.toString(), { headers: getAuthHeaders() });
-            if (!res.ok) { setMsg(`Lỗi tải roles: ${res.status} ${await res.text()}`); return; }
+            if (!res.ok) { setMsg(t("LoadRolesError", { status: res.status, text: await res.text() })); return; }
 
             const json = await res.json();
             const list: Role[] = Array.isArray(json) ? json : (json?.roles || []);
             setRoles(Array.isArray(list) ? list : []);
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi tải roles");
+            setMsg(e?.message || t("ErrorLoadingRoles"));
         } finally {
             setLoading(false);
         }
@@ -62,7 +57,7 @@ export default function CompaniesRolePage() {
 
     async function handleDeleteRole(r: Role) {
         if (!r?.id) return;
-        if (!window.confirm(`Xoá role "${r.code || r.name || r.id}"?`)) return;
+        if (!window.confirm(t("DeleteRoleConfirm", { name: r.code || r.name || r.id }))) return;
         try {
             setLoading(true);
             const res = await fetch(new URL(`/api/roles/${r.id}`, base).toString(), {
@@ -70,24 +65,24 @@ export default function CompaniesRolePage() {
                 headers: getAuthHeaders(),
             });
             if (!res.ok) {
-                setMsg(`Xoá thất bại: ${res.status} ${await res.text()}`);
+                setMsg(t("DeleteFailed", { status: res.status, text: await res.text() }));
                 return;
             }
             await loadRoles();
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi xoá role");
+            setMsg(e?.message || t("ErrorDeletingRole"));
         } finally {
             setLoading(false);
         }
     }
 
 
-    if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
+    if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
     if (!auth.isAuthenticated || !auth.user?.id_token) {
         return (
             <div className="container">
-                <p>Bạn chưa đăng nhập.</p>
-                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>Đăng nhập</button>
+                <p>{t("NotLoggedIn")}</p>
+                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>{t("Login")}</button>
             </div>
         );
     }
@@ -99,10 +94,10 @@ export default function CompaniesRolePage() {
                 {/* Row: Title + Actions */}
                 <div className="row">
                     <div className="col-12 d-sm-flex align-items-center justify-content-between">
-                        <h4 className="mb-sm-0">Company Roles</h4>
+                        <h4 className="mb-sm-0">{t("CompanyRoles")}</h4>
                         <div className="d-flex gap-2">
-                            <Link to={`/companies/${companyId}/members`} className="btn btn-secondary">Back</Link>
-                            <Link to={`/companies/${companyId}/roles/new`} className="btn btn-success">+ Create Role</Link>
+                            <Link to={`/companies/${resolvedCompanyId}/members`} className="btn btn-secondary">{t("Back")}</Link>
+                            <Link to={`/companies/${resolvedCompanyId}/roles/new`} className="btn btn-success">+ {t("CreateRole")}</Link>
                         </div>
                     </div>
                 </div>
@@ -130,9 +125,9 @@ export default function CompaniesRolePage() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {loading && <tr><td colSpan={4} className="text-center py-5">Loading...</td></tr>}
+                                {loading && <tr><td colSpan={4} className="text-center py-5">{t("Loading")}</td></tr>}
                                 {!loading && roles.length === 0 && (
-                                    <tr><td colSpan={4} className="text-center text-muted py-5">No roles</td></tr>
+                                    <tr><td colSpan={4} className="text-center text-muted py-5">{t("NoRoles")}</td></tr>
                                 )}
                                 {!loading && roles.map(r => (
                                     <tr key={r.id}>
@@ -144,9 +139,9 @@ export default function CompaniesRolePage() {
                                         <td>{r.description || "—"}</td>
                                         <td>
                                             <div className="btn-group btn-group-sm">
-                                                <Link className="btn btn-outline-primary" to={`/companies/${companyId}/roles/${r.id}/edit`}>Edit</Link>
-                                                <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={loading}>Delete</button>
-                                                <Link className="btn btn-outline-primary" to={`/companies/${companyId}/roles/${r.id}/permission`}>Permission</Link>
+                                                <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/edit`}>{t("Edit")}</Link>
+                                                <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={loading}>{t("Delete")}</button>
+                                                <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}>{t("Permission")}</Link>
                                             </div>
                                         </td>
                                     </tr>
