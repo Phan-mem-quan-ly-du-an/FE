@@ -1,13 +1,12 @@
 import {useMemo, useState} from 'react';
 import {Link, useNavigate, useParams} from 'react-router-dom';
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {
     batchInviteMembers,
     CompanyMember,
     deleteCompanyMember,
     getCompanyMembers,
     getCompanyRoles,
-    Role,
     transferOwnership
 } from '../../apiCaller/companyMembers';
 
@@ -26,13 +25,13 @@ export default function CompanyMemberPage() {
     }, [params]);
 
     // React Query hooks
-    const { data: members = [], isLoading: membersLoading, error: membersError } = useQuery({
+    const {data: members = [], isLoading: membersLoading, error: membersError} = useQuery({
         queryKey: ['companyMembers', companyId],
         queryFn: () => getCompanyMembers(companyId),
         enabled: !!companyId,
     });
 
-    const { data: roles = [] } = useQuery({
+    const {data: roles = []} = useQuery({
         queryKey: ['companyRoles', companyId],
         queryFn: () => getCompanyRoles(companyId, true),
         enabled: !!companyId,
@@ -40,26 +39,26 @@ export default function CompanyMemberPage() {
 
     // Mutations
     const deleteMemberMutation = useMutation({
-        mutationFn: ({ companyId, userId }: { companyId: string; userId: string }) => 
+        mutationFn: ({companyId, userId}: { companyId: string; userId: string }) =>
             deleteCompanyMember(companyId, userId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
         },
     });
 
     const transferOwnershipMutation = useMutation({
-        mutationFn: ({ companyId, transferData }: { companyId: string; transferData: any }) => 
+        mutationFn: ({companyId, transferData}: { companyId: string; transferData: any }) =>
             transferOwnership(companyId, transferData),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
         },
     });
 
     const batchInviteMutation = useMutation({
-        mutationFn: ({ companyId, emails, roleId }: { companyId: string; emails: string[]; roleId: number }) => 
+        mutationFn: ({companyId, emails, roleId}: { companyId: string; emails: string[]; roleId: number }) =>
             batchInviteMembers(companyId, emails, roleId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
         },
     });
 
@@ -88,7 +87,7 @@ export default function CompanyMemberPage() {
 
         try {
             setDeletingUserId(member.userId);
-            await deleteMemberMutation.mutateAsync({ companyId, userId: member.userId });
+            await deleteMemberMutation.mutateAsync({companyId, userId: member.userId});
         } catch (e: any) {
             setMsg(e?.message || 'Có lỗi khi xoá');
         } finally {
@@ -182,10 +181,10 @@ export default function CompanyMemberPage() {
         setInviteResults([]);
 
         try {
-            const results = await batchInviteMutation.mutateAsync({ 
-                companyId, 
-                emails: inviteEmails, 
-                roleId: selectedRoleId as number 
+            const results = await batchInviteMutation.mutateAsync({
+                companyId,
+                emails: inviteEmails,
+                roleId: selectedRoleId as number
             });
             setInviteResults(results);
 
