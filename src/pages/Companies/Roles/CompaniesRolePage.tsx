@@ -11,8 +11,6 @@ import CreateRoleModal from "./CreateRoleModal";
 import EditRoleModal from "./EditRoleModal";
 import ConfirmDeleteRoleModal from "./ConfirmDeleteRoleModal";
 
-// Use Role type from apiCaller
-
 export default function CompaniesRolePage() {
     const auth = useAuth();
     const { t } = useTranslation();
