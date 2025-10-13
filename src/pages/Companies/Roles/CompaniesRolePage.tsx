@@ -9,6 +9,7 @@ import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import CreateRoleModal from "./CreateRoleModal";
 import EditRoleModal from "./EditRoleModal";
+import ConfirmDeleteRoleModal from "./ConfirmDeleteRoleModal";
 
 // Use Role type from apiCaller
 
@@ -26,6 +27,7 @@ export default function CompaniesRolePage() {
     const [showEdit, setShowEdit] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<Role | null>(null);
 
     // removed getAuthHeaders; requests rely on global client/interceptors
 
@@ -52,7 +54,7 @@ export default function CompaniesRolePage() {
     }, [rolesQuery.isError, rolesQuery.error, t]);
 
     const deleteRoleMutation = useMutation({
-        mutationFn: async (roleId: number) => deleteRole(roleId),
+        mutationFn: async (roleId: number) => deleteRole(resolvedCompanyId, roleId),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
         },
@@ -102,7 +104,7 @@ export default function CompaniesRolePage() {
             cell: ({ row }: any) => (
                 <div className="d-flex align-items-center gap-2 p-2">
                     <button className="btn btn-outline-primary" onClick={() => { setEditingRole(row.original); setShowEdit(true); }}>{t('Edit')}</button>
-                    <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(row.original)} disabled={deleteRoleMutation.isPending}>{t('Delete')}</button>
+                    <button className="btn btn-outline-danger" onClick={() => setConfirmDelete(row.original)} disabled={deleteRoleMutation.isPending}>{t('Delete')}</button>
                     <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/permission`}>{t('Permission')}</Link>
                 </div>
             ),
@@ -207,6 +209,22 @@ export default function CompaniesRolePage() {
                             setMsg(e?.message || t('ErrorSaving'));
                         } finally {
                             setEditing(false);
+                        }
+                    }}
+                />
+                <ConfirmDeleteRoleModal
+                    show={!!confirmDelete}
+                    onClose={() => setConfirmDelete(null)}
+                    roleName={confirmDelete ? (confirmDelete.code || confirmDelete.name || String(confirmDelete.id)) : ''}
+                    isDeleting={deleteRoleMutation.isPending}
+                    onConfirm={async () => {
+                        if (!confirmDelete) return;
+                        try {
+                            setMsg(null);
+                            await deleteRoleMutation.mutateAsync(confirmDelete.id);
+                            setConfirmDelete(null);
+                        } catch (e: any) {
+                            setMsg(e?.message || t('ErrorDeletingRole'));
                         }
                     }}
                 />

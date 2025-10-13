@@ -13,8 +13,8 @@ export const getCompanyRoles = async (companyId: string, includeGlobal: boolean 
     return response.data as Role[];
 };
 
-export const deleteRole = async (roleId: number): Promise<void> => {
-    const caller = new ApiCaller().setUrl(`/roles/${roleId}`);
+export const deleteRole = async (companyId: string, roleId: number): Promise<void> => {
+    const caller = new ApiCaller().setUrl(`/companies/${companyId}/roles/${roleId}`);
     await caller.delete();
 };
 
