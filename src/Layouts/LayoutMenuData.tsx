@@ -51,6 +51,18 @@ const Navdata = () => {
                 setIsCurrentState('CompanyMembers');
                 updateIconSidebar(e);
             }
+        },
+        {
+            id: 'CompanyRoles',
+            label: 'CompanyRoles',
+            icon: <FeatherIcon icon="shield" className="icon-dual"/>,
+            link: `/companies/${companyId}/roles`,
+            stateVariables: isDashboard,
+            click: function (e: any) {
+                e.preventDefault();
+                setIsCurrentState('CompanyRoles');
+                updateIconSidebar(e);
+            }
         }
     ];
     return <React.Fragment>{menuItems}</React.Fragment>;

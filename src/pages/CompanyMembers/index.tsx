@@ -70,16 +70,16 @@ export default function CompanyMemberPage() {
     const handleDelete = async (member: CompanyMember) => {
         if (!companyId) return;
         if (member.owner) {
-            setMsg('Không thể xoá Owner');
+            setMsg(t('CannotDeleteOwner'));
             return;
         }
-        if (!window.confirm(`Xoá thành viên ${member.userId} khỏi công ty?`)) return;
+        if (!window.confirm(t('DeleteMemberConfirm', { userId: member.userId }))) return;
 
         try {
             setDeletingUserId(member.userId);
             await deleteMemberMutation.mutateAsync({ companyId, userId: member.userId });
         } catch (e: any) {
-            setMsg(e?.message || 'Có lỗi khi xoá');
+            setMsg(e?.message || t('DeleteError'));
         } finally {
             setDeletingUserId(null);
         }
@@ -88,7 +88,7 @@ export default function CompanyMemberPage() {
     const openTransferModal = (member: CompanyMember) => {
         if (!companyId) return;
         if (member.owner) {
-            setMsg('Thành viên này đã là Owner');
+            setMsg(t('MemberAlreadyOwner'));
             return;
         }
 
@@ -117,7 +117,7 @@ export default function CompanyMemberPage() {
     const confirmTransfer = async () => {
         if (!companyId || !targetMember) return;
         if (selectedDowngradeRoleId === '') {
-            setMsg('Vui lòng chọn role cho Owner cũ (downgrade)');
+            setMsg(t('PleaseSelectRole'));
             return;
         }
 
@@ -132,7 +132,7 @@ export default function CompanyMemberPage() {
             });
             closeTransferModal();
         } catch (e: any) {
-            setMsg(e?.message || 'Có lỗi khi transfer owner');
+            setMsg(e?.message || t('TransferOwnerError'));
         }
     };
 
@@ -164,12 +164,6 @@ export default function CompanyMemberPage() {
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-1 flex-wrap">
-                                            <button 
-                                                className="btn btn-primary" 
-                                                onClick={() => navigate(`/companies/${companyId}/roles`)}
-                                            >
-                                                {t('RolePermissionManagement')}
-                                            </button>
                                             <button className="btn btn-primary" onClick={openInviteModal}>
                                                 <i className="ri-user-add-line me-1"></i>
                                                 {t('AddMember')}
