@@ -26,7 +26,7 @@ const CompaniesList = () => {
     return (
         <React.Fragment>
             <Row className="justify-content-center">
-                <Col xxl={5}>
+                <Col xxl={5} lg={5}>
                     <Card
                         className="rounded-3"
                         style={{
@@ -42,7 +42,7 @@ const CompaniesList = () => {
                         </div>
                         <CardBody>
                             <div className="table-responsive table-card">
-                                <SimpleBar style={{maxHeight: '405px'}}>
+                                <SimpleBar style={{maxHeight: '350px'}}>
                                     <table className="table table-borderless align-middle">
                                         <tbody>
                                         {isLoading ? (
