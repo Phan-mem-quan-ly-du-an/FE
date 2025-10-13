@@ -7,7 +7,7 @@ import EditRolePermissionPage from '../pages/Companies/EditRolePermissionPage';
 import CreateRolePage from '../pages/Companies/CreateRolePage';
 import EditRolePage from '../pages/Companies/EditRolePage';
 import AssignRolePage from '../pages/Companies/AssignRolePage';
-import Companies from '../pages/Companies-2';
+import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
 
 export type AuthRoute = {
