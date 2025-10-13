@@ -2,23 +2,27 @@ import React from 'react';
 import {Card, CardBody, Col, Row} from 'reactstrap';
 import SimpleBar from 'simplebar-react';
 import {Link} from 'react-router-dom';
-import Logo1 from "../../assets/images/companies/img-1.png";
-import Logo2 from "../../assets/images/companies/img-2.png";
-import Logo3 from "../../assets/images/companies/img-3.png";
-import Logo4 from "../../assets/images/companies/img-4.png";
-import Logo5 from "../../assets/images/companies/img-5.png";
-import Logo6 from "../../assets/images/companies/img-6.png";
+import {useInfiniteQuery} from '@tanstack/react-query';
+import {Company, Page} from '../../helpers/apiCaller/companies';
+import {callApiGetAllCompanies} from '../../apiCaller/companies';
 
 const CompaniesList = () => {
-    const companies = [
-        { id: 1, name: 'Acme Corp', logo: Logo1 },
-        { id: 2, name: 'Globex Inc', logo: Logo2 },
-        { id: 3, name: 'Initech', logo: Logo3 },
-        { id: 4, name: 'Hooli', logo: Logo4 },
-        { id: 5, name: 'Stark Industries', logo: Logo5 },
-        { id: 6, name: 'Wayne Enterprises', logo: Logo6 },
-    ];
+    const {
+        data,
+        isLoading,
+        isError,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isFetchingNextPage
+    } = useInfiniteQuery<Page<Company>>({
+        queryKey: ['companies'],
+        queryFn: async ({pageParam = 0}): Promise<Page<Company>> => callApiGetAllCompanies(pageParam as number) as Promise<Page<Company>>,
+         getNextPageParam: (lastPage: Page<Company>) => (lastPage.last ? undefined : (lastPage.number + 1)),
+        initialPageParam: 0
+    });
 
+    const companies = ((data?.pages as Array<Page<Company>> | undefined) || []).flatMap((p) => p.content || []);
     return (
         <React.Fragment>
             <Row className="justify-content-center">
@@ -32,25 +36,45 @@ const CompaniesList = () => {
                             backdropFilter: 'blur(12px)'
                         }}
                     >
-                        <div className="card-header align-items-center d-flex" style={{ borderColor: 'rgba(255,255,255,0.15)', background: 'transparent' }}>
+                        <div className="card-header align-items-center d-flex"
+                             style={{borderColor: 'rgba(255,255,255,0.15)', background: 'transparent'}}>
                             <h4 className="card-title mb-0 flex-grow-1 text-white">Companies</h4>
                         </div>
                         <CardBody>
                             <div className="table-responsive table-card">
-                                <SimpleBar style={{ maxHeight: "405px" }}>
+                                <SimpleBar style={{maxHeight: '405px'}}>
                                     <table className="table table-borderless align-middle">
                                         <tbody>
-                                        {companies.map((company) => (
+                                        {isLoading ? (
+                                            <tr>
+                                                <td className="text-center py-4 text-white-50">Loading...</td>
+                                            </tr>
+                                        ) : isError ? (
+                                            <tr>
+                                                <td className="text-center py-4 text-danger">Failed to load companies
+                                                </td>
+                                            </tr>
+                                        ) : companies.length === 0 ? (
+                                            <tr>
+                                                <td className="text-center py-4 text-white-50">No companies found</td>
+                                            </tr>
+                                        ) : companies.map((company: Company) => (
                                             <tr key={company.id}>
                                                 <td>
                                                     <div className="d-flex align-items-center">
-                                                        {company.logo ? (
-                                                            <div className="avatar-sm rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm" style={{ padding: 4 }}>
+                                                        {company.logoUrl ? (
+                                                            <div
+                                                                className="avatar-sm rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm"
+                                                                style={{padding: 4}}>
                                                                 <img
-                                                                    src={company.logo}
+                                                                    src={new URL(company.logoUrl, (process.env.REACT_APP_API_URL as string) || `${window.location.origin}/`).toString()}
                                                                     alt="logo"
                                                                     className="img-fluid rounded-circle"
-                                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        height: '100%',
+                                                                        objectFit: 'cover'
+                                                                    }}
                                                                     onError={(e) => {
                                                                         const target = e.currentTarget as HTMLImageElement;
                                                                         target.style.display = 'none';
@@ -58,25 +82,40 @@ const CompaniesList = () => {
                                                                 />
                                                             </div>
                                                         ) : (
-                                                            <div className="avatar-sm rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm">
-                                                                <span className="fw-semibold text-dark">{company.name.charAt(0)}</span>
+                                                            <div
+                                                                className="avatar-sm rounded-circle bg-white d-flex align-items-center justify-content-center shadow-sm">
+                                                                <span
+                                                                    className="fw-semibold text-dark">{company.name.charAt(0)}</span>
                                                             </div>
                                                         )}
                                                         <div className="ms-3">
-                                                            <Link to={`/companies/${company.id}`} className="text-white text-decoration-none">
+                                                            <Link to={`/companies/${company.id}`}
+                                                                  className="text-white text-decoration-none">
                                                                 <h6 className="fs-15 mb-0 fw-semibold text-white">{company.name}</h6>
                                                             </Link>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="text-end">
-                                                    <Link to={`/companies/${company.id}`} className="btn btn-sm btn-outline-light">View</Link>
+                                                    <Link to={`/companies/${company.id}`}
+                                                          className="btn btn-sm btn-outline-light">View</Link>
                                                 </td>
                                             </tr>
                                         ))}
                                         </tbody>
                                     </table>
                                 </SimpleBar>
+                            </div>
+                            <div className="d-flex justify-content-center mt-2">
+                                {hasNextPage && (
+                                    <button
+                                        className="btn btn-sm btn-outline-light"
+                                        disabled={isFetching || isFetchingNextPage}
+                                        onClick={() => fetchNextPage()}
+                                    >
+                                        {isFetchingNextPage ? 'Loading...' : 'Load more'}
+                                    </button>
+                                )}
                             </div>
                         </CardBody>
                     </Card>

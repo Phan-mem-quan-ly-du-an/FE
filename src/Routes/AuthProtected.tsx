@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { hasAuthParams, useAuth } from "react-oidc-context";
-import { useLocation } from "react-router-dom";
-import { useEstablishSession } from "../hooks/useEstablishSession";
+import React, {useEffect, useState} from 'react';
+import {hasAuthParams, useAuth} from 'react-oidc-context';
+import {useLocation} from 'react-router-dom';
+import {useEstablishSession} from '../hooks/useEstablishSession';
 
-const AuthProtected = ({ children }: { children: React.ReactNode }) => {
+const AuthProtected = ({children}: { children: React.ReactNode }) => {
     useEstablishSession();
     const auth = useAuth();
     const loc = useLocation();
@@ -13,8 +13,8 @@ const AuthProtected = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (!hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading && !tried) {
             const current = loc.pathname + loc.search + loc.hash;
-            sessionStorage.setItem("returnTo", current);
-            void auth.signinRedirect({ state: current });
+            sessionStorage.setItem('returnTo', current);
+            void auth.signinRedirect({state: current});
             setTried(true);
         }
     }, [auth, loc, tried]);
@@ -22,11 +22,11 @@ const AuthProtected = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const idToken = auth.user?.id_token;
         if (idToken) {
-            localStorage.setItem("id_token", idToken);
-            sessionStorage.setItem("authUser", JSON.stringify({ idToken, profile: auth.user?.profile }));
+            localStorage.setItem('id_token', idToken);
+            sessionStorage.setItem('authUser', JSON.stringify({idToken, profile: auth.user?.profile}));
         } else {
-            sessionStorage.removeItem("authUser");
-            localStorage.removeItem("id_token");
+            sessionStorage.removeItem('authUser');
+            localStorage.removeItem('id_token');
         }
     }, [auth.user?.id_token, auth.user?.profile]);
 
