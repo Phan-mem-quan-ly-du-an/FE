@@ -3,10 +3,12 @@ import { useAuth } from "react-oidc-context";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCompanyRoles, deleteRole, Role } from "../../../apiCaller/companyRoles";
+import { getCompanyRoles, deleteRole, createCompanyRole, updateCompanyRole, Role } from "../../../apiCaller/companyRoles";
 import { Card, CardBody, CardHeader, Col, Container, Row } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
+import CreateRoleModal from "./CreateRoleModal";
+import EditRoleModal from "./EditRoleModal";
 
 // Use Role type from apiCaller
 
@@ -19,6 +21,11 @@ export default function CompaniesRolePage() {
     const resolvedCompanyId = companyId || "";
 
     const [msg, setMsg] = useState<string | null>(null);
+    const [showCreate, setShowCreate] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [showEdit, setShowEdit] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
 
     // removed getAuthHeaders; requests rely on global client/interceptors
 
@@ -94,7 +101,7 @@ export default function CompaniesRolePage() {
             enableColumnFilter: false,
             cell: ({ row }: any) => (
                 <div className="d-flex align-items-center gap-2 p-2">
-                    <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/edit`}>{t('Edit')}</Link>
+                    <button className="btn btn-outline-primary" onClick={() => { setEditingRole(row.original); setShowEdit(true); }}>{t('Edit')}</button>
                     <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(row.original)} disabled={deleteRoleMutation.isPending}>{t('Delete')}</button>
                     <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/permission`}>{t('Permission')}</Link>
                 </div>
@@ -137,7 +144,7 @@ export default function CompaniesRolePage() {
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-1 flex-wrap">
-                                            <Link to={`/companies/${resolvedCompanyId}/roles/new`} className="btn btn-success">+ {t('CreateRole')}</Link>
+                                            <button type="button" className="btn btn-success" onClick={() => setShowCreate(true)}>+ {t('CreateRole')}</button>
                                         </div>
                                     </div>
                                 </Row>
@@ -163,6 +170,46 @@ export default function CompaniesRolePage() {
                         </Card>
                     </Col>
                 </Row>
+                <CreateRoleModal
+                    show={showCreate}
+                    onClose={() => setShowCreate(false)}
+                    isSubmitting={creating}
+                    onSubmit={async (values) => {
+                        if (!resolvedCompanyId) return;
+                        setCreating(true);
+                        setMsg(null);
+                        try {
+                            await createCompanyRole(resolvedCompanyId, values);
+                            setShowCreate(false);
+                            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+                        } catch (e: any) {
+                            setMsg(e?.message || t('ErrorSaving'));
+                        } finally {
+                            setCreating(false);
+                        }
+                    }}
+                />
+                <EditRoleModal
+                    show={showEdit}
+                    onClose={() => setShowEdit(false)}
+                    isSubmitting={editing}
+                    initial={{ code: editingRole?.code || "", name: editingRole?.name || "", description: editingRole?.description || "" }}
+                    onSubmit={async (values) => {
+                        if (!resolvedCompanyId || !editingRole) return;
+                        setEditing(true);
+                        setMsg(null);
+                        try {
+                            await updateCompanyRole(resolvedCompanyId, editingRole.id, values);
+                            setShowEdit(false);
+                            setEditingRole(null);
+                            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+                        } catch (e: any) {
+                            setMsg(e?.message || t('ErrorSaving'));
+                        } finally {
+                            setEditing(false);
+                        }
+                    }}
+                />
             </Container>
         </div>
     );

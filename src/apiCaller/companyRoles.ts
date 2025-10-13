@@ -18,4 +18,24 @@ export const deleteRole = async (roleId: number): Promise<void> => {
     await caller.delete();
 };
 
+export type CreateRoleRequest = {
+    code: string;
+    name?: string | null;
+    description?: string | null;
+};
+
+export const createCompanyRole = async (companyId: string, payload: CreateRoleRequest): Promise<void> => {
+    const caller = new ApiCaller().setUrl(`/companies/${companyId}/roles`);
+    await caller.post({ data: payload });
+};
+
+export const updateCompanyRole = async (
+    companyId: string,
+    roleId: number,
+    payload: CreateRoleRequest
+): Promise<void> => {
+    const caller = new ApiCaller().setUrl(`/companies/${companyId}/roles/${roleId}`);
+    await caller.put({ data: payload });
+};
+
 
