@@ -3,7 +3,6 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button} from 'reactstrap';
 import {useFormik} from 'formik';
 import * as Yup from 'yup';
-import {useTranslation} from 'react-i18next';
 import {batchInviteMembers, getCompanyRoles, Role} from '../../apiCaller/companyMembers';
 
 interface InviteMemberModalProps {
@@ -22,7 +21,6 @@ export default function InviteMemberModal({
     onError
 }: InviteMemberModalProps) {
     const queryClient = useQueryClient();
-    const { t } = useTranslation();
 
     // Get roles for the company
     const {data: roles = []} = useQuery({
@@ -47,37 +45,13 @@ export default function InviteMemberModal({
             roleId: '',
         },
         validationSchema: Yup.object({
-            emails: Yup.string()
-                .required(t('PleaseEnterEmailAddresses'))
-                .test('email-format', t('PleaseEnterValidEmailAddresses'), function(value) {
-                    if (!value) return true;
-                    const emailList = value.split('\n').map(email => email.trim()).filter(email => email);
-                    if (emailList.length === 0) return true;
-                    
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    const invalidEmails = emailList.filter(email => !emailRegex.test(email));
-                    
-                    if (invalidEmails.length > 0) {
-                        return this.createError({
-                            message: `${t('InvalidEmailFormat')}: ${invalidEmails.join(', ')}`
-                        });
-                    }
-                    return true;
-                }),
-            roleId: Yup.string().required(t('PleaseSelectRole'))
+            emails: Yup.string().required("Please enter email addresses"),
+            roleId: Yup.string().required("Please select a role")
         }),
         onSubmit: (values) => {
             const emailList = values.emails.split('\n').map(email => email.trim()).filter(email => email);
             if (emailList.length === 0) {
-                onError?.(t('PleaseEnterAtLeastOneEmail'));
-                return;
-            }
-            
-            // Additional validation before submit
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const invalidEmails = emailList.filter(email => !emailRegex.test(email));
-            if (invalidEmails.length > 0) {
-                onError?.(`${t('InvalidEmailFormat')}: ${invalidEmails.join(', ')}`);
+                onError?.('Please enter at least one email address');
                 return;
             }
             
@@ -87,12 +61,12 @@ export default function InviteMemberModal({
                 roleId: parseInt(values.roleId)
             }, {
                 onSuccess: () => {
-                    onSuccess?.(t('MembersInvitedSuccessfully'));
+                    onSuccess?.('Members invited successfully');
                     validation.resetForm();
                     onClose();
                 },
                 onError: (error: any) => {
-                    onError?.(error?.message || t('FailedToInviteMembers'));
+                    onError?.(error?.message || 'Failed to invite members');
                 }
             });
         },
@@ -101,7 +75,7 @@ export default function InviteMemberModal({
     return (
         <Modal id="showModal" isOpen={show} toggle={onClose} centered>
             <ModalHeader className="bg-light p-3" toggle={onClose}>
-                {t('AddMembers')}
+                Add Members
             </ModalHeader>
             <Form className="tablelist-form" onSubmit={(e: any) => {
                 e.preventDefault();
@@ -111,13 +85,13 @@ export default function InviteMemberModal({
                 <ModalBody>
                     <div className="mb-3">
                         <Label htmlFor="emails-field" className="form-label">
-                            {t('EmailAddresses')}
+                            Email Addresses
                         </Label>
                         <Input
                             name="emails"
                             id="emails-field"
                             className="form-control"
-                            placeholder={t('EnterEmailAddressesOnePerLine')}
+                            placeholder="Enter email addresses (one per line)"
                             type="textarea"
                             rows={4}
                             onChange={validation.handleChange}
@@ -131,13 +105,13 @@ export default function InviteMemberModal({
                             <FormFeedback type="invalid">{validation.errors.emails}</FormFeedback>
                         ) : null}
                         <small className="form-text text-muted">
-                            {t('EnterOneEmailAddressPerLine')}
+                            Enter one email address per line
                         </small>
                     </div>
 
                     <div className="mb-3">
                         <Label htmlFor="role-field" className="form-label">
-                            {t('Role')}
+                            Role
                         </Label>
                         <Input
                             name="roleId"
@@ -151,7 +125,7 @@ export default function InviteMemberModal({
                                 validation.touched.roleId && validation.errors.roleId ? true : false
                             }
                         >
-                            <option value="">{t('SelectRole')}</option>
+                            <option value="">— Select Role —</option>
                             {roles.map((role: Role) => (
                                 <option key={role.id} value={role.id}>
                                     {role.code}
@@ -171,14 +145,14 @@ export default function InviteMemberModal({
                             className="btn btn-light"
                             onClick={onClose}
                         >
-                            {t('Close')}
+                            Close
                         </Button>
                         <Button 
                             type="submit" 
                             className="btn btn-success"
                             disabled={batchInviteMutation.isPending}
                         >
-                            {batchInviteMutation.isPending ? t('Inviting') : t('AddMembersButton')}
+                            {batchInviteMutation.isPending ? 'Inviting...' : 'Add Members'}
                         </Button>
                     </div>
                 </div>

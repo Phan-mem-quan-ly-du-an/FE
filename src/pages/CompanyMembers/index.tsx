@@ -117,7 +117,7 @@ export default function CompanyMemberPage() {
     const confirmTransfer = async () => {
         if (!companyId || !targetMember) return;
         if (selectedDowngradeRoleId === '') {
-            setMsg(t('PleaseSelectRole'));
+            setMsg(t('PleaseSelectRoleForOldOwner'));
             return;
         }
 
