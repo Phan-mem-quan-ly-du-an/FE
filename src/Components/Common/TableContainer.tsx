@@ -1,6 +1,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { CardBody, Col, Row, Table } from "reactstrap";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import {
   Column,
@@ -139,6 +140,7 @@ const TableContainer = ({
   SearchPlaceholder,
 
 }: TableContainerProps) => {
+  const { t } = useTranslation();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
@@ -297,13 +299,13 @@ const TableContainer = ({
 
       <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
         <div className="col-sm">
-          <div className="text-muted">Showing<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> of <span className="fw-semibold">{data.length}</span> Results
+          <div className="text-muted">{t('Showing')}<span className="fw-semibold ms-1">{getState().pagination.pageSize}</span> {t('of')} <span className="fw-semibold">{data.length}</span> {t('Results')}
           </div>
         </div>
         <div className="col-sm-auto">
           <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
             <li className={!getCanPreviousPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={previousPage}>Previous</Link>
+              <Link to="#" className="page-link" onClick={previousPage}>{t('Previous')}</Link>
             </li>
             {getPageOptions().map((item: any, key: number) => (
               <React.Fragment key={key}>
@@ -313,7 +315,7 @@ const TableContainer = ({
               </React.Fragment>
             ))}
             <li className={!getCanNextPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={nextPage}>Next</Link>
+              <Link to="#" className="page-link" onClick={nextPage}>{t('Next')}</Link>
             </li>
           </ul>
         </div>
