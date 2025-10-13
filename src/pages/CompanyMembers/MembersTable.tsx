@@ -1,10 +1,11 @@
-import React from 'react';
-import {Link} from 'react-router-dom';
-import {CompanyMember} from '../../apiCaller/companyMembers';
+import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { CompanyMember } from '../../apiCaller/companyMembers';
+import TableContainer from '../../Components/Common/TableContainer';
 
 interface MembersTableProps {
     members: CompanyMember[];
-    loading: boolean;
     companyId: string;
     deletingUserId: string | null;
     onDelete: (member: CompanyMember) => void;
@@ -16,87 +17,129 @@ interface MembersTableProps {
 
 export default function MembersTable({
     members,
-    loading,
     companyId,
     deletingUserId,
     onDelete,
     onTransferOwnership,
     deleteMemberMutation
 }: MembersTableProps) {
+    const { t } = useTranslation();
+
+    // Table columns configuration
+    const columns = useMemo(
+        () => [
+            {
+                header: '#',
+                accessorKey: 'id',
+                enableColumnFilter: false,
+                enableSorting: false,
+                cell: (cell: any) => cell.row.index + 1,
+            },
+            {
+                header: t("UserID"),
+                accessorKey: "userId",
+                enableColumnFilter: false,
+                cell: (cell: any) => (
+                    <span className="font-monospace">{cell.getValue()}</span>
+                ),
+            },
+            {
+                header: t("RoleID"),
+                accessorKey: "roleId",
+                enableColumnFilter: false,
+                cell: (cell: any) => {
+                    const member = cell.row.original;
+                    return member.owner ? (
+                        <span className="badge text-uppercase bg-success-subtle text-success">{t('Owner')}</span>
+                    ) : (
+                        member.roleId ?? '—'
+                    );
+                },
+            },
+            {
+                header: t("Owner") + "?",
+                accessorKey: "owner",
+                enableColumnFilter: false,
+                cell: (cell: any) => cell.getValue() ? 'Yes' : 'No',
+            },
+            {
+                header: t("InvitedEmail"),
+                accessorKey: "invitedEmail",
+                enableColumnFilter: false,
+                cell: (cell: any) => cell.getValue() ?? '—',
+            },
+            {
+                header: t("JoinedAt"),
+                accessorKey: "joinedAt",
+                enableColumnFilter: false,
+                cell: (cell: any) => {
+                    const joinedAt = cell.getValue();
+                    return joinedAt ? new Date(joinedAt).toLocaleString() : '—';
+                },
+            },
+            {
+                header: t("Action"),
+                cell: (cellProps: any) => {
+                    const member = cellProps.row.original;
+                    const isDisabled = member.owner || deletingUserId === member.userId || deleteMemberMutation.isPending;
+                    
+                    return (
+                        <ul className="list-inline hstack gap-2 mb-0">
+                            <li className="list-inline-item">
+                                <Link
+                                    to={`/companies/${companyId}/members/${encodeURIComponent(member.userId)}/assign-role`}
+                                    className="text-primary d-inline-block"
+                                    title={t('AssignRole')}
+                                >
+                                    <i className="ri-user-settings-line fs-16"></i>
+                                </Link>
+                            </li>
+                            <li className="list-inline-item">
+                                <Link
+                                    to="#"
+                                    className="text-warning d-inline-block"
+                                    onClick={() => onTransferOwnership(member)}
+                                    style={{ 
+                                        pointerEvents: member.owner ? 'none' : 'auto',
+                                        opacity: member.owner ? 0.5 : 1 
+                                    }}
+                                    title={t('TransferOwnership')}
+                                >
+                                    <i className="ri-exchange-line fs-16"></i>
+                                </Link>
+                            </li>
+                            <li className="list-inline-item">
+                                <Link
+                                    to="#"
+                                    className="text-danger d-inline-block"
+                                    onClick={() => onDelete(member)}
+                                    style={{ 
+                                        pointerEvents: isDisabled ? 'none' : 'auto',
+                                        opacity: isDisabled ? 0.5 : 1 
+                                    }}
+                                    title={t('DeleteMember')}
+                                >
+                                    <i className="ri-delete-bin-5-fill fs-16"></i>
+                                </Link>
+                            </li>
+                        </ul>
+                    );
+                },
+            },
+        ],
+        [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, t]
+    );
+
     return (
-        <div className="row mt-3">
-            <div className="col-12">
-                <div className="table-responsive">
-                    <table className="table table-striped align-middle">
-                        <thead>
-                            <tr>
-                                <th style={{width: 60}}>#</th>
-                                <th>User ID</th>
-                                <th>Role ID</th>
-                                <th>Owner?</th>
-                                <th>Invited Email</th>
-                                <th>Joined At</th>
-                                <th style={{width: 260}}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading && (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-5">
-                                        Loading...
-                                    </td>
-                                </tr>
-                            )}
-                            {!loading && members.length === 0 && (
-                                <tr>
-                                    <td colSpan={7} className="text-center text-muted py-5">
-                                        No members
-                                    </td>
-                                </tr>
-                            )}
-                            {!loading &&
-                                members.map((m, idx) => (
-                                    <tr key={m.id}>
-                                        <td>{idx + 1}</td>
-                                        <td className="font-monospace">{m.userId}</td>
-                                        <td>{m.owner ? <span
-                                            className="badge bg-success">Owner</span> : (m.roleId ?? '—')}</td>
-                                        <td>{m.owner ? 'Yes' : 'No'}</td>
-                                        <td>{m.invitedEmail ?? '—'}</td>
-                                        <td>{m.joinedAt ? new Date(m.joinedAt).toLocaleString() : '—'}</td>
-                                        <td>
-                                            <div className="btn-group">
-                                                <Link
-                                                    className="btn btn-sm btn-outline-primary"
-                                                    to={`/companies/${companyId}/members/${encodeURIComponent(m.userId)}/assign-role`}
-                                                >
-                                                    Assign role
-                                                </Link>
-
-                                                <button
-                                                    className="btn btn-sm btn-outline-danger"
-                                                    onClick={() => onDelete(m)}
-                                                    disabled={m.owner || deletingUserId === m.userId || deleteMemberMutation.isPending}
-                                                >
-                                                    {deletingUserId === m.userId ? 'Deleting...' : 'Delete'}
-                                                </button>
-
-                                                <button
-                                                    className="btn btn-sm btn-outline-warning"
-                                                    onClick={() => onTransferOwnership(m)}
-                                                    disabled={m.owner}
-                                                    title="Transfer ownership"
-                                                >
-                                                    Transfer owner
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <TableContainer
+            columns={columns}
+            data={members || []}
+            isGlobalFilter={true}
+            customPageSize={10}
+            divClass="table-responsive table-card mb-1 mt-0"
+            tableClass="align-middle table-nowrap"
+            theadClass="table-light text-muted text-uppercase"
+            SearchPlaceholder="Search for user ID, email, or role..."
+        />
     );
 }

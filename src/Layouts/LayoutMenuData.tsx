@@ -42,7 +42,7 @@ const Navdata = () => {
         },
         {
             id: 'CompanyMembers',
-            label: 'Company Members',
+            label: 'CompanyMembers',
             icon: <FeatherIcon icon="users" className="icon-dual"/>,
             link: `/companies/${companyId}/members`,
             stateVariables: isDashboard,
@@ -55,4 +55,5 @@ const Navdata = () => {
     ];
     return <React.Fragment>{menuItems}</React.Fragment>;
 };
+
 export default Navdata;

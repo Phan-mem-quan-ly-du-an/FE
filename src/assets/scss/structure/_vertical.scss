@@ -1,6 +1,6 @@
 //
 // _vertical.scss
-// 
+//
 
 .app-content {
     margin-left: var(--#{$prefix}vertical-menu-width);
@@ -23,9 +23,6 @@
 .page-content {
     padding: calc(#{$header-height} + #{$grid-gutter-width}) calc(#{$grid-gutter-width} * 0.5) $footer-height calc(#{$grid-gutter-width} * 0.5);
 }
-
-:root { --app-header-height: 70px; }
-.page-content { padding-top: var(--app-header-height); }
 
 .navbar-menu {
     width: var(--#{$prefix}vertical-menu-width);

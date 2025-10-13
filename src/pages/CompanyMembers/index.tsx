@@ -1,6 +1,9 @@
-import {useMemo, useState} from 'react';
-import {Link, useNavigate, useParams} from 'react-router-dom';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Card, CardBody, CardHeader, Col, Container, Row } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
+
 import {
     CompanyMember,
     deleteCompanyMember,
@@ -8,68 +11,63 @@ import {
     getCompanyRoles,
     transferOwnership
 } from '../../apiCaller/companyMembers';
+import BreadCrumb from '../../Components/Common/BreadCrumb';
 import InviteMemberModal from './InviteMemberModal';
-import MembersTable from './MembersTable';
 import TransferOwnershipModal from './TransferOwnershipModal';
-import PageHeader from './PageHeader';
+import MembersTable from './MembersTable';
 
 export default function CompanyMemberPage() {
     const navigate = useNavigate();
-    const params = useParams();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
 
-    const companyId = useMemo(() => {
-        return (
-            (params as any).companyId ||
-            (params as any).id ||
-            window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
-            ''
-        );
-    }, [params]);
+    // Get company ID from URL params
+    const { companyId } = useParams<{ companyId: string }>();
 
     // React Query hooks
-    const {data: members = [], isLoading: membersLoading, error: membersError} = useQuery({
+    const { data: members = [], error: membersError } = useQuery({
         queryKey: ['companyMembers', companyId],
-        queryFn: () => getCompanyMembers(companyId),
+        queryFn: () => getCompanyMembers(companyId!),
         enabled: !!companyId,
     });
 
-    const {data: roles = []} = useQuery({
+    const { data: roles = [] } = useQuery({
         queryKey: ['companyRoles', companyId],
-        queryFn: () => getCompanyRoles(companyId, true),
+        queryFn: () => getCompanyRoles(companyId!, true),
         enabled: !!companyId,
     });
 
     // Mutations
     const deleteMemberMutation = useMutation({
-        mutationFn: ({companyId, userId}: { companyId: string; userId: string }) =>
+        mutationFn: ({ companyId, userId }: { companyId: string; userId: string }) =>
             deleteCompanyMember(companyId, userId),
         onSuccess: () => {
-            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
         },
     });
 
     const transferOwnershipMutation = useMutation({
-        mutationFn: ({companyId, transferData}: { companyId: string; transferData: any }) =>
+        mutationFn: ({ companyId, transferData }: { companyId: string; transferData: any }) =>
             transferOwnership(companyId, transferData),
         onSuccess: () => {
-            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
         },
     });
 
-
+    // State management
     const [msg, setMsg] = useState<string | null>(null);
-
     const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
+    // Transfer ownership modal states
     const [showTransfer, setShowTransfer] = useState(false);
     const [targetMember, setTargetMember] = useState<CompanyMember | null>(null);
     const [selectedDowngradeRoleId, setSelectedDowngradeRoleId] = useState<number | ''>('');
 
-    // States for invite member modal
+    // Invite member modal states
     const [showInviteModal, setShowInviteModal] = useState(false);
 
-    async function handleDelete(member: CompanyMember) {
+    // Event handlers
+    const handleDelete = async (member: CompanyMember) => {
         if (!companyId) return;
         if (member.owner) {
             setMsg('Không thể xoá Owner');
@@ -79,15 +77,15 @@ export default function CompanyMemberPage() {
 
         try {
             setDeletingUserId(member.userId);
-            await deleteMemberMutation.mutateAsync({companyId, userId: member.userId});
+            await deleteMemberMutation.mutateAsync({ companyId, userId: member.userId });
         } catch (e: any) {
             setMsg(e?.message || 'Có lỗi khi xoá');
         } finally {
             setDeletingUserId(null);
         }
-    }
+    };
 
-    async function openTransferModal(member: CompanyMember) {
+    const openTransferModal = (member: CompanyMember) => {
         if (!companyId) return;
         if (member.owner) {
             setMsg('Thành viên này đã là Owner');
@@ -98,25 +96,25 @@ export default function CompanyMemberPage() {
         setTargetMember(member);
         setSelectedDowngradeRoleId('');
         setShowTransfer(true);
-    }
+    };
 
-    function closeTransferModal() {
+    const closeTransferModal = () => {
         setShowTransfer(false);
         setTargetMember(null);
         setSelectedDowngradeRoleId('');
-    }
+    };
 
-    function openInviteModal() {
+    const openInviteModal = () => {
         if (!companyId) return;
         setMsg(null);
         setShowInviteModal(true);
-    }
+    };
 
-    function closeInviteModal() {
+    const closeInviteModal = () => {
         setShowInviteModal(false);
-    }
+    };
 
-    async function confirmTransfer() {
+    const confirmTransfer = async () => {
         if (!companyId || !targetMember) return;
         if (selectedDowngradeRoleId === '') {
             setMsg('Vui lòng chọn role cho Owner cũ (downgrade)');
@@ -136,41 +134,65 @@ export default function CompanyMemberPage() {
         } catch (e: any) {
             setMsg(e?.message || 'Có lỗi khi transfer owner');
         }
-    }
+    };
+
 
     return (
         <div className="page-content">
-            <div className="container-fluid">
-                {/* Row: Title / Actions top-right */}
-                <PageHeader
-                    companyId={companyId}
-                    onAddMember={openInviteModal}
-                    onBack={() => navigate('/companies')}
-                />
+            <Container fluid>
+                <BreadCrumb title={t('CompanyMembers')} pageTitle={t('CompanyMembers')} />
 
-                {/* Row: Message */}
+                {/* Messages */}
                 {(msg || membersError) && (
-                    <div className="row">
-                        <div className="col-12">
-                            <div className={`alert ${membersError ? 'alert-danger' : 'alert-info'} mt-3 mb-0`}>
+                    <Row className="mb-3">
+                        <Col>
+                            <div className={`alert ${membersError ? 'alert-danger' : 'alert-info'} mb-0`}>
                                 {msg || membersError?.message}
                             </div>
-                        </div>
-                    </div>
+                        </Col>
+                    </Row>
                 )}
 
-                {/* Row: Table */}
-                <MembersTable
-                    members={members}
-                    loading={membersLoading}
-                    companyId={companyId}
-                    deletingUserId={deletingUserId}
-                    onDelete={handleDelete}
-                    onTransferOwnership={openTransferModal}
-                    deleteMemberMutation={deleteMemberMutation}
-                />
+                {/* Members Table */}
+                <Row>
+                    <Col>
+                        <Card>
+                            <CardHeader className="card-header border-0">
+                                <Row className="align-items-center gy-3">
+                                    <div className="col-sm">
+                                        <h5 className="card-title mb-0">{t('MembersList')}</h5>
+                                    </div>
+                                    <div className="col-sm-auto">
+                                        <div className="d-flex gap-1 flex-wrap">
+                                            <button 
+                                                className="btn btn-primary" 
+                                                onClick={() => navigate(`/companies/${companyId}/roles`)}
+                                            >
+                                                {t('RolePermissionManagement')}
+                                            </button>
+                                            <button className="btn btn-primary" onClick={openInviteModal}>
+                                                <i className="ri-user-add-line me-1"></i>
+                                                {t('AddMember')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Row>
+                            </CardHeader>
+                            <CardBody className="pt-0">
+                                <MembersTable
+                                    members={members}
+                                    companyId={companyId!}
+                                    deletingUserId={deletingUserId}
+                                    onDelete={handleDelete}
+                                    onTransferOwnership={openTransferModal}
+                                    deleteMemberMutation={deleteMemberMutation}
+                                />
+                            </CardBody>
+                        </Card>
+                    </Col>
+                </Row>
 
-                {/* Transfer ownership modal */}
+                {/* Modals */}
                 <TransferOwnershipModal
                     show={showTransfer}
                     onClose={closeTransferModal}
@@ -182,15 +204,14 @@ export default function CompanyMemberPage() {
                     isPending={transferOwnershipMutation.isPending}
                 />
 
-                {/* Invite Member Modal */}
                 <InviteMemberModal
                     show={showInviteModal}
                     onClose={closeInviteModal}
-                    companyId={companyId}
+                    companyId={companyId!}
                     onSuccess={(message) => setMsg(message)}
                     onError={(message) => setMsg(message)}
                 />
-            </div>
+            </Container>
         </div>
     );
 }
