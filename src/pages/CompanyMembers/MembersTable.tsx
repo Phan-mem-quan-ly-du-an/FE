@@ -8,7 +8,7 @@ interface MembersTableProps {
     members: CompanyMember[];
     companyId: string;
     deletingUserId: string | null;
-    onDelete: (member: CompanyMember) => void;
+    onDelete: (member: CompanyMember) => Promise<void>;
     onTransferOwnership: (member: CompanyMember) => void;
     onAssignRole: (member: CompanyMember) => void;
     deleteMemberMutation: {
