@@ -6,7 +6,6 @@ import EditCompanyPage from '../pages/Companies/EditCompanyPage';
 import EditRolePermissionPage from '../pages/Companies/EditRolePermissionPage';
 import CreateRolePage from '../pages/Companies/CreateRolePage';
 import EditRolePage from '../pages/Companies/EditRolePage';
-import AssignRolePage from '../pages/Companies/AssignRolePage';
 import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
 
@@ -29,7 +28,6 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
     {path: '/companies/:companyId/roles/new', component: <CreateRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/edit', component: <EditRolePage/>},
-    {path: '/companies/:companyId/members/:memberId/assign-role', component: <AssignRolePage/>},
 ];
 
 const publicRoutes = [];

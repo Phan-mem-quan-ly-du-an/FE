@@ -10,6 +10,7 @@ interface MembersTableProps {
     deletingUserId: string | null;
     onDelete: (member: CompanyMember) => void;
     onTransferOwnership: (member: CompanyMember) => void;
+    onAssignRole: (member: CompanyMember) => void;
     deleteMemberMutation: {
         isPending: boolean;
     };
@@ -21,6 +22,7 @@ export default function MembersTable({
     deletingUserId,
     onDelete,
     onTransferOwnership,
+    onAssignRole,
     deleteMemberMutation
 }: MembersTableProps) {
     const { t } = useTranslation();
@@ -86,13 +88,14 @@ export default function MembersTable({
                     return (
                         <ul className="list-inline hstack gap-2 mb-0">
                             <li className="list-inline-item">
-                                <Link
-                                    to={`/companies/${companyId}/members/${encodeURIComponent(member.userId)}/assign-role`}
-                                    className="text-primary d-inline-block"
+                                <button
+                                    type="button"
+                                    className="btn btn-link text-primary p-0"
+                                    onClick={() => onAssignRole(member)}
                                     title={t('AssignRole')}
                                 >
                                     <i className="ri-user-settings-line fs-16"></i>
-                                </Link>
+                                </button>
                             </li>
                             <li className="list-inline-item">
                                 <Link

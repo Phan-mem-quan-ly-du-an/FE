@@ -76,6 +76,14 @@ export const transferOwnership = async (companyId: string, transferData: Transfe
     await caller.post({ data: transferData });
 };
 
+// Assign role to member
+export const assignMemberRole = async (companyId: string, memberId: string, roleId: number): Promise<void> => {
+    const caller = new ApiCaller()
+        .setUrl(`/companies/${companyId}/members/${encodeURIComponent(memberId)}/role`);
+    
+    await caller.put({ data: { roleId } });
+};
+
 // Batch invite members with individual error handling
 export const batchInviteMembers = async (
     companyId: string, 

@@ -14,6 +14,7 @@ import {
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import InviteMemberModal from './InviteMemberModal';
 import TransferOwnershipModal from './TransferOwnershipModal';
+import AssignRoleModal from './AssignRoleModal';
 import MembersTable from './MembersTable';
 
 export default function CompanyMemberPage() {
@@ -65,6 +66,10 @@ export default function CompanyMemberPage() {
 
     // Invite member modal states
     const [showInviteModal, setShowInviteModal] = useState(false);
+
+    // Assign role modal states
+    const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
+    const [assignRoleMember, setAssignRoleMember] = useState<CompanyMember | null>(null);
 
     // Event handlers
     const handleDelete = async (member: CompanyMember) => {
@@ -136,6 +141,16 @@ export default function CompanyMemberPage() {
         }
     };
 
+    // Assign role modal handlers
+    const openAssignRoleModal = (member: CompanyMember) => {
+        setAssignRoleMember(member);
+        setShowAssignRoleModal(true);
+    };
+
+    const closeAssignRoleModal = () => {
+        setShowAssignRoleModal(false);
+        setAssignRoleMember(null);
+    };
 
     return (
         <div className="page-content">
@@ -179,6 +194,7 @@ export default function CompanyMemberPage() {
                                     deletingUserId={deletingUserId}
                                     onDelete={handleDelete}
                                     onTransferOwnership={openTransferModal}
+                                    onAssignRole={openAssignRoleModal}
                                     deleteMemberMutation={deleteMemberMutation}
                                 />
                             </CardBody>
@@ -203,6 +219,18 @@ export default function CompanyMemberPage() {
                     onClose={closeInviteModal}
                     companyId={companyId!}
                     onSuccess={(message) => setMsg(message)}
+                    onError={(message) => setMsg(message)}
+                />
+
+                <AssignRoleModal
+                    show={showAssignRoleModal}
+                    onClose={closeAssignRoleModal}
+                    companyId={companyId!}
+                    member={assignRoleMember}
+                    onSuccess={(message) => {
+                        setMsg(message);
+                        closeAssignRoleModal();
+                    }}
                     onError={(message) => setMsg(message)}
                 />
             </Container>
