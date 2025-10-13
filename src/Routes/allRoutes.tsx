@@ -1,5 +1,5 @@
 import CompaniesRolePage from '../pages/Companies/CompaniesRolePage';
-import CompaniesMembersPage from '../pages/Companies/CompaniesMembersPage';
+import CompaniesMembersPage from '../pages/CompanyMembers';
 import {Navigate} from 'react-router-dom';
 import CreateCompanyPage from '../pages/Companies/CreateCompanyPage';
 import EditCompanyPage from '../pages/Companies/EditCompanyPage';
