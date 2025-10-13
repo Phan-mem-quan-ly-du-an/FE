@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCompanyRoles, deleteRole, Role } from "../../../apiCaller/companyRoles";
+import { Card, CardBody, CardHeader, Col, Container, Row } from "reactstrap";
+import BreadCrumb from "../../../Components/Common/BreadCrumb";
+import TableContainer from "../../../Components/Common/TableContainer";
 
 // Use Role type from apiCaller
 
@@ -61,7 +64,45 @@ export default function CompaniesRolePage() {
             setMsg(e?.message || t("ErrorDeletingRole"));
         }
     }
+    const columns = useMemo(() => [
+        {
+            header: 'Id',
+            accessorKey: 'id',
+            enableColumnFilter: false,
+            cell: (info: any) => <span className="font-monospace">{info.getValue()}</span>,
+        },
+        {
+            header: 'Tên',
+            accessorKey: 'name',
+            enableColumnFilter: false,
+            cell: ({ row }: any) => (
+                <div>
+                    <div className="fw-semibold">{row.original.name || '—'}</div>
+                    {row.original.code && <div className="text-muted small">{row.original.code}</div>}
+                </div>
+            ),
+        },
+        {
+            header: 'Mô tả',
+            accessorKey: 'description',
+            enableColumnFilter: false,
+            cell: ({ getValue }: any) => getValue() || '—',
+        },
+        {
+            header: '',
+            id: 'action',
+            enableColumnFilter: false,
+            cell: ({ row }: any) => (
+                <div className="d-flex align-items-center gap-2 p-2">
+                    <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/edit`}>{t('Edit')}</Link>
+                    <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(row.original)} disabled={deleteRoleMutation.isPending}>{t('Delete')}</button>
+                    <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/permission`}>{t('Permission')}</Link>
+                </div>
+            ),
+        },
+    ], [t, resolvedCompanyId, deleteRoleMutation.isPending]);
 
+    const data = (rolesQuery.data ?? []) as Role[];
 
     if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
     if (!auth.isAuthenticated || !auth.user?.id_token) {
@@ -75,70 +116,54 @@ export default function CompaniesRolePage() {
 
     return (
         <div className="page-content">
-            <div className="container-fluid">
+            <Container fluid>
+                <BreadCrumb title={t('CompanyRoles')} pageTitle={t('CompanyRoles')} />
 
-                {/* Row: Title + Actions */}
-                <div className="row">
-                    <div className="col-12 d-sm-flex align-items-center justify-content-between">
-                        <h4 className="mb-sm-0">{t("CompanyRoles")}</h4>
-                        <div className="d-flex gap-2">
-                            <Link to={`/companies/${resolvedCompanyId}/members`} className="btn btn-secondary">{t("Back")}</Link>
-                            <Link to={`/companies/${resolvedCompanyId}/roles/new`} className="btn btn-success">+ {t("CreateRole")}</Link>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Row: Message */}
                 {msg && (
-                    <div className="row">
-                        <div className="col-12">
-                            <div className="alert alert-info mt-3 mb-0">{msg}</div>
-                        </div>
-                    </div>
+                    <Row className="mb-3">
+                        <Col>
+                            <div className="alert alert-info mb-0">{msg}</div>
+                        </Col>
+                    </Row>
                 )}
 
-                {/* Row: Table (role_id | code(role_name) | description | action) */}
-                <div className="row mt-3">
-                    <div className="col-12">
-                        <div className="table-responsive">
-                            <table className="table table-striped align-middle">
-                                <thead>
-                                <tr>
-                                    <th style={{width:140}}>Role ID</th>
-                                    <th>Role name (Code)</th>
-                                    <th>Description</th>
-                                    <th style={{width:180}}>Action</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                {rolesQuery.isLoading && <tr><td colSpan={4} className="text-center py-5">{t("Loading")}</td></tr>}
-                {!rolesQuery.isLoading && ((rolesQuery.data ?? []) as Role[]).length === 0 && (
-                                    <tr><td colSpan={4} className="text-center text-muted py-5">{t("NoRoles")}</td></tr>
+                <Row>
+                    <Col>
+                        <Card>
+                            <CardHeader className="card-header border-0">
+                                <Row className="align-items-center gy-3">
+                                    <div className="col-sm">
+                                        <h5 className="card-title mb-0">{t('CompanyRoles')}</h5>
+                                    </div>
+                                    <div className="col-sm-auto">
+                                        <div className="d-flex gap-1 flex-wrap">
+                                            <Link to={`/companies/${resolvedCompanyId}/roles/new`} className="btn btn-success">+ {t('CreateRole')}</Link>
+                                        </div>
+                                    </div>
+                                </Row>
+                            </CardHeader>
+                            <CardBody className="pt-0">
+                                {rolesQuery.isLoading ? (
+                                    <div className="text-center py-5">{t('Loading')}</div>
+                                ) : (
+                                    <TableContainer
+                                        columns={columns}
+                                        data={data}
+                                        isGlobalFilter={false}
+                                        hidePagination={true}
+                                        customPageSize={10}
+                                        tableClass="table align-middle table-nowrap"
+                                        theadClass="table-light"
+                                    />
                                 )}
-                {!rolesQuery.isLoading && ((rolesQuery.data ?? []) as Role[]).map((r: Role) => (
-                                    <tr key={r.id}>
-                                        <td className="font-monospace">{r.id}</td>
-                                        <td>
-                                            <div className="fw-semibold">{r.name || "—"}</div>
-                                            {r.code && <div className="text-muted small">{r.code}</div>}
-                                        </td>
-                                        <td>{r.description || "—"}</td>
-                                        <td>
-                                            <div className="btn-group btn-group-sm">
-                                                <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/edit`}>{t("Edit")}</Link>
-                                                <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={deleteRoleMutation.isPending}>{t("Delete")}</button>
-                                                <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}>{t("Permission")}</Link>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+                                {!rolesQuery.isLoading && data.length === 0 && (
+                                    <div className="text-center text-muted py-5">{t('NoRoles')}</div>
+                                )}
+                            </CardBody>
+                        </Card>
+                    </Col>
+                </Row>
+            </Container>
         </div>
     );
 }
