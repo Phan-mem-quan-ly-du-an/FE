@@ -41,9 +41,9 @@ const Navdata = () => {
             isHeader: true,
         },
         {
-            id: "Companies",
-            label: "Companies",
-            icon: <FeatherIcon icon="home" className="icon-dual"/>,
+            id: "CompanyMembers",
+            label: "Company Members",
+            icon: <FeatherIcon icon="users" className="icon-dual"/>,
             link: "/#",
             stateVariables: isDashboard,
             click: function (e: any) {
