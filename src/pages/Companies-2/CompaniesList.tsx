@@ -18,7 +18,7 @@ const CompaniesList = () => {
     } = useInfiniteQuery<Page<Company>>({
         queryKey: ['companies'],
         queryFn: async ({pageParam = 0}): Promise<Page<Company>> => callApiGetAllCompanies(pageParam as number) as Promise<Page<Company>>,
-         getNextPageParam: (lastPage: Page<Company>) => (lastPage.last ? undefined : (lastPage.number + 1)),
+        getNextPageParam: (lastPage: Page<Company>) => (lastPage.last ? undefined : (lastPage.number + 1)),
         initialPageParam: 0
     });
 
