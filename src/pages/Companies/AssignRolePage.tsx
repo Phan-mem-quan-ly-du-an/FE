@@ -118,7 +118,7 @@ export default function AssignRolePage() {
                 setMsg(`Gán role thất bại: ${res.status} ${await res.text()}`);
                 return;
             }
-            navigate(`/companies/${companyId}`);
+            navigate(`/companies/${companyId}/members`);
         } catch (e: any) {
             setMsg(e?.message || "Có lỗi khi lưu");
         } finally {
@@ -150,7 +150,7 @@ export default function AssignRolePage() {
                     <div className="col-12 d-sm-flex align-items-center justify-content-between">
                         <h4 className="mb-sm-0">Assign Role</h4>
                         <div className="d-flex gap-2">
-                            <Link to={`/companies/${companyId}`} className="btn btn-secondary">
+                            <Link to={`/companies/${companyId}/members`} className="btn btn-secondary">
                                 Back
                             </Link>
                             <button className="btn btn-primary" onClick={save} disabled={saving || isOwner}>

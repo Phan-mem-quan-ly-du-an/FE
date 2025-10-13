@@ -101,7 +101,7 @@ export default function CompaniesRolePage() {
                     <div className="col-12 d-sm-flex align-items-center justify-content-between">
                         <h4 className="mb-sm-0">Company Roles</h4>
                         <div className="d-flex gap-2">
-                            <Link to={`/companies/${companyId}`} className="btn btn-secondary">Back</Link>
+                            <Link to={`/companies/${companyId}/members`} className="btn btn-secondary">Back</Link>
                             <Link to={`/companies/${companyId}/roles/new`} className="btn btn-success">+ Create Role</Link>
                         </div>
                     </div>

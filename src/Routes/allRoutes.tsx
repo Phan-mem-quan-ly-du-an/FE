@@ -21,8 +21,8 @@ const authProtectedRoutes: AuthRoute[] = [
 
     // === Companies ===
     {path: '/companies', component: <Companies/>, noLayout: true},
+    {path: '/companies/:companyId/members', component: <CompaniesMembersPage/>},
     {path: '/account', component: <AccountPage/>},
-    {path: '/companies/:companyId', component: <CompaniesMembersPage/>},
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/new', component: <CreateCompanyPage/>},
     {path: '/companies/:companyId/edit', component: <EditCompanyPage/>},

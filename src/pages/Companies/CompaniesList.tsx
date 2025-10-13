@@ -97,7 +97,7 @@ const CompaniesList = () => {
                                                     </div>
                                                 </td>
                                                 <td className="text-end">
-                                                    <Link to={`/companies/${company.id}`}
+                                                    <Link to={`/companies/${company.id}/members`}
                                                           className="btn btn-sm btn-outline-light">View</Link>
                                                 </td>
                                             </tr>
