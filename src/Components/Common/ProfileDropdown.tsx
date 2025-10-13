@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownToggle } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
 import avatar1 from "../../assets/images/users/avatar-1.jpg";
 import { useAuth } from "react-oidc-context";
 
 const ProfileDropdown = () => {
     const auth = useAuth();
+    const { t } = useTranslation();
 
     const userName = auth.user?.profile?.email;
 
@@ -19,12 +21,19 @@ const ProfileDropdown = () => {
           <img className="rounded-circle header-profile-user" src={avatar1} alt="Header Avatar" />
           <span className="text-start ms-xl-2">
             <span className="d-none d-xl-inline-block ms-1 fw-medium user-name-text">{userName}</span>
-            <span className="d-none d-xl-block ms-1 fs-12 text-muted user-name-sub-text">User</span>
+            <span className="d-none d-xl-block ms-1 fs-12 text-muted user-name-sub-text">{t('User')}</span>
           </span>
         </span>
             </DropdownToggle>
             <DropdownMenu className="dropdown-menu-end">
-                <h6 className="dropdown-header">Welcome {userName}!</h6>
+                <h6 className="dropdown-header">{t('Welcome')} {userName}!</h6>
+                <li>
+                    <Link to="/account" className="dropdown-item">
+                        <i className="mdi mdi-account-circle-outline me-2" />
+                        {t('MyAccount')}
+                    </Link>
+                </li>
+                <li><hr className="dropdown-divider" /></li>
                 <DropdownItem
                     onClick={() => {
                         auth.removeUser()
@@ -40,15 +49,8 @@ const ProfileDropdown = () => {
                     className="text-danger"
                 >
                     <i className="mdi mdi-logout me-2" />
-                    Log out
+                    {t('LogOut')}
                 </DropdownItem>
-                <li>
-                    <Link to="/account" className="dropdown-item">
-                        <i className="mdi mdi-account-circle-outline me-2" />
-                        My Account
-                    </Link>
-                </li>
-                <li><hr className="dropdown-divider" /></li>
             </DropdownMenu>
         </Dropdown>
     );
