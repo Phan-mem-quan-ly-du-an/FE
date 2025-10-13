@@ -9,7 +9,6 @@ const AuthProtected = ({children}: { children: React.ReactNode }) => {
     const loc = useLocation();
     const [tried, setTried] = useState(false);
 
-    // Nếu chưa đăng nhập thì redirect
     useEffect(() => {
         if (!hasAuthParams() && !auth.isAuthenticated && !auth.activeNavigator && !auth.isLoading && !tried) {
             const current = loc.pathname + loc.search + loc.hash;

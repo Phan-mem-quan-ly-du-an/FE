@@ -1,68 +1,75 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
-import { Link, useNavigate } from "react-router-dom";
-import { uploadImageTo } from "../../lib/uploader";
+import { Link, useParams, useNavigate } from "react-router-dom";
 
-export default function CreateCompanyPage() {
+type CreateRoleReq = {
+    code: string;
+    name?: string;
+    description?: string | null;
+};
+
+type RoleResp = {
+    id: number;
+    code: string;
+    name?: string;
+    description?: string | null;
+};
+
+export default function CreateRolePage() {
     const auth = useAuth();
     const navigate = useNavigate();
+    const params = useParams();
 
-    const base = process.env.REACT_APP_API_URL as string;
+    // Lấy companyId an toàn cho cả :companyId / :id
+    const companyId = useMemo(
+        () =>
+            (params as any).companyId ||
+            (params as any).id ||
+            window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
+            "",
+        [params]
+    );
 
+    const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
+
+    const [code, setCode] = useState("");
     const [name, setName] = useState("");
-    const [logoAbs, setLogoAbs] = useState<string>("");
-    const [msg, setMsg] = useState<string | null>(null);
+    const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [uploading, setUploading] = useState(false);
-
-    const toRelative = (u?: string) => (u ? (u.startsWith(base) ? u.replace(base, "") : u) : "");
-    const toAbsolute = (u?: string) => (u ? (u.startsWith("http") ? u : base + u) : "");
+    const [msg, setMsg] = useState<string | null>(null);
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const idToken = auth.user?.id_token;
         return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
     }
 
-    async function handleUpload(file: File) {
-        const idToken = auth.user?.id_token;
-        if (!idToken) { setMsg("Bạn chưa đăng nhập!"); return; }
-        try {
-            setUploading(true);
-            const r = await uploadImageTo("company-logo", file, idToken, base);
-            // r.url là relative → preview cần absolute
-            setLogoAbs(toAbsolute(r.url));
-            setMsg("Upload logo thành công!");
-        } catch (e: any) {
-            setMsg(e?.message || "Upload thất bại");
-        } finally {
-            setUploading(false);
-        }
-    }
-
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
-        setMsg(null);
         if (!auth.user?.id_token) { setMsg("Bạn chưa đăng nhập!"); return; }
-        if (!name.trim()) { setMsg("Tên công ty là bắt buộc"); return; }
+        if (!companyId) { setMsg("Không xác định được Company ID"); return; }
+        if (!code.trim()) { setMsg("Code là bắt buộc"); return; }
 
         setSubmitting(true);
+        setMsg(null);
         try {
-            const res = await fetch(new URL("/api/companies", base).toString(), {
+            const body: CreateRoleReq = {
+                code: code.trim(),
+                name: name.trim() || undefined,
+                description: description.trim() || undefined,
+            };
+            const res = await fetch(new URL(`/api/companies/${companyId}/roles`, base).toString(), {
                 method: "POST",
                 headers: getAuthHeaders({ "Content-Type": "application/json" }),
-                body: JSON.stringify({
-                    name: name.trim(),
-                    // gửi DB: relative
-                    logoUrl: toRelative(logoAbs) || undefined,
-                }),
+                body: JSON.stringify(body),
             });
             if (!res.ok) {
                 const t = await res.text();
-                setMsg(`Tạo thất bại: ${res.status} ${t}`);
+                setMsg(`Tạo role thất bại: ${res.status} ${t}`);
                 return;
             }
-            const data = await res.json();
-            navigate(`/companies`);
+            const role: RoleResp = await res.json();
+
+            navigate(`/companies/${companyId}/roles/`);
         } catch (e: any) {
             setMsg(e?.message || "Có lỗi xảy ra");
         } finally {
@@ -84,12 +91,12 @@ export default function CreateCompanyPage() {
         <div className="page-content">
             <div className="container-fluid">
 
-                {/* Row: Title */}
+                {/* Row: Title + Back */}
                 <div className="row">
                     <div className="col-12 d-sm-flex align-items-center justify-content-between">
-                        <h4 className="mb-sm-0">Create Company</h4>
-                        <div className="text-end">
-                            <Link to="/companies" className="btn btn-secondary">Back</Link>
+                        <h4 className="mb-sm-0">Create Role</h4>
+                        <div className="d-flex gap-2">
+                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">Back</Link>
                         </div>
                     </div>
                 </div>
@@ -108,33 +115,38 @@ export default function CreateCompanyPage() {
                     <div className="col-12 col-lg-8 col-xl-6">
                         <form onSubmit={onSubmit}>
                             <div className="mb-3">
-                                <label className="form-label">Name</label>
+                                <label className="form-label">Code <span className="text-danger">*</span></label>
                                 <input
                                     className="form-control"
-                                    value={name}
-                                    onChange={(e)=>setName(e.target.value)}
-                                    placeholder="Company name"
+                                    value={code}
+                                    onChange={(e)=>setCode(e.target.value)}
+                                    placeholder="e.g. company:admin"
                                 />
                             </div>
 
                             <div className="mb-3">
-                                <label className="form-label d-block">Logo</label>
+                                <label className="form-label">Role name</label>
                                 <input
                                     className="form-control"
-                                    type="file"
-                                    accept="image/*"
-                                    disabled={uploading}
-                                    onChange={(e)=>{ const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+                                    value={name}
+                                    onChange={(e)=>setName(e.target.value)}
+                                    placeholder="e.g. Company Admin"
                                 />
-                                {logoAbs && (
-                                    <div className="mt-2">
-                                        <img src={logoAbs} alt="logo" style={{height:56}} />
-                                    </div>
-                                )}
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">Description</label>
+                                <textarea
+                                    className="form-control"
+                                    rows={3}
+                                    value={description}
+                                    onChange={(e)=>setDescription(e.target.value)}
+                                    placeholder="Optional"
+                                />
                             </div>
 
                             <div className="d-flex gap-2">
-                                <Link to="/companies" className="btn btn-secondary">Cancel</Link>
+                                <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">Cancel</Link>
                                 <button className="btn btn-primary" type="submit" disabled={submitting}>
                                     {submitting ? "Creating..." : "Create"}
                                 </button>

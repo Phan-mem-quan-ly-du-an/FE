@@ -9,7 +9,7 @@ type Role = {
     description?: string | null;
 };
 
-export default function CompaniesRolePermissionPage() {
+export default function CompaniesRolePage() {
     const auth = useAuth();
     const navigate = useNavigate();
     const params = useParams();
@@ -81,6 +81,7 @@ export default function CompaniesRolePermissionPage() {
         }
     }
 
+
     if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
     if (!auth.isAuthenticated || !auth.user?.id_token) {
         return (
@@ -123,7 +124,7 @@ export default function CompaniesRolePermissionPage() {
                                 <thead>
                                 <tr>
                                     <th style={{width:140}}>Role ID</th>
-                                    <th>Code (Role name)</th>
+                                    <th>Role name (Code)</th>
                                     <th>Description</th>
                                     <th style={{width:180}}>Action</th>
                                 </tr>
@@ -137,14 +138,15 @@ export default function CompaniesRolePermissionPage() {
                                     <tr key={r.id}>
                                         <td className="font-monospace">{r.id}</td>
                                         <td>
-                                            <div className="fw-semibold">{r.code || "—"}</div>
-                                            {r.name && <div className="text-muted small">{r.name}</div>}
+                                            <div className="fw-semibold">{r.name || "—"}</div>
+                                            {r.code && <div className="text-muted small">{r.code}</div>}
                                         </td>
                                         <td>{r.description || "—"}</td>
                                         <td>
                                             <div className="btn-group btn-group-sm">
-                                                <Link className="btn btn-outline-primary" to={`/companies/${companyId}/roles/${r.id}`}>Edit</Link>
+                                                <Link className="btn btn-outline-primary" to={`/companies/${companyId}/roles/${r.id}/edit`}>Edit</Link>
                                                 <button className="btn btn-outline-danger" onClick={() => handleDeleteRole(r)} disabled={loading}>Delete</button>
+                                                <Link className="btn btn-outline-primary" to={`/companies/${companyId}/roles/${r.id}/permission`}>Permission</Link>
                                             </div>
                                         </td>
                                     </tr>
