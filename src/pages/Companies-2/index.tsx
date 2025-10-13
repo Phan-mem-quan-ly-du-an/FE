@@ -1,7 +1,7 @@
 import {useEffect} from 'react';
 import CompaniesList from './CompaniesList';
 
-const NFTLanding = () => {
+const Companies = () => {
     useEffect(() => {
         const previousHtmlOverflow = document.documentElement.style.overflow;
         const previousBodyOverflow = document.body.style.overflow;
@@ -28,4 +28,4 @@ const NFTLanding = () => {
     );
 };
 
-export default NFTLanding;
+export default Companies;

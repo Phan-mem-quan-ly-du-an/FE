@@ -1,116 +1,96 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "react-oidc-context";
-import { Link, useParams, useNavigate } from "react-router-dom";
-
-type CompanyMember = {
-    id: number;
-    companyId: string;
-    userId: string;
-    roleId?: number | null;
-    invitedEmail?: string | null;
-    invitedBy?: string | null;
-    joinedAt?: string | null;
-    owner: boolean;
-};
-
-type Role = { id: number; code: string; name?: string | null; description?: string | null };
+import {useMemo, useState} from 'react';
+import {Link, useNavigate, useParams} from 'react-router-dom';
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
+import {
+    batchInviteMembers,
+    CompanyMember,
+    deleteCompanyMember,
+    getCompanyMembers,
+    getCompanyRoles,
+    Role,
+    transferOwnership
+} from '../../apiCaller/companyMembers';
 
 export default function CompanyMemberPage() {
-    const auth = useAuth();
     const navigate = useNavigate();
     const params = useParams();
+    const queryClient = useQueryClient();
 
     const companyId = useMemo(() => {
         return (
             (params as any).companyId ||
             (params as any).id ||
             window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
-            ""
+            ''
         );
     }, [params]);
 
-    const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
+    // React Query hooks
+    const { data: members = [], isLoading: membersLoading, error: membersError } = useQuery({
+        queryKey: ['companyMembers', companyId],
+        queryFn: () => getCompanyMembers(companyId),
+        enabled: !!companyId,
+    });
 
-    const [rows, setRows] = useState<CompanyMember[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { data: roles = [] } = useQuery({
+        queryKey: ['companyRoles', companyId],
+        queryFn: () => getCompanyRoles(companyId, true),
+        enabled: !!companyId,
+    });
+
+    // Mutations
+    const deleteMemberMutation = useMutation({
+        mutationFn: ({ companyId, userId }: { companyId: string; userId: string }) => 
+            deleteCompanyMember(companyId, userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+        },
+    });
+
+    const transferOwnershipMutation = useMutation({
+        mutationFn: ({ companyId, transferData }: { companyId: string; transferData: any }) => 
+            transferOwnership(companyId, transferData),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+        },
+    });
+
+    const batchInviteMutation = useMutation({
+        mutationFn: ({ companyId, emails, roleId }: { companyId: string; emails: string[]; roleId: number }) => 
+            batchInviteMembers(companyId, emails, roleId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+        },
+    });
+
     const [msg, setMsg] = useState<string | null>(null);
 
     const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
     const [showTransfer, setShowTransfer] = useState(false);
     const [targetMember, setTargetMember] = useState<CompanyMember | null>(null);
-    const [roles, setRoles] = useState<Role[]>([]);
-    const [selectedDowngradeRoleId, setSelectedDowngradeRoleId] = useState<number | "">("");
-    const [transferring, setTransferring] = useState(false);
+    const [selectedDowngradeRoleId, setSelectedDowngradeRoleId] = useState<number | ''>('');
 
     // States for invite member modal
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [inviteEmails, setInviteEmails] = useState<string[]>([]);
-    const [emailInput, setEmailInput] = useState("");
-    const [selectedRoleId, setSelectedRoleId] = useState<number | "">("");
-    const [inviting, setInviting] = useState(false);
-    const [inviteRoles, setInviteRoles] = useState<Role[]>([]);
-    const [inviteResults, setInviteResults] = useState<Array<{email: string, success: boolean, message: string}>>([]);
-
-    function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
-        const idToken = auth.user?.id_token;
-        return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
-    }
-
-    async function loadMembers() {
-        if (!companyId) {
-            setMsg("Không xác định được Company ID");
-            return;
-        }
-        setLoading(true);
-        setMsg(null);
-        try {
-            const res = await fetch(new URL(`/api/companies/${companyId}/members`, base).toString(), {
-                headers: getAuthHeaders(),
-            });
-            if (!res.ok) {
-                const t = await res.text();
-                setMsg(`Lỗi tải danh sách: ${res.status} ${t}`);
-                return;
-            }
-            const data: CompanyMember[] = await res.json();
-            setRows(Array.isArray(data) ? data : []);
-        } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi tải danh sách");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        if (auth.isLoading) return;
-        if (!auth.isAuthenticated || !auth.user?.id_token) return;
-        loadMembers();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [auth.isLoading, auth.isAuthenticated, auth.user?.id_token, companyId]);
+    const [emailInput, setEmailInput] = useState('');
+    const [selectedRoleId, setSelectedRoleId] = useState<number | ''>('');
+    const [inviteResults, setInviteResults] = useState<Array<{ email: string, success: boolean, message: string }>>([]);
 
     async function handleDelete(member: CompanyMember) {
         if (!companyId) return;
         if (member.owner) {
-            setMsg("Không thể xoá Owner");
+            setMsg('Không thể xoá Owner');
             return;
         }
         if (!window.confirm(`Xoá thành viên ${member.userId} khỏi công ty?`)) return;
 
         try {
             setDeletingUserId(member.userId);
-            const url = new URL(
-                `/api/companies/${companyId}/members/${encodeURIComponent(member.userId)}`,
-                base
-            ).toString();
-            const res = await fetch(url, { method: "DELETE", headers: getAuthHeaders() });
-            if (!res.ok) {
-                setMsg(`Xoá thất bại: ${res.status} ${await res.text()}`);
-                return;
-            }
-            await loadMembers();
+            await deleteMemberMutation.mutateAsync({ companyId, userId: member.userId });
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi xoá");
+            setMsg(e?.message || 'Có lỗi khi xoá');
         } finally {
             setDeletingUserId(null);
         }
@@ -119,72 +99,38 @@ export default function CompanyMemberPage() {
     async function openTransferModal(member: CompanyMember) {
         if (!companyId) return;
         if (member.owner) {
-            setMsg("Thành viên này đã là Owner");
+            setMsg('Thành viên này đã là Owner');
             return;
         }
+
         setMsg(null);
         setTargetMember(member);
-        setSelectedDowngradeRoleId("");
+        setSelectedDowngradeRoleId('');
         setShowTransfer(true);
-
-        try {
-            const rRes = await fetch(
-                new URL(`/api/companies/${companyId}/roles?includeGlobal=true`, base).toString(),
-                { headers: getAuthHeaders() }
-            );
-            if (!rRes.ok) {
-                setMsg(`Lỗi tải roles: ${rRes.status} ${await rRes.text()}`);
-                setRoles([]);
-                return;
-            }
-            const rs: Role[] = await rRes.json();
-            setRoles(Array.isArray(rs) ? rs : []);
-        } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi tải roles");
-            setRoles([]);
-        }
     }
 
     function closeTransferModal() {
         setShowTransfer(false);
         setTargetMember(null);
-        setRoles([]);
-        setSelectedDowngradeRoleId("");
+        setSelectedDowngradeRoleId('');
     }
 
     async function openInviteModal() {
         if (!companyId) return;
+
         setMsg(null);
         setInviteEmails([]);
-        setEmailInput("");
-        setSelectedRoleId("");
+        setEmailInput('');
+        setSelectedRoleId('');
         setInviteResults([]);
         setShowInviteModal(true);
-
-        try {
-            const rRes = await fetch(
-                new URL(`/api/companies/${companyId}/roles?includeGlobal=true`, base).toString(),
-                { headers: getAuthHeaders() }
-            );
-            if (!rRes.ok) {
-                setMsg(`Lỗi tải roles: ${rRes.status} ${await rRes.text()}`);
-                setInviteRoles([]);
-                return;
-            }
-            const rs: Role[] = await rRes.json();
-            setInviteRoles(Array.isArray(rs) ? rs : []);
-        } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi tải roles");
-            setInviteRoles([]);
-        }
     }
 
     function closeInviteModal() {
         setShowInviteModal(false);
         setInviteEmails([]);
-        setEmailInput("");
-        setSelectedRoleId("");
-        setInviteRoles([]);
+        setEmailInput('');
+        setSelectedRoleId('');
         setInviteResults([]);
     }
 
@@ -195,18 +141,18 @@ export default function CompanyMemberPage() {
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            setMsg("Email không hợp lệ: " + email);
+            setMsg('Email không hợp lệ: ' + email);
             return;
         }
 
         // Check if email already exists
         if (inviteEmails.includes(email)) {
-            setMsg("Email đã được thêm: " + email);
+            setMsg('Email đã được thêm: ' + email);
             return;
         }
 
         setInviteEmails([...inviteEmails, email]);
-        setEmailInput("");
+        setEmailInput('');
         setMsg(null);
     }
 
@@ -224,115 +170,56 @@ export default function CompanyMemberPage() {
     async function handleInviteMember() {
         if (!companyId) return;
         if (inviteEmails.length === 0) {
-            setMsg("Vui lòng thêm ít nhất một email");
+            setMsg('Vui lòng thêm ít nhất một email');
             return;
         }
-        if (selectedRoleId === "") {
-            setMsg("Vui lòng chọn vai trò");
+        if (selectedRoleId === '') {
+            setMsg('Vui lòng chọn vai trò');
             return;
         }
 
-        setInviting(true);
         setMsg(null);
         setInviteResults([]);
 
-        const results: Array<{email: string, success: boolean, message: string}> = [];
-        let successCount = 0;
-
         try {
-            // Gửi lời mời cho từng email
-            for (const email of inviteEmails) {
-                try {
-                    const url = new URL(`/api/companies/${companyId}/invite`, base).toString();
-                    const res = await fetch(url, {
-                        method: "POST",
-                        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-                        body: JSON.stringify({
-                            email: email,
-                            roleId: selectedRoleId,
-                        }),
-                    });
-
-                    if (res.ok) {
-                        results.push({ email, success: true, message: "Mời thành công" });
-                        successCount++;
-                    } else {
-                        const errorData = await res.json();
-                        results.push({
-                            email,
-                            success: false,
-                            message: errorData.error || `Lỗi ${res.status}`
-                        });
-                    }
-                } catch (e: any) {
-                    results.push({
-                        email,
-                        success: false,
-                        message: e?.message || "Lỗi kết nối"
-                    });
-                }
-            }
-
+            const results = await batchInviteMutation.mutateAsync({ 
+                companyId, 
+                emails: inviteEmails, 
+                roleId: selectedRoleId as number 
+            });
             setInviteResults(results);
 
+            const successCount = results.filter(r => r.success).length;
             if (successCount > 0) {
-                await loadMembers();
                 setMsg(`Mời thành công ${successCount}/${inviteEmails.length} thành viên!`);
             } else {
-                setMsg("Không có thành viên nào được mời thành công");
+                setMsg('Không có thành viên nào được mời thành công');
             }
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi mời thành viên");
-        } finally {
-            setInviting(false);
+            setMsg(e?.message || 'Có lỗi khi mời thành viên');
         }
     }
 
     async function confirmTransfer() {
         if (!companyId || !targetMember) return;
-        if (selectedDowngradeRoleId === "") {
-            setMsg("Vui lòng chọn role cho Owner cũ (downgrade)");
+        if (selectedDowngradeRoleId === '') {
+            setMsg('Vui lòng chọn role cho Owner cũ (downgrade)');
             return;
         }
 
-        setTransferring(true);
         setMsg(null);
         try {
-            const url = new URL(
-                `/api/companies/${companyId}/members/transfer-ownership`,
-                base
-            ).toString();
-            const res = await fetch(url, {
-                method: "POST",
-                headers: getAuthHeaders({ "Content-Type": "application/json" }),
-                body: JSON.stringify({
+            await transferOwnershipMutation.mutateAsync({
+                companyId,
+                transferData: {
                     toUserId: targetMember.userId,
-                    downgradeRoleId: selectedDowngradeRoleId,
-                }),
+                    downgradeRoleId: selectedDowngradeRoleId as number,
+                }
             });
-            if (!res.ok) {
-                setMsg(`Transfer owner thất bại: ${res.status} ${await res.text()}`);
-                return;
-            }
             closeTransferModal();
-            await loadMembers();
         } catch (e: any) {
-            setMsg(e?.message || "Có lỗi khi transfer owner");
-        } finally {
-            setTransferring(false);
+            setMsg(e?.message || 'Có lỗi khi transfer owner');
         }
-    }
-
-    if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
-    if (!auth.isAuthenticated || !auth.user?.id_token) {
-        return (
-            <div className="container">
-                <p>Bạn chưa đăng nhập.</p>
-                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>
-                    Đăng nhập
-                </button>
-            </div>
-        );
     }
 
     return (
@@ -350,7 +237,7 @@ export default function CompanyMemberPage() {
                                 <i className="ri-user-add-line me-1"></i>
                                 Add Member
                             </button>
-                            <button className="btn btn-secondary" onClick={() => navigate("/companies")}>
+                            <button className="btn btn-secondary" onClick={() => navigate('/companies')}>
                                 Back
                             </button>
                         </div>
@@ -358,10 +245,12 @@ export default function CompanyMemberPage() {
                 </div>
 
                 {/* Row: Message */}
-                {msg && (
+                {(msg || membersError) && (
                     <div className="row">
                         <div className="col-12">
-                            <div className="alert alert-info mt-3 mb-0">{msg}</div>
+                            <div className={`alert ${membersError ? 'alert-danger' : 'alert-info'} mt-3 mb-0`}>
+                                {msg || membersError?.message}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -373,39 +262,40 @@ export default function CompanyMemberPage() {
                             <table className="table table-striped align-middle">
                                 <thead>
                                 <tr>
-                                    <th style={{ width: 60 }}>#</th>
+                                    <th style={{width: 60}}>#</th>
                                     <th>User ID</th>
                                     <th>Role ID</th>
                                     <th>Owner?</th>
                                     <th>Invited Email</th>
                                     <th>Joined At</th>
-                                    <th style={{ width: 260 }}>Actions</th>
+                                    <th style={{width: 260}}>Actions</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {loading && (
+                                {membersLoading && (
                                     <tr>
                                         <td colSpan={7} className="text-center py-5">
                                             Loading...
                                         </td>
                                     </tr>
                                 )}
-                                {!loading && rows.length === 0 && (
+                                {!membersLoading && members.length === 0 && (
                                     <tr>
                                         <td colSpan={7} className="text-center text-muted py-5">
                                             No members
                                         </td>
                                     </tr>
                                 )}
-                                {!loading &&
-                                    rows.map((m, idx) => (
+                                {!membersLoading &&
+                                    members.map((m, idx) => (
                                         <tr key={m.id}>
                                             <td>{idx + 1}</td>
                                             <td className="font-monospace">{m.userId}</td>
-                                            <td>{m.owner ? <span className="badge bg-success">Owner</span> : (m.roleId ?? "—")}</td>
-                                            <td>{m.owner ? "Yes" : "No"}</td>
-                                            <td>{m.invitedEmail ?? "—"}</td>
-                                            <td>{m.joinedAt ? new Date(m.joinedAt).toLocaleString() : "—"}</td>
+                                            <td>{m.owner ? <span
+                                                className="badge bg-success">Owner</span> : (m.roleId ?? '—')}</td>
+                                            <td>{m.owner ? 'Yes' : 'No'}</td>
+                                            <td>{m.invitedEmail ?? '—'}</td>
+                                            <td>{m.joinedAt ? new Date(m.joinedAt).toLocaleString() : '—'}</td>
                                             <td>
                                                 <div className="btn-group">
                                                     <Link
@@ -418,9 +308,9 @@ export default function CompanyMemberPage() {
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
                                                         onClick={() => handleDelete(m)}
-                                                        disabled={m.owner || deletingUserId === m.userId}
+                                                        disabled={m.owner || deletingUserId === m.userId || deleteMemberMutation.isPending}
                                                     >
-                                                        {deletingUserId === m.userId ? "Deleting..." : "Delete"}
+                                                        {deletingUserId === m.userId ? 'Deleting...' : 'Delete'}
                                                     </button>
 
                                                     <button
@@ -449,26 +339,28 @@ export default function CompanyMemberPage() {
                                 <div className="modal-content">
                                     <div className="modal-header">
                                         <h5 className="modal-title">Transfer ownership</h5>
-                                        <button type="button" className="btn-close" aria-label="Close" onClick={closeTransferModal} />
+                                        <button type="button" className="btn-close" aria-label="Close"
+                                                onClick={closeTransferModal}/>
                                     </div>
                                     <div className="modal-body">
                                         <p className="mb-2">
-                                            Chuyển quyền Owner cho: <span className="font-monospace">{targetMember?.userId}</span>
+                                            Chuyển quyền Owner cho: <span
+                                            className="font-monospace">{targetMember?.userId}</span>
                                         </p>
                                         <div className="mb-3">
                                             <label className="form-label">Role cho Owner hiện tại (downgrade)</label>
                                             <select
                                                 className="form-select"
-                                                value={selectedDowngradeRoleId === "" ? "" : String(selectedDowngradeRoleId)}
+                                                value={selectedDowngradeRoleId === '' ? '' : String(selectedDowngradeRoleId)}
                                                 onChange={(e) =>
-                                                    setSelectedDowngradeRoleId(e.target.value ? Number(e.target.value) : "")
+                                                    setSelectedDowngradeRoleId(e.target.value ? Number(e.target.value) : '')
                                                 }
                                             >
                                                 <option value="">— Chọn role —</option>
                                                 {roles.map((r) => (
                                                     <option key={r.id} value={r.id}>
                                                         {r.code}
-                                                        {r.name ? ` (${r.name})` : ""}
+                                                        {r.name ? ` (${r.name})` : ''}
                                                     </option>
                                                 ))}
                                             </select>
@@ -478,11 +370,13 @@ export default function CompanyMemberPage() {
                                         </div>
                                     </div>
                                     <div className="modal-footer">
-                                        <button className="btn btn-secondary" onClick={closeTransferModal} disabled={transferring}>
+                                        <button className="btn btn-secondary" onClick={closeTransferModal}
+                                                disabled={transferOwnershipMutation.isPending}>
                                             Cancel
                                         </button>
-                                        <button className="btn btn-primary" onClick={confirmTransfer} disabled={transferring}>
-                                            {transferring ? "Transferring..." : "Confirm Transfer"}
+                                        <button className="btn btn-primary" onClick={confirmTransfer}
+                                                disabled={transferOwnershipMutation.isPending}>
+                                            {transferOwnershipMutation.isPending ? 'Transferring...' : 'Confirm Transfer'}
                                         </button>
                                     </div>
                                 </div>
@@ -517,7 +411,8 @@ export default function CompanyMemberPage() {
                                                 <div className="alert alert-info d-flex align-items-center mb-4">
                                                     <i className="ri-information-line me-2"></i>
                                                     <div>
-                                                        <strong>Thông tin:</strong> Chỉ có thể mời những người đã đăng ký tài khoản trong hệ thống.
+                                                        <strong>Thông tin:</strong> Chỉ có thể mời những người đã đăng
+                                                        ký tài khoản trong hệ thống.
                                                     </div>
                                                 </div>
                                             </div>
@@ -541,13 +436,13 @@ export default function CompanyMemberPage() {
                                                         value={emailInput}
                                                         onChange={(e) => setEmailInput(e.target.value)}
                                                         onKeyPress={handleEmailInputKeyPress}
-                                                        disabled={inviting}
+                                                        disabled={batchInviteMutation.isPending}
                                                     />
                                                     <button
                                                         className="btn btn-outline-primary"
                                                         type="button"
                                                         onClick={addEmail}
-                                                        disabled={inviting || !emailInput.trim()}
+                                                        disabled={batchInviteMutation.isPending || !emailInput.trim()}
                                                     >
                                                         <i className="ri-add-line"></i>
                                                     </button>
@@ -564,9 +459,11 @@ export default function CompanyMemberPage() {
                                                         <i className="ri-list-check me-1"></i>
                                                         Danh sách email ({inviteEmails.length})
                                                     </label>
-                                                    <div className="border rounded p-3 bg-light" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                                                    <div className="border rounded p-3 bg-light"
+                                                         style={{maxHeight: '200px', overflowY: 'auto'}}>
                                                         {inviteEmails.map((email, index) => (
-                                                            <div key={index} className="d-flex align-items-center justify-content-between mb-2 p-2 bg-white rounded border">
+                                                            <div key={index}
+                                                                 className="d-flex align-items-center justify-content-between mb-2 p-2 bg-white rounded border">
                                                                 <div className="d-flex align-items-center">
                                                                     <i className="ri-mail-line me-2 text-primary"></i>
                                                                     <span className="font-monospace">{email}</span>
@@ -575,7 +472,7 @@ export default function CompanyMemberPage() {
                                                                     type="button"
                                                                     className="btn btn-sm btn-outline-danger"
                                                                     onClick={() => removeEmail(email)}
-                                                                    disabled={inviting}
+                                                                    disabled={batchInviteMutation.isPending}
                                                                 >
                                                                     <i className="ri-close-line"></i>
                                                                 </button>
@@ -597,15 +494,15 @@ export default function CompanyMemberPage() {
                                                     <select
                                                         className="form-select form-select-lg"
                                                         id="selectedRole"
-                                                        value={selectedRoleId === "" ? "" : String(selectedRoleId)}
-                                                        onChange={(e) => setSelectedRoleId(e.target.value ? Number(e.target.value) : "")}
-                                                        disabled={inviting}
+                                                        value={selectedRoleId === '' ? '' : String(selectedRoleId)}
+                                                        onChange={(e) => setSelectedRoleId(e.target.value ? Number(e.target.value) : '')}
+                                                        disabled={batchInviteMutation.isPending}
                                                     >
                                                         <option value="">— Chọn vai trò —</option>
-                                                        {inviteRoles.map((role) => (
+                                                        {roles.map((role) => (
                                                             <option key={role.id} value={role.id}>
                                                                 {role.code}
-                                                                {role.name ? ` - ${role.name}` : ""}
+                                                                {role.name ? ` - ${role.name}` : ''}
                                                             </option>
                                                         ))}
                                                     </select>
@@ -616,10 +513,11 @@ export default function CompanyMemberPage() {
                                             </div>
                                         </div>
 
-                                        {inviteRoles.length === 0 && (
+                                        {roles.length === 0 && (
                                             <div className="alert alert-warning mt-3">
                                                 <i className="ri-alert-line me-2"></i>
-                                                Không có vai trò nào khả dụng. Vui lòng tạo vai trò trước khi mời thành viên.
+                                                Không có vai trò nào khả dụng. Vui lòng tạo vai trò trước khi mời thành
+                                                viên.
                                             </div>
                                         )}
 
@@ -630,17 +528,20 @@ export default function CompanyMemberPage() {
                                                     <i className="ri-checkbox-circle-line me-1"></i>
                                                     Kết quả mời
                                                 </label>
-                                                <div className="border rounded p-3 bg-light" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                                                <div className="border rounded p-3 bg-light"
+                                                     style={{maxHeight: '200px', overflowY: 'auto'}}>
                                                     {inviteResults.map((result, index) => (
-                                                        <div key={index} className={`d-flex align-items-center justify-content-between mb-2 p-2 rounded border ${
-                                                            result.success ? 'bg-success bg-opacity-10 border-success' : 'bg-danger bg-opacity-10 border-danger'
-                                                        }`}>
+                                                        <div key={index}
+                                                             className={`d-flex align-items-center justify-content-between mb-2 p-2 rounded border ${
+                                                                 result.success ? 'bg-success bg-opacity-10 border-success' : 'bg-danger bg-opacity-10 border-danger'
+                                                             }`}>
                                                             <div className="d-flex align-items-center">
                                                                 <i className={`me-2 ${result.success ? 'ri-check-line text-success' : 'ri-close-line text-danger'}`}></i>
                                                                 <span className="font-monospace">{result.email}</span>
                                                             </div>
                                                             <div className="text-end">
-                                                                <small className={`${result.success ? 'text-success' : 'text-danger'}`}>
+                                                                <small
+                                                                    className={`${result.success ? 'text-success' : 'text-danger'}`}>
                                                                     {result.message}
                                                                 </small>
                                                             </div>
@@ -654,7 +555,7 @@ export default function CompanyMemberPage() {
                                         <button
                                             className="btn btn-outline-secondary btn-lg px-4"
                                             onClick={closeInviteModal}
-                                            disabled={inviting}
+                                            disabled={batchInviteMutation.isPending}
                                         >
                                             <i className="ri-close-line me-1"></i>
                                             Hủy
@@ -662,11 +563,12 @@ export default function CompanyMemberPage() {
                                         <button
                                             className="btn btn-primary btn-lg px-4"
                                             onClick={handleInviteMember}
-                                            disabled={inviting || inviteRoles.length === 0 || inviteEmails.length === 0}
+                                            disabled={batchInviteMutation.isPending || roles.length === 0 || inviteEmails.length === 0}
                                         >
-                                            {inviting ? (
+                                            {batchInviteMutation.isPending ? (
                                                 <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span className="spinner-border spinner-border-sm me-2"
+                                                          role="status" aria-hidden="true"></span>
                                                     Đang mời {inviteEmails.length} thành viên...
                                                 </>
                                             ) : (

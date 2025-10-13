@@ -1,5 +1,4 @@
 import CompaniesRolePage from '../pages/Companies/CompaniesRolePage';
-import CompaniesPage from '../pages/Companies/CompaniesPage';
 import CompaniesMembersPage from '../pages/Companies/CompaniesMembersPage';
 import {Navigate} from 'react-router-dom';
 import CreateCompanyPage from '../pages/Companies/CreateCompanyPage';
@@ -8,8 +7,8 @@ import EditRolePermissionPage from '../pages/Companies/EditRolePermissionPage';
 import CreateRolePage from '../pages/Companies/CreateRolePage';
 import EditRolePage from '../pages/Companies/EditRolePage';
 import AssignRolePage from '../pages/Companies/AssignRolePage';
-import NFTLanding from '../pages/Companies-2';
-import AccountPage from "../pages/Accounts/AccountPage";
+import Companies from '../pages/Companies-2';
+import AccountPage from '../pages/Accounts/AccountPage';
 
 export type AuthRoute = {
     path: string;
@@ -21,6 +20,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/', component: <Navigate to="/companies"/>},
 
     // === Companies ===
+    {path: '/companies', component: <Companies/>, noLayout: true},
     {path: '/account', component: <AccountPage/>},
     {path: '/companies/:companyId', component: <CompaniesMembersPage/>},
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
@@ -30,7 +30,6 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/roles/new', component: <CreateRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/edit', component: <EditRolePage/>},
     {path: '/companies/:companyId/members/:memberId/assign-role', component: <AssignRolePage/>},
-    {path: '/companies', component: <NFTLanding/>, noLayout: true},
 ];
 
 const publicRoutes = [];
