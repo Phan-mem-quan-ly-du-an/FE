@@ -13,7 +13,7 @@ export default class ApiCaller {
     private data: any;
 
     constructor() {
-        this.base = process.env.REACT_APP_API_BASE as string;
+        this.base = process.env.REACT_APP_API_URL as string;
     }
 
     setUrl(path: string) { this.urlPath = path; return this; }
@@ -41,8 +41,8 @@ export default class ApiCaller {
         }
 
         const headers: Record<string, string> = { ...(this.headers || {}), ...(opts?.headers || {}) };
-        const idToken = (window as any).__id_token__ || localStorage.getItem("id_token");
-        if (idToken && !headers["Authorization"]) headers["Authorization"] = `Bearer ${idToken}`;
+        const accessToken = (window as any).__access_token__ || localStorage.getItem("access_token");
+        if (accessToken && !headers["Authorization"]) headers["Authorization"] = `Bearer ${accessToken}`;
 
         const bodyData = (opts?.data !== undefined) ? opts!.data : this.data;
         const init: RequestInit = { method, headers };

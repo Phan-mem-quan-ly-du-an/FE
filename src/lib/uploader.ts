@@ -1,10 +1,10 @@
-export async function uploadImageTo(bucket: "company-logo"|"user-avatar"|"temp", file: File, idToken: string, apiBase: string) {
+export async function uploadImageTo(bucket: "company-logo"|"user-avatar"|"temp", file: File, accessToken: string, apiBase: string) {
     const fd = new FormData();
     fd.append("file", file);
     const url = new URL(`/api/uploads/${bucket}`, apiBase).toString();
     const res = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${idToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: fd,
     });
     if (!res.ok) {

@@ -31,7 +31,7 @@ export default function CompaniesRolePage() {
 
     const rolesQuery = useQuery<Role[]>({
         queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
-        enabled: !!resolvedCompanyId && !auth.isLoading && !!auth.user?.id_token,
+        enabled: !!resolvedCompanyId && !auth.isLoading && !!auth.user?.access_token,
         queryFn: async () => {
             if (!resolvedCompanyId) {
                 setMsg(t("CannotDetermineCompanyId"));
@@ -112,7 +112,7 @@ export default function CompaniesRolePage() {
     const data = (rolesQuery.data ?? []) as Role[];
 
     if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
-    if (!auth.isAuthenticated || !auth.user?.id_token) {
+    if (!auth.isAuthenticated || !auth.user?.access_token) {
         return (
             <div className="container">
                 <p>{t("NotLoggedIn")}</p>
