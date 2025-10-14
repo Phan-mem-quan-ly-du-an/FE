@@ -42,8 +42,8 @@ export default function EditRolePermissionPage() {
     const [msg, setMsg] = useState<string | null>(null);
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
-        const idToken = auth.user?.id_token;
-        return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
+        const accessToken = auth.user?.access_token;
+        return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
     }
 
     async function loadAll() {
@@ -87,10 +87,10 @@ export default function EditRolePermissionPage() {
 
     useEffect(() => {
         if (auth.isLoading) return;
-        if (!auth.isAuthenticated || !auth.user?.id_token) return;
+        if (!auth.isAuthenticated || !auth.user?.access_token) return;
         loadAll();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [auth.isLoading, auth.isAuthenticated, auth.user?.id_token, companyId, roleId]);
+    }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, companyId, roleId]);
 
     const toggle = (pid: number) => {
         setSelected(prev => {
@@ -127,7 +127,7 @@ export default function EditRolePermissionPage() {
     }
 
     if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
-    if (!auth.isAuthenticated || !auth.user?.id_token) {
+    if (!auth.isAuthenticated || !auth.user?.access_token) {
         return (
             <div className="container">
                 <p>{t("NotLoggedIn")}</p>

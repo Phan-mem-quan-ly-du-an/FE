@@ -19,16 +19,16 @@ export default function CreateCompanyPage() {
     const toAbsolute = (u?: string) => (u ? (u.startsWith("http") ? u : base + u) : "");
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
-        const idToken = auth.user?.id_token;
-        return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
+        const accessToken = auth.user?.access_token;
+        return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
     }
 
     async function handleUpload(file: File) {
-        const idToken = auth.user?.id_token;
-        if (!idToken) { setMsg("Bạn chưa đăng nhập!"); return; }
+        const accessToken = auth.user?.access_token;
+        if (!accessToken) { setMsg("Bạn chưa đăng nhập!"); return; }
         try {
             setUploading(true);
-            const r = await uploadImageTo("company-logo", file, idToken, base);
+            const r = await uploadImageTo("company-logo", file, accessToken, base);
             // r.url là relative → preview cần absolute
             setLogoAbs(toAbsolute(r.url));
             setMsg("Upload logo thành công!");
@@ -42,7 +42,7 @@ export default function CreateCompanyPage() {
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         setMsg(null);
-        if (!auth.user?.id_token) { setMsg("Bạn chưa đăng nhập!"); return; }
+        if (!auth.user?.access_token) { setMsg("Bạn chưa đăng nhập!"); return; }
         if (!name.trim()) { setMsg("Tên công ty là bắt buộc"); return; }
 
         setSubmitting(true);
@@ -71,7 +71,7 @@ export default function CreateCompanyPage() {
     }
 
     if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
-    if (!auth.isAuthenticated || !auth.user?.id_token) {
+    if (!auth.isAuthenticated || !auth.user?.access_token) {
         return (
             <div className="container">
                 <p>Bạn chưa đăng nhập.</p>

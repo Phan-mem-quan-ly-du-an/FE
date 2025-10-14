@@ -19,15 +19,15 @@ const AuthProtected = ({children}: { children: React.ReactNode }) => {
     }, [auth, loc, tried]);
 
     useEffect(() => {
-        const idToken = auth.user?.id_token;
-        if (idToken) {
-            localStorage.setItem('id_token', idToken);
-            sessionStorage.setItem('authUser', JSON.stringify({idToken, profile: auth.user?.profile}));
+        const accessToken = auth.user?.access_token;
+        if (accessToken) {
+            localStorage.setItem('access_token', accessToken);
+            sessionStorage.setItem('authUser', JSON.stringify({accessToken, profile: auth.user?.profile}));
         } else {
             sessionStorage.removeItem('authUser');
-            localStorage.removeItem('id_token');
+            localStorage.removeItem('access_token');
         }
-    }, [auth.user?.id_token, auth.user?.profile]);
+    }, [auth.user?.access_token, auth.user?.profile]);
 
     if (auth.isLoading || auth.activeNavigator) return null;
     if (!auth.isAuthenticated) return null;

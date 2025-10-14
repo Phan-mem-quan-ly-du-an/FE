@@ -30,8 +30,8 @@ export default function EditCompanyPage() {
     const toAbsolute = (u?: string) => (u ? (u.startsWith("http") ? u : base + u) : "");
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
-        const idToken = auth.user?.id_token;
-        return { ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}), ...(extra ?? {}) };
+        const accessToken = auth.user?.access_token;
+        return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
     }
 
     async function load() {
@@ -63,17 +63,17 @@ export default function EditCompanyPage() {
 
     useEffect(() => {
         if (auth.isLoading) return;
-        if (!auth.isAuthenticated || !auth.user?.id_token) return;
+        if (!auth.isAuthenticated || !auth.user?.access_token) return;
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [auth.isLoading, auth.isAuthenticated, auth.user?.id_token, companyId]);
+    }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, companyId]);
 
     async function handleUpload(file: File) {
-        const idToken = auth.user?.id_token;
-        if (!idToken) { setMsg("Bạn chưa đăng nhập!"); return; }
+        const accessToken = auth.user?.access_token;
+        if (!accessToken) { setMsg("Bạn chưa đăng nhập!"); return; }
         try {
             setUploading(true);
-            const r = await uploadImageTo("company-logo", file, idToken, base);
+            const r = await uploadImageTo("company-logo", file, accessToken, base);
             // preview absolute; DB sẽ nhận relative khi lưu
             setLogoAbs(toAbsolute(r.url));
             setMsg("Upload logo thành công!");
@@ -118,7 +118,7 @@ export default function EditCompanyPage() {
     }
 
     if (auth.isLoading) return <div className="container">Đang kiểm tra phiên đăng nhập...</div>;
-    if (!auth.isAuthenticated || !auth.user?.id_token) {
+    if (!auth.isAuthenticated || !auth.user?.access_token) {
         return (
             <div className="container">
                 <p>Bạn chưa đăng nhập.</p>
