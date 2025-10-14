@@ -38,7 +38,7 @@
     "Task Details": "Task Details",
     "Contacts": "Contacts",
     "CompanyMembers": "Company Members",
-    "CompanyRoles": "Roles",
+    "CompanyRoles": "Roles List",
     "MembersList": "Members List",
     "RolePermissionManagement": "Roles",
     "AddMember": "Add Member",
@@ -277,5 +277,7 @@
     "Privacy Policy": "Privacy Policy",
     "Terms Condition": "Terms Condition",
     "pages": "pages",
-    "React Datatables": "React Datatables"
+    "React Datatables": "React Datatables",
+    "EditRolePermissions": "Permissions",
+    "SearchRolesPlaceholder": "Search for role ID or name"
 }

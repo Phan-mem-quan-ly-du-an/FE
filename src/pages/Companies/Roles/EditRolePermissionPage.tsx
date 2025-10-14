@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 type Permission = {
     id: number;
@@ -40,6 +42,23 @@ export default function EditRolePermissionPage() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
+
+    const loc = useLocation() as { state?: { roleName?: string; roleCode?: string } };
+    const initialRole = { name: loc.state?.roleName || "", code: loc.state?.roleCode || "" };
+    const roleQuery = useQuery({
+        queryKey: ["companyRole", companyId, roleId],
+        enabled: (!!companyId && !!roleId && !!auth.user?.access_token && (!initialRole.name || !initialRole.code)),
+        queryFn: async () => {
+            const res = await fetch(new URL(`/api/companies/${companyId}/roles/${roleId}`, base).toString(), {
+                headers: getAuthHeaders(),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return res.json() as Promise<{ id: string | number; name: string; code?: string }>;
+        },
+    });
+    const roleName = initialRole.name || roleQuery.data?.name || "";
+    const roleCode = initialRole.code || roleQuery.data?.code || "";
+    const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
@@ -139,91 +158,100 @@ export default function EditRolePermissionPage() {
     return (
         <div className="page-content">
             <div className="container-fluid">
-
-                {/* Row: Title + Back + Save */}
                 <div className="row">
-                    <div className="col-12 d-sm-flex align-items-center justify-content-between">
-                        <h4 className="mb-sm-0">{t("EditRolePermissions")}</h4>
-                        <div className="d-flex gap-2">
-                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">{t("Back")}</Link>
-                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
-                                {saving ? t("Saving") : t("Save")}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Row: Message */}
-                {msg && (
-                    <div className="row">
-                        <div className="col-12">
-                            <div className="alert alert-info mt-3 mb-0">{msg}</div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Row: Role ID | Role Name */}
-                <div className="row mt-3">
-                    <div className="col-12 col-lg-8 col-xl-6">
-                        <div className="table-responsive">
-                            <table className="table table-bordered align-middle">
-                                <thead>
-                                <tr>
-                                    <th style={{width:160}}>Role ID</th>
-                                </tr>
-                                <tr>
-                                    <th style={{width:160}}>Role Name</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <tr>
-                                    <td className="font-monospace">{roleId || "—"}</td>
-                                </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* Row: Permissions (code + checkbox) */}
-                <div className="row mt-3">
                     <div className="col-12">
-                        <div className="table-responsive">
-                            <table className="table table-striped align-middle">
-                                <thead>
-                                <tr>
-                                    <th style={{width:280}}>Permission Name</th>
-                                    <th>Tick</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {loading && <tr><td colSpan={2} className="text-center py-5">{t("Loading")}</td></tr>}
-                                {!loading && permissions.length === 0 && (
-                                    <tr><td colSpan={2} className="text-center text-muted py-5">{t("NoPermissions")}</td></tr>
+                        <div className="card">
+                            <div className="card-header border-0">
+                                <div className="row align-items-center gy-3">
+                                    <div className="col-sm">
+                                        <h5 className="card-title mb-0">
+                                            {t("EditRolePermissions")}
+                                            <span className="badge bg-light text-body ms-2">{roleDisplay}</span>
+                                        </h5>
+                                    </div>
+                                    <div className="col-sm-auto">
+                                        <div className="d-flex gap-2">
+                                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">
+                                                <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                            </Link>
+                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                                                <i className="ri-save-3-line me-1"></i>{saving ? t("Saving") : t("Save")}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="card-body pt-0">
+                                {/* Messages */}
+                                {msg && (
+                                    <div className="row mb-3">
+                                        <div className="col">
+                                            <div className="alert alert-info mb-0">{msg}</div>
+                                        </div>
+                                    </div>
                                 )}
-                                {!loading && permissions.map(p => (
-                                    <tr key={p.id}>
-                                        <td>
-                                            <div className="fw-semibold">{p.name}</div>
-                                            {p.code && <div className="text-muted small">{p.code}</div>}
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="checkbox"
-                                                className="form-check-input"
-                                                checked={selected.has(p.id)}
-                                                onChange={() => toggle(p.id)}
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
+
+                            {/* Row: Role ID | Role Name */}
+                            <div className="row mt-3">
+                                <div className="col-12 col-lg-8 col-xl-6">
+                                    <div className="table-responsive table-card mb-1 mt-0">
+                                        <table className="table align-middle table-nowrap">
+                                            <thead className="table-light text-muted text-uppercase">
+                                            <tr>
+                                                <th style={{ width: 160 }}>Role ID</th>
+                                                <th>Role Name</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td className="font-monospace">{roleId || "—"}</td>
+                                                <td>
+                                                    {roleName ? (
+                                                        <>
+                                                            <div className="fw-semibold">{roleName}</div>
+                                                            {roleCode && <div className="text-muted small">({roleCode})</div>}
+                                                        </>
+                                                    ) : "—"}
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                            </div>
+                                <div className="table-responsive table-card mb-1 mt-0">
+                                    <table className="table align-middle table-nowrap">
+                                        <thead className="table-light text-muted text-uppercase">
+                                        <tr>
+                                            <th style={{ width: 320 }}>{t('PermissionName') || 'Permission Name'}</th>
+                                            <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {!loading && permissions.map(p => (
+                                            <tr key={p.id}>
+                                                <td>
+                                                    <div className="fw-semibold">{p.name}</div>
+                                                    {p.code && <div className="text-muted small">{p.code}</div>}
+                                                </td>
+                                                <td className="text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="form-check-input"
+                                                        checked={selected.has(p.id)}
+                                                        onChange={() => toggle(p.id)}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );

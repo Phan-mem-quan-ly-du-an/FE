@@ -214,16 +214,16 @@ export default function AccountPage() {
                         <div className="card h-100">
                             <div className="card-body">
                                 <h6 className="text-muted text-uppercase mb-3">Session</h6>
-                                <div className="small text-break">
-                                    <div className="text-muted mb-1">Id token (truncated)</div>
-                                    <code className="d-block">{auth.user?.id_token as string}</code>
-                                </div>
-                                    <div className="small text-break mt-3">
-                                      <div className="text-muted mb-1">Access token (truncated)</div>
-                                      <code className="d-block">
+                                {/*<div className="small text-break">*/}
+                                {/*    <div className="text-muted mb-1">Id token</div>*/}
+                                {/*    <code className="d-block">{auth.user?.id_token as string}</code>*/}
+                                {/*</div>*/}
+                                <div className="small text-break mt-3">
+                                    <div className="text-muted mb-1">Access token</div>
+                                    <code className="d-block">
                                         {auth.user?.access_token as string}
-                                      </code>
-                                    </div>
+                                    </code>
+                                </div>
                             </div>
                         </div>
                     </div>
