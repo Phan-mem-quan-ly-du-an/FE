@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, CardBody, Col, Row, Button, Input } from 'reactstrap';
+import {Card, CardBody, Col, Row, Button, Input, Modal, ModalHeader, ModalBody} from 'reactstrap';
 import SimpleBar from 'simplebar-react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import ApiCaller from '../../helpers/apiCaller/caller/apiCaller';
@@ -15,6 +15,72 @@ function toAbsUrl(u?: string | null, base?: string) {
     try { if (!u) return ''; return new URL(u, base).toString(); } catch { return ''; }
 }
 
+function friendlyNetworkMessage(msg?: string) {
+    const s = (msg || '').toLowerCase();
+    return (s.includes('500') || s.includes('failed to fetch') || s.includes('network'))
+        ? 'Network error. Please reload.'
+        : (msg || 'An error occurred.');
+}
+
+/** Small confirm-delete modal */
+function ConfirmDeleteModal({
+                                open, onClose, company, onDeleted,
+                            }: {
+    open: boolean;
+    onClose: () => void;
+    company: Company | null;
+    onDeleted: () => void;
+}) {
+    const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
+    const token = (window as any).__access_token__ || localStorage.getItem('access_token') || '';
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState<string | null>(null);
+
+    useEffect(() => { if (!open) { setBusy(false); setMsg(null); } }, [open]);
+
+    async function handleDelete() {
+        if (!company?.id) return;
+        setBusy(true);
+        setMsg(null);
+        try {
+            // dùng fetch thẳng để chắc chắn DELETE
+            const url = new URL(`api/companies/${company.id}`, base).toString();
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: { Authorization: token ? `Bearer ${token}` : '' }
+            });
+            if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+            onDeleted();
+            onClose();
+        } catch (err: any) {
+            setMsg(friendlyNetworkMessage(err?.message));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return (
+        <Modal isOpen={open} toggle={onClose} centered modalClassName="modal-compact">
+            <ModalHeader toggle={onClose}>Delete company</ModalHeader>
+            <ModalBody>
+                <style>{`
+          .modal-compact .modal-dialog { max-width: 520px; }
+          .modal-compact .modal-content { border-radius: 14px; }
+        `}</style>
+                {msg && <div className="alert alert-warning py-2">{msg}</div>}
+                <p className="mb-3">
+                    Are you sure you want to delete <strong>{company?.name}</strong>? This action cannot be undone.
+                </p>
+                <div className="d-flex justify-content-end gap-2">
+                    <Button type="button" className="btn-light" onClick={onClose} disabled={busy}>Cancel</Button>
+                    <Button type="button" color="danger" onClick={handleDelete} disabled={busy}>
+                        {busy ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </div>
+            </ModalBody>
+        </Modal>
+    );
+}
 export default function CompaniesList() {
     // search + debounce
     const [search, setSearch] = useState('');
@@ -45,8 +111,11 @@ export default function CompaniesList() {
     const [editing, setEditing] = useState<Company | null>(null);
     const [showEdit, setShowEdit] = useState(false);
 
+    const [toDelete, setToDelete] = useState<Company | null>(null);
+
     const onCreated = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
     const onSaved   = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
+    const onDeleted = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
 
     return (
         <React.Fragment>
@@ -115,6 +184,7 @@ export default function CompaniesList() {
                                                             <div className="btn-group">
                                                                 <Button size="sm" color="light" outline href={`/companies/${c.id}/members`}>View</Button>
                                                                 <Button size="sm" color="light" onClick={() => { setEditing(c); setShowEdit(true); }}>Edit</Button>
+                                                                <Button size="sm" color="danger" outline onClick={() => setToDelete(c)}>Delete</Button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -142,6 +212,7 @@ export default function CompaniesList() {
             {/* Modals (centered, slightly larger) */}
             <CreateCompanyModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={onCreated} />
             <EditCompanyModal open={showEdit} onClose={() => setShowEdit(false)} company={editing} onSaved={onSaved} />
+            <ConfirmDeleteModal open={!!toDelete} onClose={() => setToDelete(null)} company={toDelete} onDeleted={onDeleted} />
         </React.Fragment>
     );
 }
