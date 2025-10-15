@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardBody, CardHeader, Col, Container, Row } from 'reactstrap';
@@ -151,6 +151,7 @@ export default function CompanyMemberPage() {
         setShowAssignRoleModal(false);
         setAssignRoleMember(null);
     };
+
 
     return (
         <div className="page-content">
