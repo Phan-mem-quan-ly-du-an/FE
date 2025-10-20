@@ -25,7 +25,7 @@ const AuthProtected = ({children}: { children: React.ReactNode }) => {
             sessionStorage.setItem('authUser', JSON.stringify({accessToken, profile: auth.user?.profile}));
         } else {
             sessionStorage.removeItem('authUser');
-            localStorage.removeItem('access_token');
+            localStorage.removeItem( 'access_token');
         }
     }, [auth.user?.access_token, auth.user?.profile]);
 

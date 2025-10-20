@@ -73,13 +73,25 @@ export default function CompaniesRolePage() {
     }
     const columns = useMemo(() => [
         {
-            header: 'Id',
+            header: '#',
+            id: 'serial',
+            enableColumnFilter: false,
+            cell: ({ row }: any) => {
+                const pagination = row?.table?.getState?.().pagination;
+                const pageIndex = pagination?.pageIndex ?? 0;
+                const pageSize = pagination?.pageSize ?? 10;
+                const serial = pageIndex * pageSize + row.index + 1;
+                return <span className="text-muted">{serial}</span>;
+            },
+        },
+        {
+            header: 'Role ID',
             accessorKey: 'id',
             enableColumnFilter: false,
             cell: (info: any) => <span className="font-monospace">{info.getValue()}</span>,
         },
         {
-            header: 'Tên',
+            header: 'Name',
             accessorKey: 'name',
             enableColumnFilter: false,
             cell: ({ row }: any) => (
@@ -90,22 +102,52 @@ export default function CompaniesRolePage() {
             ),
         },
         {
-            header: 'Mô tả',
+            header: 'Description',
             accessorKey: 'description',
             enableColumnFilter: false,
             cell: ({ getValue }: any) => getValue() || '—',
         },
         {
-            header: '',
+            header: 'Action',
             id: 'action',
             enableColumnFilter: false,
-            cell: ({ row }: any) => (
-                <div className="d-flex align-items-center gap-2 p-2">
-                    <button className="btn btn-outline-primary" onClick={() => { setEditingRole(row.original); setShowEdit(true); }}>{t('Edit')}</button>
-                    <button className="btn btn-outline-danger" onClick={() => setConfirmDelete(row.original)} disabled={deleteRoleMutation.isPending}>{t('Delete')}</button>
-                    <Link className="btn btn-outline-primary" to={`/companies/${resolvedCompanyId}/roles/${row.original.id}/permission`}>{t('Permission')}</Link>
-                </div>
-            ),
+            cell: ({ row }: any) => {
+                const r: Role = row.original;
+                const isDeleting = deleteRoleMutation.isPending;
+                return (
+                    <ul className="list-inline hstack gap-2 mb-0">
+                        <li className="list-inline-item">
+                            <button
+                                className="btn btn-ghost-secondary btn-icon btn-sm"
+                                title={t('Edit') as string}
+                                onClick={() => { setEditingRole(r); setShowEdit(true); }}
+                            >
+                                <i className="ri-edit-2-line fs-16"></i>
+                            </button>
+                        </li>
+                        <li className="list-inline-item">
+                            <Link
+                                to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}
+                                state={{ roleName: r.name, roleCode: r.code }}
+                                className="btn btn-ghost-primary btn-icon btn-sm"
+                                title={t('Permission') as string}
+                            >
+                                <i className="ri-shield-user-line fs-16"></i>
+                            </Link>
+                        </li>
+                        <li className="list-inline-item">
+                            <button
+                                className="btn btn-ghost-danger btn-icon btn-sm"
+                                title={t('Delete') as string}
+                                onClick={() => handleDeleteRole(r)}
+                                disabled={isDeleting}
+                            >
+                                <i className="ri-delete-bin-5-line fs-16"></i>
+                            </button>
+                        </li>
+                    </ul>
+                );
+            },
         },
     ], [t, resolvedCompanyId, deleteRoleMutation.isPending]);
 
@@ -138,16 +180,18 @@ export default function CompaniesRolePage() {
                     <Col>
                         <Card>
                             <CardHeader className="card-header border-0">
-                                <Row className="align-items-center gy-3">
-                                    <div className="col-sm">
-                                        <h5 className="card-title mb-0">{t('CompanyRoles')}</h5>
+                                <div className="d-sm-flex align-items-center justify-content-between gap-2">
+                                    <h5 className="card-title mb-0">{t('CompanyRoles')}</h5>
+                                    <div className="d-flex flex-wrap gap-2 justify-content-sm-end">
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={() => setShowCreate(true)}
+                                        >
+                                            <i className="ri-add-line me-1"></i>{t('CreateRole')}
+                                        </button>
                                     </div>
-                                    <div className="col-sm-auto">
-                                        <div className="d-flex gap-1 flex-wrap">
-                                            <button type="button" className="btn btn-success" onClick={() => setShowCreate(true)}>+ {t('CreateRole')}</button>
-                                        </div>
-                                    </div>
-                                </Row>
+                                </div>
                             </CardHeader>
                             <CardBody className="pt-0">
                                 {rolesQuery.isLoading ? (
@@ -156,11 +200,13 @@ export default function CompaniesRolePage() {
                                     <TableContainer
                                         columns={columns}
                                         data={data}
-                                        isGlobalFilter={false}
-                                        hidePagination={true}
+                                        isGlobalFilter={true}
+                                        hidePagination={false}
                                         customPageSize={10}
-                                        tableClass="table align-middle table-nowrap"
-                                        theadClass="table-light"
+                                        divClass="table-responsive table-card mb-1 mt-0"
+                                        tableClass="align-middle table-nowrap"
+                                        theadClass="table-light text-muted text-uppercase"
+                                        SearchPlaceholder={t('SearchRolesPlaceholder')}
                                     />
                                 )}
                                 {!rolesQuery.isLoading && data.length === 0 && (
