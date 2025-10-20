@@ -4,6 +4,7 @@ import {Navigate} from 'react-router-dom';
 import EditRolePermissionPage from '../pages/Companies/Roles/EditRolePermissionPage';
 import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
+import ProjectList from '../pages/ProjectList';
 
 export type AuthRoute = {
     path: string;
@@ -20,6 +21,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/members', component: <CompaniesMembersPage/>},
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
+    {path: '/projects', component: <ProjectList/>},
 ];
 
 const publicRoutes = [];
