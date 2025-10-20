@@ -297,5 +297,12 @@
     "View": "Xem",
     "Remove": "Xóa",
     "Updated": "Cập nhật",
-    "NoDescriptionAvailable": "Không có mô tả"
+    "NoDescriptionAvailable": "Không có mô tả",
+    "AreYouSure": "Bạn có chắc chắn ?",
+    "AreYouSureRemoveRecord": "Bạn có chắc chắn muốn xóa bản ghi này ?",
+    "Close": "Đóng",
+    "YesDeleteIt": "Có, Xóa nó!",
+    "ProjectDeletedSuccessfully": "Xóa dự án thành công",
+    "FailedToDeleteProject": "Không thể xóa dự án",
+    "Deleting": "Đang xóa..."
 }

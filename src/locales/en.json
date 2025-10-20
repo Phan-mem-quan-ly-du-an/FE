@@ -300,5 +300,12 @@
     "Edit": "Edit",
     "Remove": "Remove",
     "Updated": "Updated",
-    "NoDescriptionAvailable": "No description available"
+    "NoDescriptionAvailable": "No description available",
+    "AreYouSure": "Are you sure ?",
+    "AreYouSureRemoveRecord": "Are you sure you want to remove this record ?",
+    "Close": "Close",
+    "YesDeleteIt": "Yes, Delete It!",
+    "ProjectDeletedSuccessfully": "Project deleted successfully",
+    "FailedToDeleteProject": "Failed to delete project",
+    "Deleting": "Deleting..."
 }

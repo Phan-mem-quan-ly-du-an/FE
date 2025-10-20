@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {Link} from 'react-router-dom';
 import {
     Card,
@@ -14,6 +14,7 @@ import {
 } from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
 import {useTranslation} from 'react-i18next';
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
@@ -24,7 +25,7 @@ import FeatherIcon from 'feather-icons-react';
 
 //import action
 import DeleteModal from '../../Components/Common/DeleteModal';
-import {getProjectsMine, Project} from '../../apiCaller/projects';
+import {getProjectsMine, deleteProject, Project} from '../../apiCaller/projects';
 
 interface ListProps {
     workspaceId?: string;
@@ -32,12 +33,10 @@ interface ListProps {
 
 const List = ({workspaceId}: ListProps = {}) => {
     const {t} = useTranslation();
+    const queryClient = useQueryClient();
 
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
-    const [projectLists, setProjectLists] = useState<any[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
 
     // Function to map API project data to component format
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
@@ -64,27 +63,44 @@ const List = ({workspaceId}: ListProps = {}) => {
         };
     };
 
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const projects = await getProjectsMine(workspaceId ? { workspaceId } : undefined);
-                const mappedProjects = projects.map((project, index) =>
-                    mapProjectToComponentFormat(project, index)
-                );
-                setProjectLists(mappedProjects);
-            } catch (err) {
-                console.error('Error fetching projects:', err);
-                setError(t('FailedToLoadProjects'));
-                toast.error(t('FailedToLoadProjects'));
-            } finally {
-                setLoading(false);
-            }
-        };
+    // React Query for fetching projects
+    const {
+        data: projects = [],
+        isLoading: loading,
+        error,
+        refetch
+    } = useQuery<Project[]>({
+        queryKey: ['projects', 'mine', workspaceId],
+        queryFn: () => getProjectsMine(workspaceId ? { workspaceId } : undefined),
+    });
 
-        fetchProjects();
-    }, [workspaceId]);
+    // Handle error with useEffect
+    useEffect(() => {
+        if (error) {
+            console.error('Error fetching projects:', error);
+            toast.error(t('FailedToLoadProjects'));
+        }
+    }, [error, t]);
+
+    // Delete project mutation
+    const deleteProjectMutation = useMutation({
+        mutationFn: (projectId: string) => deleteProject(projectId),
+        onSuccess: () => {
+            // Invalidate and refetch projects
+            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+            setDeleteModal(false);
+            toast.success(t('ProjectDeletedSuccessfully') || 'Project deleted successfully');
+        },
+        onError: (error) => {
+            console.error('Error deleting project:', error);
+            toast.error(t('FailedToDeleteProject') || 'Failed to delete project');
+        }
+    });
+
+    // Map projects to component format
+    const projectLists = projects.map((project: Project, index: number) =>
+        mapProjectToComponentFormat(project, index)
+    );
 
     // delete
     const onClickData = (project: any) => {
@@ -94,8 +110,7 @@ const List = ({workspaceId}: ListProps = {}) => {
 
     const handleDeleteProjectList = () => {
         if (project) {
-            // TODO: Implement delete project API call
-            setDeleteModal(false);
+            deleteProjectMutation.mutate(project.id);
         }
     };
 
@@ -106,6 +121,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                 show={deleteModal}
                 onDeleteClick={() => handleDeleteProjectList()}
                 onCloseClick={() => setDeleteModal(false)}
+                isLoading={deleteProjectMutation.isPending}
             />
             <Row className="g-4 mb-3">
                 <div className="col-sm-auto">
@@ -120,16 +136,6 @@ const List = ({workspaceId}: ListProps = {}) => {
                             <Input type="text" className="form-control" placeholder={t('Search')}/>
                             <i className="ri-search-line search-icon"></i>
                         </div>
-
-                        <select className="form-control w-md" data-choices data-choices-search-false>
-                            <option value="All">{t('All')}</option>
-                            <option value="Last 7 Days">{t('Last7Days')}</option>
-                            <option value="Last 30 Days">{t('Last30Days')}</option>
-                            <option value="Last Year">{t('LastYear')}</option>
-                            <option value="This Month">{t('ThisMonth')}</option>
-                            <option value="Today">{t('Today')}</option>
-                            <option value="Yesterday" defaultValue="Yesterday">{t('Yesterday')}</option>
-                        </select>
                     </div>
                 </div>
             </Row>
@@ -142,11 +148,11 @@ const List = ({workspaceId}: ListProps = {}) => {
             ) : error ? (
                 <div className="alert alert-danger" role="alert">
                     <i className="ri-error-warning-line me-2"></i>
-                    {error}
+                    {t('FailedToLoadProjects')}
                     <div className="mt-2">
                         <button
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => window.location.reload()}
+                            onClick={() => refetch()}
                         >
                             {t('Retry')}
                         </button>

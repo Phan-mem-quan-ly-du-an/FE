@@ -35,3 +35,15 @@ export const getProjectsMine = async (params?: GetProjectsMineParams): Promise<P
         throw error;
     }
 };
+
+export const deleteProject = async (projectId: string): Promise<void> => {
+    try {
+        const apiCaller = new ApiCaller();
+        await apiCaller
+            .setUrl(`/projects/${projectId}`)
+            .delete();
+    } catch (error) {
+        console.error("Error deleting project:", error);
+        throw error;
+    }
+};
