@@ -13,6 +13,7 @@ import {
     Spinner
 } from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
+import {useTranslation} from 'react-i18next';
 import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
@@ -30,6 +31,7 @@ interface ListProps {
 }
 
 const List = ({workspaceId}: ListProps = {}) => {
+    const {t} = useTranslation();
 
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
@@ -52,11 +54,11 @@ const List = ({workspaceId}: ListProps = {}) => {
 
         return {
             id: apiProject.id,
-            time: `Updated ${new Date(apiProject.updatedAt).toLocaleDateString()}`,
+            time: `${t('Updated')} ${new Date(apiProject.updatedAt).toLocaleDateString()}`,
             img: imageMap[index % imageMap.length],
             imgbgColor: colorMap[apiProject.color] || 'primary',
             label: apiProject.name,
-            caption: apiProject.description || 'No description available',
+            caption: apiProject.description || t('NoDescriptionAvailable'),
             date: new Date(apiProject.createdAt).toLocaleDateString(),
             ratingClass: apiProject.status === 'active' ? 'active' : ''
         };
@@ -74,8 +76,8 @@ const List = ({workspaceId}: ListProps = {}) => {
                 setProjectLists(mappedProjects);
             } catch (err) {
                 console.error('Error fetching projects:', err);
-                setError('Failed to load projects');
-                toast.error('Failed to load projects');
+                setError(t('FailedToLoadProjects'));
+                toast.error(t('FailedToLoadProjects'));
             } finally {
                 setLoading(false);
             }
@@ -109,24 +111,24 @@ const List = ({workspaceId}: ListProps = {}) => {
                 <div className="col-sm-auto">
                     <div>
                         <Link to="/apps-projects-create" className="btn btn-soft-secondary"><i
-                            className="ri-add-line align-bottom me-1"></i> Add New</Link>
+                            className="ri-add-line align-bottom me-1"></i> {t('AddNew')}</Link>
                     </div>
                 </div>
                 <div className="col-sm-3 ms-auto">
                     <div className="d-flex justify-content-sm-end gap-2">
                         <div className="search-box ms-2 col-sm-7">
-                            <Input type="text" className="form-control" placeholder="Search..."/>
+                            <Input type="text" className="form-control" placeholder={t('Search')}/>
                             <i className="ri-search-line search-icon"></i>
                         </div>
 
                         <select className="form-control w-md" data-choices data-choices-search-false>
-                            <option value="All">All</option>
-                            <option value="Last 7 Days">Last 7 Days</option>
-                            <option value="Last 30 Days">Last 30 Days</option>
-                            <option value="Last Year">Last Year</option>
-                            <option value="This Month">This Month</option>
-                            <option value="Today">Today</option>
-                            <option value="Yesterday" defaultValue="Yesterday">Yesterday</option>
+                            <option value="All">{t('All')}</option>
+                            <option value="Last 7 Days">{t('Last7Days')}</option>
+                            <option value="Last 30 Days">{t('Last30Days')}</option>
+                            <option value="Last Year">{t('LastYear')}</option>
+                            <option value="This Month">{t('ThisMonth')}</option>
+                            <option value="Today">{t('Today')}</option>
+                            <option value="Yesterday" defaultValue="Yesterday">{t('Yesterday')}</option>
                         </select>
                     </div>
                 </div>
@@ -135,7 +137,7 @@ const List = ({workspaceId}: ListProps = {}) => {
             {loading ? (
                 <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
                     <Spinner color="primary" />
-                    <span className="ms-2">Loading projects...</span>
+                    <span className="ms-2">{t('LoadingProjects')}</span>
                 </div>
             ) : error ? (
                 <div className="alert alert-danger" role="alert">
@@ -146,7 +148,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                             className="btn btn-sm btn-outline-danger"
                             onClick={() => window.location.reload()}
                         >
-                            Retry
+                            {t('Retry')}
                         </button>
                     </div>
                 </div>
@@ -155,10 +157,10 @@ const List = ({workspaceId}: ListProps = {}) => {
                     <div className="mb-3">
                         <i className="ri-folder-open-line" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
                     </div>
-                    <h5 className="text-muted">No projects found</h5>
-                    <p className="text-muted">Get started by creating your first project.</p>
+                    <h5 className="text-muted">{t('NoProjectsFound')}</h5>
+                    <p className="text-muted">{t('GetStartedByCreating')}</p>
                     <Link to="/apps-projects-create" className="btn btn-primary">
-                        <i className="ri-add-line me-1"></i> Create Project
+                        <i className="ri-add-line me-1"></i> {t('CreateProject')}
                     </Link>
                 </div>
             ) : (
@@ -183,14 +185,14 @@ const List = ({workspaceId}: ListProps = {}) => {
 
                                                         <DropdownMenu className="dropdown-menu-end">
                                                             <DropdownItem href="apps-projects-overview"><i
-                                                                className="ri-eye-fill align-bottom me-2 text-muted"></i> View</DropdownItem>
+                                                                className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}</DropdownItem>
                                                             <DropdownItem href="apps-projects-create"><i
-                                                                className="ri-pencil-fill align-bottom me-2 text-muted"></i> Edit</DropdownItem>
+                                                                className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}</DropdownItem>
                                                             <div className="dropdown-divider"></div>
                                                             <DropdownItem href="#" onClick={() => onClickData(item)}
                                                                           data-bs-toggle="modal"
                                                                           data-bs-target="#removeProjectModal"><i
-                                                                className="ri-delete-bin-fill align-bottom me-2 text-muted"></i> Remove</DropdownItem>
+                                                                className="ri-delete-bin-fill align-bottom me-2 text-muted"></i> {t('Remove')}</DropdownItem>
                                                         </DropdownMenu>
                                                     </UncontrolledDropdown>
                                                 </div>
