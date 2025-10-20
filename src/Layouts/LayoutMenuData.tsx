@@ -74,6 +74,18 @@ const Navdata = () => {
                 updateIconSidebar(e);
             },
         },
+        {
+            id: 'Projects',
+            label: 'Projects',
+            icon: <FeatherIcon icon="folder" className="icon-dual" />,
+            link: '/projects',
+            stateVariables: isDashboard,
+            click: function (e: any) {
+                e.preventDefault();
+                setIsCurrentState('Projects');
+                updateIconSidebar(e);
+            },
+        },
     ];
 
     return <React.Fragment>{menuItems}</React.Fragment>;

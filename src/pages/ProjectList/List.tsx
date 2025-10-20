@@ -9,113 +9,80 @@ import {
     DropdownToggle,
     Input,
     Row,
-    UncontrolledDropdown
+    UncontrolledDropdown,
+    Spinner
 } from 'reactstrap';
-import {ToastContainer} from 'react-toastify';
+import {ToastContainer, toast} from 'react-toastify';
 import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
 import dropbox from '../../assets/images/brands/dropbox.png';
-import avatar2 from '../../assets/images/users/avatar-2.jpg';
-import avatar3 from '../../assets/images/users/avatar-3.jpg';
-import avatar4 from '../../assets/images/users/avatar-4.jpg';
-import avatar5 from '../../assets/images/users/avatar-5.jpg';
-//redux
-import {useDispatch} from 'react-redux';
 
 //Import Icons
 import FeatherIcon from 'feather-icons-react';
 
 //import action
 import DeleteModal from '../../Components/Common/DeleteModal';
+import {getProjectsMine, Project} from '../../apiCaller/projects';
 
-const List = () => {
-    const dispatch = useDispatch<any>();
+interface ListProps {
+    workspaceId?: string;
+}
 
-    // Inside your component
-    const projectLists = [
-        {
-            id: 1,
-            isDesign1: true,
-            time: 'Updated 3hrs ago',
-            img: slack,
-            imgbgColor: 'warning',
-            label: 'Slack brand logo design',
-            caption: 'Create a Brand logo design for a velzon admin.',
-            number: '18/42',
-            progressBar: '34%',
-            subItem: [
-                {id: 1, imgFooter: avatar2},
-                {id: 2, imgNumber: '+'},
-            ],
-            date: '10 Jul, 2021',
-            ratingClass: ''
-        },
-        {
-            id: 2,
-            isDesign1: true,
-            time: 'Last update : 08 May',
-            img: dribbble,
-            imgbgColor: 'danger',
-            label: 'Redesign - Landing page',
-            caption: 'Resign a landing page design. as per abc minimal design.',
-            number: '22/56',
-            progressBar: '54%',
-            subItem: [
-                {id: 1, imgFooter: avatar3},
-                {id: 2, imgNumber: 'S', bgColor: 'primary'},
-                {id: 3, imgFooter: avatar4},
-                {id: 4, imgNumber: '+'},
-            ],
-            date: '18 May, 2021',
-            ratingClass: 'active'
-        },
-        {
-            id: 3,
-            isDesign1: true,
-            time: 'Updated 2hrs ago',
-            img: mailChimp,
-            imgbgColor: 'success',
-            label: 'Chat Application',
-            caption:
-                'Create a Chat application for business messaging needs. Collaborate efficiently with secure direct messages and group chats.',
-            number: '14/20',
-            progressBar: '65%',
-            subItem: [
-                {id: 1, imgFooter: avatar5},
-                {id: 2, imgNumber: 'M', bgColor: 'primary'},
-                {id: 3, imgNumber: '+'},
-            ],
-            date: '21 Feb, 2021',
-            ratingClass: 'active'
-        },
-        {
-            id: 4,
-            isDesign1: true,
-            time: 'Last update : 21 Jun',
-            img: dropbox,
-            imgbgColor: 'info',
-            label: 'Project App',
-            caption:
-                'Create a project application for a project management and task management.',
-            number: '20/34',
-            progressBar: '78%',
-            subItem: [
-                {id: 1, imgNumber: 'K', bgColor: 'primary'},
-                {id: 2, imgNumber: 'M', bgColor: 'success'},
-                {id: 3, imgNumber: '+'},
-            ],
-            date: '03 Aug, 2021',
-            ratingClass: ''
-        },
-    ];
+const List = ({workspaceId}: ListProps = {}) => {
 
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
+    const [projectLists, setProjectLists] = useState<any[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Function to map API project data to component format
+    const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
+        const colorMap: { [key: string]: string } = {
+            'red': 'danger',
+            'blue': 'primary',
+            'green': 'success',
+            'yellow': 'warning',
+            'purple': 'info',
+            'orange': 'warning'
+        };
+
+        const imageMap = [slack, dribbble, mailChimp, dropbox];
+
+        return {
+            id: apiProject.id,
+            time: `Updated ${new Date(apiProject.updatedAt).toLocaleDateString()}`,
+            img: imageMap[index % imageMap.length],
+            imgbgColor: colorMap[apiProject.color] || 'primary',
+            label: apiProject.name,
+            caption: apiProject.description || 'No description available',
+            date: new Date(apiProject.createdAt).toLocaleDateString(),
+            ratingClass: apiProject.status === 'active' ? 'active' : ''
+        };
+    };
 
     useEffect(() => {
-        // dispatch(onGetProjectList());
-    }, [dispatch]);
+        const fetchProjects = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const projects = await getProjectsMine(workspaceId ? { workspaceId } : undefined);
+                const mappedProjects = projects.map((project, index) =>
+                    mapProjectToComponentFormat(project, index)
+                );
+                setProjectLists(mappedProjects);
+            } catch (err) {
+                console.error('Error fetching projects:', err);
+                setError('Failed to load projects');
+                toast.error('Failed to load projects');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProjects();
+    }, [workspaceId]);
 
     // delete
     const onClickData = (project: any) => {
@@ -125,18 +92,11 @@ const List = () => {
 
     const handleDeleteProjectList = () => {
         if (project) {
-            // dispatch(onDeleteProjectList(project.id));
+            // TODO: Implement delete project API call
             setDeleteModal(false);
         }
     };
 
-    const activebtn = (ele: any) => {
-        if (ele.closest('button').classList.contains('active')) {
-            ele.closest('button').classList.remove('active');
-        } else {
-            ele.closest('button').classList.add('active');
-        }
-    };
     return (
         <React.Fragment>
             <ToastContainer closeButton={false}/>
@@ -172,8 +132,38 @@ const List = () => {
                 </div>
             </Row>
 
-            <div className="row">
-                {(projectLists || []).map((item: any, index: number) => (
+            {loading ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+                    <Spinner color="primary" />
+                    <span className="ms-2">Loading projects...</span>
+                </div>
+            ) : error ? (
+                <div className="alert alert-danger" role="alert">
+                    <i className="ri-error-warning-line me-2"></i>
+                    {error}
+                    <div className="mt-2">
+                        <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => window.location.reload()}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            ) : projectLists.length === 0 ? (
+                <div className="text-center py-5">
+                    <div className="mb-3">
+                        <i className="ri-folder-open-line" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
+                    </div>
+                    <h5 className="text-muted">No projects found</h5>
+                    <p className="text-muted">Get started by creating your first project.</p>
+                    <Link to="/apps-projects-create" className="btn btn-primary">
+                        <i className="ri-add-line me-1"></i> Create Project
+                    </Link>
+                </div>
+            ) : (
+                <div className="row">
+                    {(projectLists || []).map((item: any, index: number) => (
                     <React.Fragment key={index}>
                         <Col xxl={3} sm={6} className="project-card">
                             <Card className="card-height-100">
@@ -209,15 +199,17 @@ const List = () => {
                                         <div className="d-flex mb-2">
                                             <div className="flex-shrink-0 me-3">
                                                 <div className="avatar-sm">
-                                                        <span
-                                                            className={'avatar-title rounded p-2 bg-' + item.imgbgColor + '-subtle'}>
-                                                            <img src={item.img} alt="" className="img-fluid p-1"/>
-                                                        </span>
+                                                    <span
+                                                        className={'avatar-title rounded p-2 bg-' + item.imgbgColor + '-subtle'}>
+                                                        <img src={item.img} alt="" className="img-fluid p-1"/>
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="flex-grow-1">
-                                                <h5 className="mb-1 fs-15"><Link to="/apps-projects-overview"
-                                                                                 className="text-dark">{item.label}</Link>
+                                                <h5 className="mb-1 fs-15">
+                                                    <Link to="/apps-projects-overview" className="text-dark">
+                                                        {item.label}
+                                                    </Link>
                                                 </h5>
                                                 <p className="text-muted text-truncate-two-lines mb-3">{item.caption}</p>
                                             </div>
@@ -237,8 +229,9 @@ const List = () => {
                             </Card>
                         </Col>
                     </React.Fragment>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </React.Fragment>
     );
 };

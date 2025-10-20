@@ -24,3 +24,4 @@ yarn-error.log*
 .env
 srcFE.zip
 .idea
+aigrow.postman_collection.json
