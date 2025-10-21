@@ -51,7 +51,7 @@ export default class ApiCaller {
 
     async get(options?: ApiCallMethodGet): Promise<AxiosResponse<unknown>> {
         this.prepareRequest(options);
-        return await axiosClient
+          return await axiosClient
             .get(this.endpoint, this.requestOptions)
             .catch(ApiCaller.handleError);
     }
