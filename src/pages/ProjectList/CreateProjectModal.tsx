@@ -19,15 +19,7 @@ export default function CreateProjectModal({
     onClose: () => void; 
     onCreated: () => void;
 }) {
-    const params = useParams();
-    const companyId = useMemo(
-        () =>
-            (params as any).companyId ||
-            (params as any).id ||
-            window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
-            "",
-        [params]
-    );
+    const { companyId } = useParams<{companyId: string}>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [color, setColor] = useState('#3b82f6'); // Default blue color
