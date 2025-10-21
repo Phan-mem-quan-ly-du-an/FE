@@ -78,7 +78,7 @@ const Navdata = () => {
             id: 'Projects',
             label: 'Projects',
             icon: <FeatherIcon icon="folder" className="icon-dual" />,
-            link: '/projects',
+            link: withCompany((id) => `/companies/${id}/projects`),
             stateVariables: isDashboard,
             click: function (e: any) {
                 e.preventDefault();

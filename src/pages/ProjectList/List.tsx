@@ -10,7 +10,8 @@ import {
     Input,
     Row,
     UncontrolledDropdown,
-    Spinner
+    Spinner,
+    Button
 } from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
 import {useTranslation} from 'react-i18next';
@@ -25,7 +26,8 @@ import FeatherIcon from 'feather-icons-react';
 
 //import action
 import DeleteModal from '../../Components/Common/DeleteModal';
-import {getProjectsMine, deleteProject, Project} from '../../apiCaller/projects';
+import CreateProjectModal from './CreateProjectModal';
+import {getProjectsMine, deleteProject, createProject, Project} from '../../apiCaller/projects';
 
 interface ListProps {
     workspaceId?: string;
@@ -37,6 +39,7 @@ const List = ({workspaceId}: ListProps = {}) => {
 
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
+    const [createModal, setCreateModal] = useState<boolean>(false);
 
     // Function to map API project data to component format
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
@@ -97,6 +100,22 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     });
 
+    // Create project mutation
+    const createProjectMutation = useMutation({
+        mutationFn: (payload: { name: string; description?: string; color: string }) => 
+            createProject(workspaceId || '', payload),
+        onSuccess: () => {
+            // Invalidate and refetch projects
+            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+            setCreateModal(false);
+            toast.success(t('ProjectCreatedSuccessfully') || 'Project created successfully');
+        },
+        onError: (error) => {
+            console.error('Error creating project:', error);
+            toast.error(t('FailedToCreateProject') || 'Failed to create project');
+        }
+    });
+
     // Map projects to component format
     const projectLists = projects.map((project: Project, index: number) =>
         mapProjectToComponentFormat(project, index)
@@ -114,6 +133,10 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     };
 
+    const handleCreateProject = () => {
+        setCreateModal(true);
+    };
+
     return (
         <React.Fragment>
             <ToastContainer closeButton={false}/>
@@ -123,11 +146,25 @@ const List = ({workspaceId}: ListProps = {}) => {
                 onCloseClick={() => setDeleteModal(false)}
                 isLoading={deleteProjectMutation.isPending}
             />
+            <CreateProjectModal
+                open={createModal}
+                onClose={() => setCreateModal(false)}
+                onCreated={() => {
+                    // Invalidate and refetch projects
+                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+                }}
+            />
             <Row className="g-4 mb-3">
                 <div className="col-sm-auto">
                     <div>
-                        <Link to="/apps-projects-create" className="btn btn-soft-secondary"><i
-                            className="ri-add-line align-bottom me-1"></i> {t('AddNew')}</Link>
+                        <Button 
+                            color="secondary" 
+                            outline 
+                            onClick={handleCreateProject}
+                            className="btn-soft-secondary"
+                        >
+                            <i className="ri-add-line align-bottom me-1"></i> {t('AddNew')}
+                        </Button>
                     </div>
                 </div>
                 <div className="col-sm-3 ms-auto">
@@ -165,9 +202,12 @@ const List = ({workspaceId}: ListProps = {}) => {
                     </div>
                     <h5 className="text-muted">{t('NoProjectsFound')}</h5>
                     <p className="text-muted">{t('GetStartedByCreating')}</p>
-                    <Link to="/apps-projects-create" className="btn btn-primary">
+                    <Button 
+                        color="primary" 
+                        onClick={handleCreateProject}
+                    >
                         <i className="ri-add-line me-1"></i> {t('CreateProject')}
-                    </Link>
+                    </Button>
                 </div>
             ) : (
                 <div className="row">

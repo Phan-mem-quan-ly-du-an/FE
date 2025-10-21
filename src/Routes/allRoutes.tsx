@@ -21,7 +21,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/members', component: <CompaniesMembersPage/>},
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
-    {path: '/projects', component: <ProjectList/>},
+    {path: '/companies/:companyId/projects', component: <ProjectList/>},
 ];
 
 const publicRoutes = [];

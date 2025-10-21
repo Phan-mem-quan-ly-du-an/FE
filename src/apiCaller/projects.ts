@@ -47,3 +47,23 @@ export const deleteProject = async (projectId: string): Promise<void> => {
         throw error;
     }
 };
+
+export interface CreateProjectRequest {
+    name: string;
+    description?: string;
+    color: string;
+}
+
+export const createProject = async (workspaceId: string, payload: CreateProjectRequest): Promise<Project> => {
+    try {
+        const apiCaller = new ApiCaller();
+        const response = await apiCaller
+            .setUrl(`/workspaces/${workspaceId}/projects`)
+            .post({ data: payload });
+        
+        return response.data as Project;
+    } catch (error) {
+        console.error("Error creating project:", error);
+        throw error;
+    }
+};
