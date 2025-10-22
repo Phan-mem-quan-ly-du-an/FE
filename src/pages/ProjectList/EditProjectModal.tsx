@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback } from 'reactstrap';
-import { updateProject, UpdateProjectRequest, Project } from '../../apiCaller/projects';
+import { updateProject, Project } from '../../apiCaller/projects';
 
 
 function friendlyNetworkMessage(msg?: string) {
@@ -27,6 +27,8 @@ export default function EditProjectModal({
     useEffect(() => {
         if (project && open) {
             setName(project.name || '');
+            setDescription(project.description || '');
+            setColor(project.color || '#3b82f6');
             setMsg(null);
             setSaving(false);
         }
@@ -41,7 +43,7 @@ export default function EditProjectModal({
             setSaving(false);
         }
     }, [open]);
-
+    
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!name.trim()) {
