@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback } from 'reactstrap';
-import { renameProject, RenameProjectRequest, Project } from '../../apiCaller/projects';
+import { updateProject, UpdateProjectRequest, Project } from '../../apiCaller/projects';
+
 
 function friendlyNetworkMessage(msg?: string) {
     const s = (msg || '').toLowerCase();
@@ -18,6 +19,8 @@ export default function EditProjectModal({
     project: Project | null;
 }) {
     const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [color, setColor] = useState('#3b82f6');
     const [msg, setMsg] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
@@ -32,6 +35,8 @@ export default function EditProjectModal({
     useEffect(() => {
         if (!open) {
             setName('');
+            setDescription('');
+            setColor('#3b82f6');
             setMsg(null);
             setSaving(false);
         }
@@ -39,30 +44,31 @@ export default function EditProjectModal({
 
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!name.trim()) { 
-            setMsg('Project name is required.'); 
-            return; 
+        if (!name.trim()) {
+            setMsg('Project name is required.');
+            return;
         }
         if (!project?.id) {
             setMsg('Project ID is missing.');
             return;
         }
-        
-        setSaving(true); 
+
+        setSaving(true);
         setMsg(null);
-        
+
         try {
-            const payload: RenameProjectRequest = {
-                name: name.trim()
-            };
-            
-            await renameProject(project.id, payload);
-            onUpdated(); 
+            await updateProject(project.id, {
+                name: name.trim(),
+                description: description.trim(),
+                color
+            });
+
+            onUpdated();
             onClose();
         } catch (err: any) {
             setMsg(friendlyNetworkMessage(err?.message));
-        } finally { 
-            setSaving(false); 
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -95,6 +101,29 @@ export default function EditProjectModal({
                         />
                         {!name.trim() && !!name && <FormFeedback>Project name is required.</FormFeedback>}
                     </div>
+                    <div>
+                        <Label className="form-label">Description</Label>
+                        <Input
+                            type="textarea"
+                            placeholder="Project description..."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            disabled={saving}
+                            rows={3}
+                        />
+                    </div>
+
+                    <div>
+                        <Label className="form-label">Color</Label>
+                        <Input
+                            type="color"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            disabled={saving}
+                            style={{ width: '40px', height: '40px', border: 'none', borderRadius: '50%' }}
+                        />
+                    </div>
+
 
                     <div className="d-grid gap-2 mt-2">
                         <Button 
@@ -102,7 +131,7 @@ export default function EditProjectModal({
                             color="primary" 
                             disabled={saving || !name.trim()}
                         >
-                            {saving ? 'Updating...' : 'Rename Project'}
+                            {saving ? 'Updating...' : 'Save Changes'}
                         </Button>
                         <Button 
                             type="button" 

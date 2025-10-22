@@ -46,28 +46,20 @@ const List = ({workspaceId}: ListProps = {}) => {
 
     // Function to map API project data to component format
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
-        const colorMap: { [key: string]: string } = {
-            'red': 'danger',
-            'blue': 'primary',
-            'green': 'success',
-            'yellow': 'warning',
-            'purple': 'info',
-            'orange': 'warning'
-        };
-
         const imageMap = [slack, dribbble, mailChimp, dropbox];
 
         return {
             id: apiProject.id,
             time: `${t('Updated')} ${new Date(apiProject.updatedAt).toLocaleDateString()}`,
             img: imageMap[index % imageMap.length],
-            imgbgColor: colorMap[apiProject.color] || 'primary',
+            color: apiProject.color || '#3b82f6',
             label: apiProject.name,
             caption: apiProject.description || t('NoDescriptionAvailable'),
             date: new Date(apiProject.createdAt).toLocaleDateString(),
             ratingClass: apiProject.status === 'active' ? 'active' : ''
         };
     };
+
 
     // React Query for fetching projects
     const {
@@ -252,8 +244,10 @@ const List = ({workspaceId}: ListProps = {}) => {
                                             <div className="flex-shrink-0 me-3">
                                                 <div className="avatar-sm">
                                                     <span
-                                                        className={'avatar-title rounded p-2 bg-' + item.imgbgColor + '-subtle'}>
-                                                        <img src={item.img} alt="" className="img-fluid p-1"/>
+                                                        className="avatar-title rounded p-2"
+                                                        style={{ backgroundColor: item.color }}
+                                                    >
+                                                      <img src={item.img} alt="" className="img-fluid p-1" />
                                                     </span>
                                                 </div>
                                             </div>

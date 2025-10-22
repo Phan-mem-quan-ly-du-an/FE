@@ -85,3 +85,16 @@ export const renameProject = async (projectId: string, payload: RenameProjectReq
         throw error;
     }
 };
+export interface UpdateProjectRequest {
+    name?: string;
+    description?: string;
+    color?: string;
+}
+
+export const updateProject = async (projectId: string, data: UpdateProjectRequest): Promise<Project> => {
+    const apiCaller = new ApiCaller();
+    const response = await apiCaller
+        .setUrl(`/projects/${projectId}`)
+        .patch({ data });
+    return response.data as Project;
+};
