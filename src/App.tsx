@@ -6,6 +6,7 @@ import './assets/scss/themes.scss';
 
 import Route from './Routes';
 import {ToastContainer} from 'react-toastify';
+import { ActiveCompanyProvider } from './contexts/ActiveCompanyContext';
 
 const queryClient = new QueryClient();
 
@@ -13,9 +14,11 @@ function App() {
     return (
         <React.Fragment>
             <QueryClientProvider client={queryClient}>
-                <Route/>
-                <ToastContainer/>
-                <ReactQueryDevtools initialIsOpen={false}/>
+                <ActiveCompanyProvider>
+                    <Route/>
+                    <ToastContainer/>
+                    <ReactQueryDevtools initialIsOpen={false}/>
+                </ActiveCompanyProvider>
             </QueryClientProvider>
         </React.Fragment>
     );

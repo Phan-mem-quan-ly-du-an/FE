@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "react-oidc-context";
-import { Link, useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom'; // Thêm useNavigate
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCompanyRoles, deleteRole, createCompanyRole, updateCompanyRole, Role } from "../../../apiCaller/companyRoles";
 import { Card, CardBody, CardHeader, Col, Container, Row } from "reactstrap";
@@ -10,12 +9,16 @@ import TableContainer from "../../../Components/Common/TableContainer";
 import CreateRoleModal from "./CreateRoleModal";
 import EditRoleModal from "./EditRoleModal";
 import ConfirmDeleteRoleModal from "./ConfirmDeleteRoleModal";
+import { useAuth } from "react-oidc-context"; // Thêm import useAuth
+import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
+
 
 export default function CompaniesRolePage() {
     const auth = useAuth();
     const { t } = useTranslation();
     const { companyId } = useParams<{ companyId: string }>();
     const queryClient = useQueryClient();
+    const navigate = useNavigate(); // Khởi tạo navigate
 
     const resolvedCompanyId = companyId || "";
 
@@ -26,8 +29,7 @@ export default function CompaniesRolePage() {
     const [editing, setEditing] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Role | null>(null);
-
-    // removed getAuthHeaders; requests rely on global client/interceptors
+    const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
     const rolesQuery = useQuery<Role[]>({
         queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
@@ -63,14 +65,29 @@ export default function CompaniesRolePage() {
 
     async function handleDeleteRole(r: Role) {
         if (!r?.id) return;
-        if (!window.confirm(t("DeleteRoleConfirm", { name: r.code || r.name || r.id }))) return;
-        try {
-            setMsg(null);
-            await deleteRoleMutation.mutateAsync(r.id);
-        } catch (e: any) {
-            setMsg(e?.message || t("ErrorDeletingRole"));
-        }
+        setConfirmDelete(r); // Mở modal xác nhận thay vì confirm trực tiếp
     }
+
+    // Hàm xử lý khi double-click vào một dòng role
+    const handleRowDoubleClick = (roleData: Role) => {
+        const roleId = roleData.id;
+        if (roleId && resolvedCompanyId) {
+            // Chuyển hướng đến trang permission của role đó
+            navigate(`/companies/${resolvedCompanyId}/roles/${roleId}/permission`);
+        } else {
+            console.error("Cannot navigate: Role ID or Company ID is missing.");
+        }
+    };
+
+
+    // Hàm để bật/tắt dropdown
+    const toggleDropdown = (roleId: number) => {
+        if (openDropdownId === roleId) {
+            setOpenDropdownId(null); // Đóng lại nếu đang mở
+        } else {
+            setOpenDropdownId(roleId); // Mở cái mới
+        }
+    };
     const columns = useMemo(() => [
         {
             header: '#',
@@ -94,12 +111,20 @@ export default function CompaniesRolePage() {
             header: 'Name',
             accessorKey: 'name',
             enableColumnFilter: false,
-            cell: ({ row }: any) => (
-                <div>
-                    <div className="fw-semibold">{row.original.name || '—'}</div>
-                    {row.original.code && <div className="text-muted small">{row.original.code}</div>}
-                </div>
-            ),
+            cell: ({ row }: any) => {
+                const role: Role = row.original;
+                return (
+                    // Bọc nội dung cell bằng một div và thêm onDoubleClick
+                    <div
+                        onDoubleClick={() => handleRowDoubleClick(role)}
+                        style={{ cursor: 'pointer', width: '100%', height: '100%' }}
+                        title={t('DoubleClickToViewPermissions') || ""}
+                    >
+                        <div className="fw-semibold">{role.name || '—'}</div>
+                        {role.code && <div className="text-muted small">{role.code}</div>}
+                    </div>
+                );
+            },
         },
         {
             header: 'Description',
@@ -108,48 +133,61 @@ export default function CompaniesRolePage() {
             cell: ({ getValue }: any) => getValue() || '—',
         },
         {
-            header: 'Action',
-            id: 'action',
-            enableColumnFilter: false,
-            cell: ({ row }: any) => {
-                const r: Role = row.original;
-                const isDeleting = deleteRoleMutation.isPending;
-                return (
-                    <ul className="list-inline hstack gap-2 mb-0">
-                        <li className="list-inline-item">
-                            <button
-                                className="btn btn-ghost-secondary btn-icon btn-sm"
-                                title={t('Edit') as string}
-                                onClick={() => { setEditingRole(r); setShowEdit(true); }}
-                            >
-                                <i className="ri-edit-2-line fs-16"></i>
-                            </button>
-                        </li>
-                        <li className="list-inline-item">
-                            <Link
-                                to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}
-                                state={{ roleName: r.name, roleCode: r.code }}
-                                className="btn btn-ghost-primary btn-icon btn-sm"
-                                title={t('Permission') as string}
-                            >
-                                <i className="ri-shield-user-line fs-16"></i>
-                            </Link>
-                        </li>
-                        <li className="list-inline-item">
-                            <button
-                                className="btn btn-ghost-danger btn-icon btn-sm"
-                                title={t('Delete') as string}
-                                onClick={() => handleDeleteRole(r)}
-                                disabled={isDeleting}
-                            >
-                                <i className="ri-delete-bin-5-line fs-16"></i>
-                            </button>
-                        </li>
-                    </ul>
-                );
-            },
-        },
-    ], [t, resolvedCompanyId, deleteRoleMutation.isPending]);
+    header: 'Action',
+    id: 'action',
+    enableColumnFilter: false,
+    cell: ({ row }: any) => {
+      const r: Role = row.original;
+      const isDeleting = deleteRoleMutation.isPending;
+      
+      return (
+        // --- THAY THẾ BẰNG ĐOẠN NÀY ---
+        <Dropdown 
+          isOpen={openDropdownId === r.id} 
+          toggle={() => toggleDropdown(r.id)}
+        >
+          <DropdownToggle 
+            tag="button" 
+            className="btn btn-ghost-secondary btn-icon btn-sm" 
+            title={t('MoreOptions') as string}
+          >
+            {/* Đây là icon "ba chấm dọc" */}
+            <i className="ri-more-2-fill fs-16"></i> 
+          </DropdownToggle>
+
+          <DropdownMenu>
+            {/* Nút Edit */}
+            <DropdownItem onClick={() => { setEditingRole(r); setShowEdit(true); }}>
+              <i className="ri-edit-2-line me-2"></i> {t('Edit')}
+            </DropdownItem>
+            
+            {/* Nút Permission (vẫn dùng Link) */}
+            <DropdownItem 
+              tag={Link} 
+              to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}
+              state={{ roleName: r.name, roleCode: r.code }}
+            >
+              <i className="ri-shield-user-line me-2"></i> {t('Permission')}
+            </DropdownItem>
+
+            {/* Thêm một đường gạch ngang để phân tách */}
+            <DropdownItem divider /> 
+
+            {/* Nút Delete */}
+            <DropdownItem 
+              onClick={() => handleDeleteRole(r)} 
+              disabled={isDeleting} 
+              className="text-danger"
+            >
+              <i className="ri-delete-bin-5-line me-2"></i> {t('Delete')}
+            </DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+        // --- KẾT THÚC PHẦN THAY THẾ ---
+      );
+    },
+  },
+     ], [t, resolvedCompanyId, deleteRoleMutation.isPending, openDropdownId, handleRowDoubleClick, navigate]);
 
     const data = (rolesQuery.data ?? []) as Role[];
 
@@ -237,9 +275,12 @@ export default function CompaniesRolePage() {
                 />
                 <EditRoleModal
                     show={showEdit}
-                    onClose={() => setShowEdit(false)}
+                    onClose={() => { setShowEdit(false); setEditingRole(null); }} // Reset editingRole khi đóng
                     isSubmitting={editing}
-                    initial={{ code: editingRole?.code || "", name: editingRole?.name || "", description: editingRole?.description || "" }}
+                    initial={editingRole ?
+                        { code: editingRole.code || "", name: editingRole.name || "", description: editingRole.description || "" } :
+                        { code: "" }
+                    }
                     onSubmit={async (values) => {
                         if (!resolvedCompanyId || !editingRole) return;
                         setEditing(true);
