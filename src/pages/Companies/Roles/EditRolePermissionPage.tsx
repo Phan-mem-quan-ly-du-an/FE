@@ -224,7 +224,7 @@ export default function EditRolePermissionPage() {
                                     <table className="table align-middle table-nowrap">
                                         <thead className="table-light text-muted text-uppercase">
                                         <tr>
-                                            <th style={{ width: 320 }}>{t('PermissionName') || 'Permission Name'}</th>
+                                            <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
                                             <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
                                         </tr>
                                         </thead>

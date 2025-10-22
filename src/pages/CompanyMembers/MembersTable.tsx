@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react'; // Thêm useState và useCallback
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CompanyMember } from '../../apiCaller/companyMembers';
 import TableContainer from '../../Components/Common/TableContainer';
+// Thêm các component Dropdown
+import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap'; 
 
 interface MembersTableProps {
     members: CompanyMember[];
@@ -27,7 +29,15 @@ export default function MembersTable({
 }: MembersTableProps) {
     const { t } = useTranslation();
 
-    // Table columns configuration
+    // State mới để quản lý dropdown
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+    // Hàm để bật/tắt dropdown cho từng dòng
+    const toggleDropdown = useCallback((userId: string) => {
+        setOpenDropdownId(prevId => (prevId === userId ? null : userId));
+    }, []);
+
+    // Cấu hình cột của bảng
     const columns = useMemo(
         () => [
             {
@@ -51,7 +61,7 @@ export default function MembersTable({
                 enableColumnFilter: false,
                 cell: (cell: any) => {
                     const member = cell.row.original;
-                    return member.owner ? (
+                    return member.owner ? ( // Giả định trường là 'owner' dựa trên code
                         <span className="badge text-uppercase bg-success-subtle text-success">{t('Owner')}</span>
                     ) : (
                         member.roleId ?? '—'
@@ -60,7 +70,7 @@ export default function MembersTable({
             },
             {
                 header: t("Owner") + "?",
-                accessorKey: "owner",
+                accessorKey: "owner", // Giả định trường là 'owner'
                 enableColumnFilter: false,
                 cell: (cell: any) => cell.getValue() ? 'Yes' : 'No',
             },
@@ -81,56 +91,59 @@ export default function MembersTable({
             },
             {
                 header: t("Action"),
+                id: 'action', // Thêm id cho cột action
                 cell: (cellProps: any) => {
                     const member = cellProps.row.original;
-                    const isDisabled = member.owner || deletingUserId === member.userId || deleteMemberMutation.isPending;
-                    
+                    const isDeleting = deletingUserId === member.userId || deleteMemberMutation.isPending;
+
                     return (
-                        <ul className="list-inline hstack gap-2 mb-0">
-                            <li className="list-inline-item">
-                                <button
-                                    type="button"
-                                    className="btn btn-link text-primary p-0"
-                                    onClick={() => onAssignRole(member)}
-                                    title={t('AssignRole')}
-                                >
-                                    <i className="ri-user-settings-line fs-16"></i>
-                                </button>
-                            </li>
-                            <li className="list-inline-item">
-                                <Link
-                                    to="#"
-                                    className="text-warning d-inline-block"
-                                    onClick={() => onTransferOwnership(member)}
-                                    style={{ 
-                                        pointerEvents: member.owner ? 'none' : 'auto',
-                                        opacity: member.owner ? 0.5 : 1 
-                                    }}
-                                    title={t('TransferOwnership')}
-                                >
-                                    <i className="ri-exchange-line fs-16"></i>
-                                </Link>
-                            </li>
-                            <li className="list-inline-item">
-                                <Link
-                                    to="#"
-                                    className="text-danger d-inline-block"
-                                    onClick={() => onDelete(member)}
-                                    style={{ 
-                                        pointerEvents: isDisabled ? 'none' : 'auto',
-                                        opacity: isDisabled ? 0.5 : 1 
-                                    }}
-                                    title={t('DeleteMember')}
-                                >
-                                    <i className="ri-delete-bin-5-fill fs-16"></i>
-                                </Link>
-                            </li>
-                        </ul>
-                    );
-                },
-            },
-        ],
-        [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, t]
+                <Dropdown
+                    isOpen={openDropdownId === member.userId}
+                    toggle={() => toggleDropdown(member.userId)}
+                >
+                    <DropdownToggle
+                        tag="button"
+                        className="btn btn-ghost-secondary btn-icon btn-sm"
+                        title={t('MoreOptions') as string}
+                    >
+                        <i className="ri-more-2-fill fs-16"></i>
+                    </DropdownToggle>
+
+                    <DropdownMenu strategy="fixed"> {/* <-- THÊM PROP NÀY VÀO ĐÂY */}
+                        {/* Nút Gán vai trò (Assign Role) */}
+                        <DropdownItem
+                            onClick={() => onAssignRole(member)}
+                            disabled={member.owner}
+                        >
+                            <i className="ri-user-settings-line me-2"></i> {t('AssignRole')}
+                        </DropdownItem>
+
+                        {/* Nút Chuyển quyền sở hữu (Transfer Ownership) */}
+                        <DropdownItem
+                            onClick={() => onTransferOwnership(member)}
+                            disabled={member.owner}
+                        >
+                            <i className="ri-exchange-line me-2"></i> {t('TransferOwnership')}
+                        </DropdownItem>
+
+                        <DropdownItem divider />
+
+                        {/* Nút Xóa (Delete) */}
+                        <DropdownItem
+                            onClick={() => onDelete(member)}
+                            disabled={isDeleting || member.owner}
+                            className="text-danger"
+                        >
+                            <i className="ri-delete-bin-5-line me-2"></i> {t('DeleteMember')}
+                        </DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+            );
+        },
+    },
+],
+        // Cập nhật mảng phụ thuộc
+        [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, onAssignRole, t, openDropdownId, toggleDropdown]
     );
 
     return (
