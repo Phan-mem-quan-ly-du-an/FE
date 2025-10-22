@@ -27,7 +27,8 @@ import FeatherIcon from 'feather-icons-react';
 //import action
 import DeleteModal from '../../Components/Common/DeleteModal';
 import CreateProjectModal from './CreateProjectModal';
-import {getProjectsMine, deleteProject, createProject, Project} from '../../apiCaller/projects';
+import EditProjectModal from './EditProjectModal';
+import {getProjectsMine, deleteProject, Project} from '../../apiCaller/projects';
 
 interface ListProps {
     workspaceId?: string;
@@ -40,6 +41,8 @@ const List = ({workspaceId}: ListProps = {}) => {
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [createModal, setCreateModal] = useState<boolean>(false);
+    const [editModal, setEditModal] = useState<boolean>(false);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
     // Function to map API project data to component format
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
@@ -100,21 +103,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     });
 
-    // Create project mutation
-    const createProjectMutation = useMutation({
-        mutationFn: (payload: { name: string; description?: string; color: string }) => 
-            createProject(workspaceId || '', payload),
-        onSuccess: () => {
-            // Invalidate and refetch projects
-            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
-            setCreateModal(false);
-            toast.success(t('ProjectCreatedSuccessfully') || 'Project created successfully');
-        },
-        onError: (error) => {
-            console.error('Error creating project:', error);
-            toast.error(t('FailedToCreateProject') || 'Failed to create project');
-        }
-    });
 
     // Map projects to component format
     const projectLists = projects.map((project: Project, index: number) =>
@@ -137,6 +125,13 @@ const List = ({workspaceId}: ListProps = {}) => {
         setCreateModal(true);
     };
 
+    // Edit project handlers
+    const onClickEdit = (project: Project) => {
+        setSelectedProject(project);
+        setEditModal(true);
+    };
+
+
     return (
         <React.Fragment>
             <ToastContainer closeButton={false}/>
@@ -153,6 +148,15 @@ const List = ({workspaceId}: ListProps = {}) => {
                     // Invalidate and refetch projects
                     queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
                 }}
+            />
+            <EditProjectModal
+                open={editModal}
+                onClose={() => setEditModal(false)}
+                onUpdated={() => {
+                    // Invalidate and refetch projects
+                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+                }}
+                project={selectedProject}
             />
             <Row className="g-4 mb-3">
                 <div className="col-sm-auto">
@@ -232,7 +236,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                         <DropdownMenu className="dropdown-menu-end">
                                                             <DropdownItem href="apps-projects-overview"><i
                                                                 className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}</DropdownItem>
-                                                            <DropdownItem href="apps-projects-create"><i
+                                                            <DropdownItem href="#" onClick={() => onClickEdit(projects[index])}><i
                                                                 className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}</DropdownItem>
                                                             <div className="dropdown-divider"></div>
                                                             <DropdownItem href="#" onClick={() => onClickData(item)}
