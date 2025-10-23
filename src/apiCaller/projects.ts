@@ -98,3 +98,17 @@ export const updateProject = async (projectId: string, data: UpdateProjectReques
         .patch({ data });
     return response.data as Project;
 };
+
+export const getProjectById = async (projectId: string): Promise<Project> => {
+    try {
+        const apiCaller = new ApiCaller();
+        const response = await apiCaller
+            .setUrl(`/projects/${projectId}`)
+            .get();
+        return response.data as Project;
+    } catch (error) {
+        console.error(`Error fetching project with ID ${projectId}:`, error);
+        throw error;
+    }
+};
+

@@ -226,8 +226,12 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                         </DropdownToggle>
 
                                                         <DropdownMenu className="dropdown-menu-end">
-                                                            <DropdownItem href="apps-projects-overview"><i
-                                                                className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}</DropdownItem>
+                                                            <DropdownItem
+                                                                tag={Link}
+                                                                to={`/companies/${workspaceId || 'default'}/projects/${item.id}`}
+                                                            >
+                                                                <i className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}
+                                                            </DropdownItem>
                                                             <DropdownItem href="#" onClick={() => onClickEdit(projects[index])}><i
                                                                 className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}</DropdownItem>
                                                             <div className="dropdown-divider"></div>
@@ -253,7 +257,10 @@ const List = ({workspaceId}: ListProps = {}) => {
                                             </div>
                                             <div className="flex-grow-1">
                                                 <h5 className="mb-1 fs-15">
-                                                    <Link to="/apps-projects-overview" className="text-dark">
+                                                    <Link
+                                                        to={`/companies/${workspaceId || 'default'}/projects/${item.id}`}
+                                                        className="text-dark"
+                                                    >
                                                         {item.label}
                                                     </Link>
                                                 </h5>
