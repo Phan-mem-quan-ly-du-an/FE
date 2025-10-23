@@ -26,9 +26,6 @@ const cognitoAuthConfig = {
 
     onSigninCallback: () => {
         window.history.replaceState({}, document.title, window.location.pathname);
-        const returnTo = sessionStorage.getItem("returnTo") || "/dashboard";
-        sessionStorage.removeItem("returnTo");
-        window.location.replace(returnTo);
     },
 };
 
