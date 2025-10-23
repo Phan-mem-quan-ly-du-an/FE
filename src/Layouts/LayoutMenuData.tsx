@@ -86,6 +86,18 @@ const Navdata = () => {
                 updateIconSidebar(e);
             },
         },
+        {
+            id: 'Workspaces',
+            label: 'Workspaces',
+            icon: <FeatherIcon icon="briefcase" className="icon-dual" />,
+            link: withCompany((id) => `/companies/${id}/workspaces`),
+            stateVariables: isDashboard,
+            click: function (e: any) {
+                e.preventDefault();
+                setIsCurrentState('Workspaces');
+                updateIconSidebar(e);
+            },
+        },
     ];
 
     return <React.Fragment>{menuItems}</React.Fragment>;

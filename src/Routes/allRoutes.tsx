@@ -5,6 +5,7 @@ import EditRolePermissionPage from '../pages/Companies/Roles/EditRolePermissionP
 import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
 import ProjectList from '../pages/ProjectList';
+import WorkspaceList from '../pages/Workspace/WorkspaceList';
 
 export type AuthRoute = {
     path: string;
@@ -22,6 +23,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
     {path: '/companies/:companyId/projects', component: <ProjectList/>},
+    {path: '/companies/:companyId/workspaces', component: <WorkspaceList/>},
 ];
 
 const publicRoutes = [];
