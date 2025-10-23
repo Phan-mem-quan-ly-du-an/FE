@@ -25,7 +25,7 @@ import dropbox from '../../assets/images/brands/dropbox.png';
 import FeatherIcon from 'feather-icons-react';
 
 //import action
-import DeleteModal from '../../Components/Common/DeleteModal';
+import DeleteModal from './DeleteModal';
 import CreateProjectModal from './CreateProjectModal';
 import EditProjectModal from './EditProjectModal';
 import {getProjectsMine, deleteProject, Project} from '../../apiCaller/projects';
