@@ -51,26 +51,14 @@ const Navdata = () => {
             isHeader: true,
         },
         {
-            id: 'CompanyMembers',
-            label: 'CompanyMembers',
-            icon: <FeatherIcon icon="users" className="icon-dual" />,
-            link: withCompany((id) => `/companies/${id}/members`),
+            id: 'Workspaces',
+            label: 'Workspaces',
+            icon: <FeatherIcon icon="briefcase" className="icon-dual" />,
+            link: withCompany((id) => `/companies/${id}/workspaces`),
             stateVariables: isDashboard,
             click: function (e: any) {
                 e.preventDefault();
-                setIsCurrentState('CompanyMembers');
-                updateIconSidebar(e);
-            },
-        },
-        {
-            id: 'CompanyRoles',
-            label: 'CompanyRoles',
-            icon: <FeatherIcon icon="shield" className="icon-dual" />,
-            link: withCompany((id) => `/companies/${id}/roles`),
-            stateVariables: isDashboard,
-            click: function (e: any) {
-                e.preventDefault();
-                setIsCurrentState('CompanyRoles');
+                setIsCurrentState('Workspaces');
                 updateIconSidebar(e);
             },
         },
@@ -87,16 +75,30 @@ const Navdata = () => {
             },
         },
         {
-            id: 'Workspaces',
-            label: 'Workspaces',
-            icon: <FeatherIcon icon="briefcase" className="icon-dual" />,
-            link: withCompany((id) => `/companies/${id}/workspaces`),
-            stateVariables: isDashboard,
+            id: 'Settings',
+            label: 'Settings',
+            icon: <FeatherIcon icon="settings" className="icon-dual" />,
+            link: '/#',
             click: function (e: any) {
                 e.preventDefault();
-                setIsCurrentState('Workspaces');
-                updateIconSidebar(e);
+                const nextState = isCurrentState === 'Settings' ? '' : 'Settings';
+                setIsCurrentState(nextState);
             },
+            stateVariables: isCurrentState === 'Settings',
+            subItems: [
+                {
+                    id: 'CompanyMembers',
+                    label: 'Company Members',
+                    link: withCompany((id) => `/companies/${id}/members`),
+                    parentId: 'Settings',
+                },
+                {
+                    id: 'CompanyRoles',
+                    label: 'Company Roles',
+                    link: withCompany((id) => `/companies/${id}/roles`),
+                    parentId: 'Settings',
+                },
+            ],
         },
     ];
 
