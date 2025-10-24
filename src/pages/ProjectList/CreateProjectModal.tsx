@@ -3,7 +3,7 @@ import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { createProject, CreateProjectRequest } from '../../apiCaller/projects';
-import { getWorkspacesByCompanyIdParams, Workspace } from '../../apiCaller/workspaces';
+import { getAllWorkspacesByCompanyId, Workspace } from '../../apiCaller/workspaces';
 
 function friendlyNetworkMessage(msg?: string) {
     const s = (msg || '').toLowerCase();
@@ -19,7 +19,7 @@ export default function CreateProjectModal({
     onClose: () => void; 
     onCreated: () => void;
 }) {
-    const { companyId } = useParams<{companyId: string}>();
+    const { companyId } = useParams<{ companyId: string }>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [color, setColor] = useState('#3b82f6'); // Default blue color
@@ -30,7 +30,7 @@ export default function CreateProjectModal({
     // Fetch workspaces for the current company
     const { data: workspaces = [], isLoading: loadingWorkspaces, error: workspacesError } = useQuery<Workspace[]>({
         queryKey: ['workspaces', companyId],
-        queryFn: () => getWorkspacesByCompanyIdParams({ companyId }),
+        queryFn: () => getAllWorkspacesByCompanyId(companyId as string),
         enabled: !!companyId && open,
     });
 

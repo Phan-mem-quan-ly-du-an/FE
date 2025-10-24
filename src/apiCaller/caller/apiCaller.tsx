@@ -30,6 +30,11 @@ export default class ApiCaller {
         return this;
     }
 
+    setQueryParams(params: object) {
+        this.requestOptions.params = params;
+        return this;
+    }
+
     setHeaders(options: AxiosRequestConfig) {
         this.requestOptions = { ...this.requestOptions, ...options };
         return this;

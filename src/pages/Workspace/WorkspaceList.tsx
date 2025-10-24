@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import * as Yup from "yup";
-import { useFormik } from "formik";
-
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from "react-i18next";
 import {
     Col,
     Container,
@@ -11,94 +10,65 @@ import {
     CardHeader,
     CardBody,
     Button,
-    Modal,
-    ModalHeader,
-    ModalBody,
-    Form,
     Input,
-    Label,
-    FormFeedback,
-    ModalFooter
+    Pagination,
+    PaginationItem,
+    PaginationLink
 } from "reactstrap";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
-import DeleteModal from "../../Components/Common/DeleteModal";
-
-//redux
 import TableContainer from "../../Components/Common/TableContainer";
-
 import Loader from "../../Components/Common/Loader";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { getWorkspacesByCompanyIdParams, Workspace, createWorkspace, updateWorkspace, deleteWorkspace } from "../../apiCaller/workspaces";
+import { getWorkspacesByCompanyIdParams, Workspace, Page } from "../../apiCaller/workspaces";
+import AddEditWorkspaceModal from "./AddEditWorkspaceModal";
+import ConfirmDeleteWorkspaceModal from "./ConfirmDeleteWorkspaceModal";
 
 const WorkspaceList = () => {
     const { companyId } = useParams();
+    const queryClient = useQueryClient();
+    const { t } = useTranslation();
 
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<any>(null);
+    const [page, setPage] = useState(0);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [paginationData, setPaginationData] = useState({ totalPages: 0, totalElements: 0, number: 0, size: 0 });
 
-    // Modals
+    // Modals state
     const [modal, setModal] = useState<boolean>(false);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [isEdit, setIsEdit] = useState<boolean>(false);
     const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
 
-    const fetchWorkspaces = useCallback(async () => {
-        try {
-            if (companyId) {
-                setLoading(true);
-                const data = await getWorkspacesByCompanyIdParams({ companyId });
-                setWorkspaces(data);
-            }
-        } catch (err) {
-            setError(err);
-            toast.error("Failed to fetch workspaces");
-        } finally {
-            setLoading(false);
-        }
-    }, [companyId]);
-
-    useEffect(() => {
-        fetchWorkspaces();
-    }, [fetchWorkspaces]);
-
-    const toggle = useCallback(() => {
-        if (modal) {
-            setModal(false);
-            setCurrentWorkspace(null);
-        } else {
-            setModal(true);
-        }
-    }, [modal]);
-
-    const validation = useFormik({
-        enableReinitialize: true,
-        initialValues: {
-            name: currentWorkspace?.name || "",
-            description: currentWorkspace?.description || "",
-        },
-        validationSchema: Yup.object({
-            name: Yup.string().required("Please enter a workspace name"),
+    const { data, isLoading, isError } = useQuery<Page<Workspace>>({
+        queryKey: ['workspaces', companyId, page, searchQuery],
+        queryFn: () => getWorkspacesByCompanyIdParams({
+            companyId,
+            page: page,
+            size: 10,
+            q: searchQuery
         }),
-        onSubmit: async (values) => {
-            if (!companyId) return;
-
-            try {
-                if (isEdit && currentWorkspace) {
-                    await updateWorkspace(companyId, currentWorkspace.id, values);
-                    toast.success("Workspace updated successfully");
-                } else {
-                    await createWorkspace(companyId, values);
-                    toast.success("Workspace created successfully");
-                }
-                toggle();
-                fetchWorkspaces();
-            } catch (error) {
-                toast.error("An error occurred");
-            }
-        },
+        enabled: !!companyId,
     });
+    
+    useEffect(() => {
+        if (data) {
+            setPaginationData({
+                totalPages: data.totalPages,
+                totalElements: data.totalElements,
+                number: data.number,
+                size: data.size,
+            });
+        }
+    }, [data]);
+
+    const workspaces = data?.content || [];
+
+    const handleMutationSuccess = () => {
+        queryClient.invalidateQueries({ queryKey: ['workspaces', companyId, page, searchQuery] });
+    };
+    
+    // Other handlers remain the same...
+    const toggle = () => setModal(!modal);
 
     const handleEditClick = (workspace: Workspace) => {
         setIsEdit(true);
@@ -110,24 +80,10 @@ const WorkspaceList = () => {
         setCurrentWorkspace(workspace);
         setDeleteModal(true);
     };
-
-    const handleDeleteConfirm = async () => {
-        if (companyId && currentWorkspace) {
-            try {
-                await deleteWorkspace(companyId, currentWorkspace.id);
-                toast.success("Workspace deleted successfully");
-                setDeleteModal(false);
-                fetchWorkspaces();
-            } catch (error) {
-                toast.error("Failed to delete workspace");
-            }
-        }
-    };
     
     const handleAddClick = () => {
         setIsEdit(false);
         setCurrentWorkspace(null);
-        validation.resetForm();
         toggle();
     };
 
@@ -136,22 +92,22 @@ const WorkspaceList = () => {
     const columns = useMemo(
         () => [
             {
-                header: "Workspace Name",
+                header: t('t-workspace-name-col'),
                 accessorKey: "name",
                 enableColumnFilter: false,
                 cell: (cell: any) => (
-                    <Link to={`/workspaces/${cell.row.original.id}/projects`} className="fw-medium link-primary">
-                        {cell.getValue()}
+                    <Link to={`/companies/${companyId}/workspaces/${cell.row.original.id}`} className="fw-medium link-primary">
+                                {cell.getValue()}
                     </Link>
                 ),
             },
             {
-                header: "Description",
+                header: t('t-workspace-description-col'),
                 accessorKey: "description",
                 enableColumnFilter: false,
             },
             {
-                header: "Created At",
+                header: t('t-workspace-created-at-col'),
                 accessorKey: "createdAt",
                 enableColumnFilter: false,
                 cell: (cell: any) => (
@@ -159,21 +115,21 @@ const WorkspaceList = () => {
                 ),
             },
             {
-                header: "Action",
+                header: t('t-workspace-action-col'),
                 cell: (cell: any) => {
                     return (
                         <ul className="list-inline hstack gap-2 mb-0">
-                            <li className="list-inline-item" title="View Projects">
-                                <Link to={`/workspaces/${cell.row.original.id}/projects`} className="text-primary d-inline-block">
+                            <li className="list-inline-item" title={t('t-workspace-view-details-tooltip')}>
+                                <Link to={`/companies/${companyId}/workspaces/${cell.row.original.id}`} className="text-primary d-inline-block">
                                     <i className="ri-eye-fill fs-16"></i>
                                 </Link>
                             </li>
-                            <li className="list-inline-item" title="Edit">
+                            <li className="list-inline-item" title={t('t-workspace-edit-tooltip')}>
                                 <Link className="edit-item-btn" to="#" onClick={() => handleEditClick(cell.row.original)}>
                                     <i className="ri-pencil-fill align-bottom text-muted"></i>
                                 </Link>
                             </li>
-                            <li className="list-inline-item" title="Delete">
+                            <li className="list-inline-item" title={t('t-workspace-delete-tooltip')}>
                                 <Link
                                     className="remove-item-btn"
                                     to="#"
@@ -187,15 +143,15 @@ const WorkspaceList = () => {
                 },
             },
         ],
-        []
+        [companyId, t]
     );
 
-    document.title = "Workspaces | Velzon - React Admin & Dashboard Template";
+    document.title = t('t-workspace-title') + " | Velzon - React Admin & Dashboard Template";
     return (
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <BreadCrumb title="Workspaces" pageTitle="Management" />
+                    <BreadCrumb title={t('t-workspace-title')} pageTitle={t('t-workspace-management')} />
 
                     <Row>
                         <Col lg={12}>
@@ -204,8 +160,20 @@ const WorkspaceList = () => {
                                     <div className="d-flex align-items-center flex-wrap gap-2">
                                         <div className="flex-grow-1">
                                             <button className="btn btn-primary add-btn" onClick={handleAddClick}>
-                                                <i className="ri-add-fill me-1 align-bottom"></i> Add Workspace
+                                                <i className="ri-add-fill me-1 align-bottom"></i> {t('t-workspace-add-btn')}
                                             </button>
+                                        </div>
+                                        <div className="flex-shrink-0">
+                                            <Input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder={t('t-workspace-search-placeholder')}
+                                                value={searchQuery}
+                                                onChange={(e) => {
+                                                    setPage(0); // Reset to first page on new search
+                                                    setSearchQuery(e.target.value);
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -215,18 +183,32 @@ const WorkspaceList = () => {
                             <Card id="companyList">
                                 <CardBody className="pt-0">
                                     <div>
-                                        {loading ? <Loader /> : (workspaces && workspaces.length > 0 ? (
-                                            <TableContainer
-                                                columns={columns}
-                                                data={workspaces}
-                                                isGlobalFilter={true}
-                                                customPageSize={10}
-                                                divClass="table-responsive table-card mb-2 mt-0"
-                                                tableClass="align-middle table-nowrap"
-                                                theadClass="table-light"
-                                                SearchPlaceholder='Search for workspace...'
-                                            />
-                                        ) : (<Loader error={error} />))
+                                        {isLoading ? <Loader /> :
+                                            isError ? (
+                                                <div className="text-center py-4 text-danger">
+                                                    <h4>{t('t-workspace-failed-to-load')}</h4>
+                                                </div>
+                                            ) :
+                                            workspaces.length > 0 ? (
+                                                <TableContainer
+                                                    columns={columns}
+                                                    data={workspaces}
+                                                    isGlobalFilter={false} // Search is handled externally
+                                                    customPageSize={10}
+                                                    divClass="table-responsive table-card mb-2 mt-0"
+                                                    tableClass="align-middle table-nowrap"
+                                                    theadClass="table-light"
+                                                    // --- Server side pagination props ---
+                                                    isServerSidePagination={true}
+                                                    pageCount={paginationData.totalPages}
+                                                    currentPage={page}
+                                                    onPageChange={setPage}
+                                                />
+                                            ) : (
+                                                <div className="text-center py-4">
+                                                    <h4>{t('t-workspace-no-workspaces-found')}</h4>
+                                                </div>
+                                            )
                                         }
                                     </div>
                                     <ToastContainer closeButton={false} limit={1} />
@@ -235,65 +217,25 @@ const WorkspaceList = () => {
                         </Col>
                     </Row>
                 </Container>
-                 <Modal id="showModal" isOpen={modal} toggle={toggle} centered>
-                    <ModalHeader className="bg-primary-subtle p-3" toggle={toggle}>
-                        {isEdit ? "Edit Workspace" : "Add Workspace"}
-                    </ModalHeader>
-                    <Form className="tablelist-form" onSubmit={(e) => { e.preventDefault(); validation.handleSubmit(); }}>
-                        <ModalBody>
-                            <Row className="g-3">
-                                <Col lg={12}>
-                                    <div>
-                                        <Label htmlFor="name-field" className="form-label">Workspace Name</Label>
-                                        <Input
-                                            name="name"
-                                            id="name-field"
-                                            className="form-control"
-                                            placeholder="Enter Workspace Name"
-                                            type="text"
-                                            onChange={validation.handleChange}
-                                            onBlur={validation.handleBlur}
-                                            value={validation.values.name || ""}
-                                            invalid={validation.touched.name && !!validation.errors.name}
-                                        />
-                                        {validation.touched.name && validation.errors.name ? (
-                                            <FormFeedback type="invalid">{validation.errors.name}</FormFeedback>
-                                        ) : null}
-                                    </div>
-                                </Col>
-                                <Col lg={12}>
-                                    <div>
-                                        <Label htmlFor="description-field" className="form-label">Description</Label>
-                                        <Input
-                                            name="description"
-                                            id="description-field"
-                                            className="form-control"
-                                            placeholder="Enter Description"
-                                            type="textarea"
-                                            rows={4}
-                                            onChange={validation.handleChange}
-                                            onBlur={validation.handleBlur}
-                                            value={validation.values.description || ""}
-                                        />
-                                    </div>
-                                </Col>
-                            </Row>
-                        </ModalBody>
-                        <ModalFooter>
-                            <div className="hstack gap-2 justify-content-end">
-                                <Button color="light" onClick={toggle}>Close</Button>
-                                <Button type="submit" color="success">
-                                    {isEdit ? "Update" : "Add"}
-                                </Button>
-                            </div>
-                        </ModalFooter>
-                    </Form>
-                </Modal>
-                <DeleteModal
-                    show={deleteModal}
-                    onDeleteClick={handleDeleteConfirm}
-                    onCloseClick={() => setDeleteModal(false)}
-                />
+                {modal && companyId && (
+                    <AddEditWorkspaceModal
+                        isOpen={modal}
+                        toggle={toggle}
+                        isEdit={isEdit}
+                        workspace={currentWorkspace}
+                        companyId={companyId}
+                        onSuccess={handleMutationSuccess}
+                    />
+                )}
+                {deleteModal && companyId && (
+                    <ConfirmDeleteWorkspaceModal
+                        isOpen={deleteModal}
+                        onClose={() => setDeleteModal(false)}
+                        workspace={currentWorkspace}
+                        companyId={companyId}
+                        onSuccess={handleMutationSuccess}
+                    />
+                )}
             </div>
         </React.Fragment>
     );

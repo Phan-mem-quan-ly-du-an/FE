@@ -11,8 +11,19 @@ export interface Workspace {
     archivedAt?: string | null;
 }
 
+export interface Page<T> {
+    content: T[];
+    totalPages: number;
+    totalElements: number;
+    size: number;
+    number: number;
+}
+
 export interface GetWorkspacesByCompanyIdParams {
     companyId?: string;
+    page?: number;
+    size?: number;
+    q?: string;
 }
 
 export interface CreateWorkspacePayload {
@@ -42,20 +53,21 @@ export const deleteWorkspace = async (companyId: string, workspaceId: string): P
     await apiCaller.setUrl(url).delete();
 };
 
-export const getWorkspacesByCompanyIdParams = async (params?: GetWorkspacesByCompanyIdParams): Promise<Workspace[]> => {
-    try {
-        const apiCaller = new ApiCaller();
-        let url = `/companies/${params?.companyId}/workspaces`;
-        
-        const response = await apiCaller
-            .setUrl(url)
-            .get();
-        
-        const responseData = response.data as { content: Workspace[] };
+export const getWorkspacesByCompanyIdParams = async (params: GetWorkspacesByCompanyIdParams): Promise<Page<Workspace>> => {
+    const { companyId, ...queryParams } = params;
+    const apiCaller = new ApiCaller();
+    const url = `/companies/${companyId}/workspaces`;
+    
+    const response = await apiCaller
+        .setUrl(url)
+        .setQueryParams(queryParams)
+        .get();
+    
+    return response.data as Page<Workspace>;
+};
 
-        return responseData.content;
-    } catch (error) {
-        console.error("Error fetching workspaces:", error);
-        throw error;
-    }
+export const getAllWorkspacesByCompanyId = async (companyId: string): Promise<Workspace[]> => {
+    const params = { companyId, page: 0, size: 1000 }; 
+    const response = await getWorkspacesByCompanyIdParams(params);
+    return response.content;
 };
