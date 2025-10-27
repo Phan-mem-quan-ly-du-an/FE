@@ -16,15 +16,12 @@ import {
 import classnames from 'classnames';
 import { useQuery } from '@tanstack/react-query';
 import { getProjectById } from '../../apiCaller/projects';
+import { useTranslation } from 'react-i18next';
 
-// Tabs
 import OverviewTab from './OverviewTab';
-// Các tab khác bạn có thể tạo file rỗng trước nếu chưa làm:
-// import DocumentsTab from './DocumentsTab';
-// import ActivitiesTab from './ActivitiesTab';
-// import TeamTab from './TeamTab';
 
 const Section = () => {
+    const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
     const [activeTab, setActiveTab] = useState('1');
     const toggleTab = (tab: string) => setActiveTab(tab);
@@ -39,7 +36,7 @@ const Section = () => {
         return (
             <div className="d-flex justify-content-center align-items-center py-5">
                 <Spinner color="primary" />
-                <span className="ms-2">Loading project...</span>
+                <span className="ms-2">{t('LoadingProject')}</span>
             </div>
         );
     }
@@ -48,10 +45,10 @@ const Section = () => {
         return (
             <div className="alert alert-danger text-center mt-4">
                 <i className="ri-error-warning-line me-2"></i>
-                Failed to load project details.
+                {t('FailedToLoadProjectDetails')}
                 <div className="mt-2">
                     <Link to="/companies" className="btn btn-outline-danger btn-sm">
-                        Back to Projects
+                        {t('BackToProjects')}
                     </Link>
                 </div>
             </div>
@@ -82,12 +79,12 @@ const Section = () => {
                                     <div className="col-md">
                                         <h3 className="fw-bold mb-1">{project.name}</h3>
                                         <p className="text-muted mb-2">
-                                            {project.description || 'No description available.'}
+                                            {project.description || t('NoDescriptionAvailable')}
                                         </p>
                                         <div className="hstack gap-3 flex-wrap">
                                             <div>
                                                 <i className="ri-calendar-line align-bottom me-1"></i>
-                                                Created:{' '}
+                                                {t('Created')}:{' '}
                                                 <span className="fw-medium">
                                                     {new Date(project.createdAt).toLocaleDateString()}
                                                 </span>
@@ -95,7 +92,7 @@ const Section = () => {
                                             <div className="vr"></div>
                                             <div>
                                                 <i className="ri-refresh-line align-bottom me-1"></i>
-                                                Updated:{' '}
+                                                {t('Updated')}:{' '}
                                                 <span className="fw-medium">
                                                     {new Date(project.updatedAt).toLocaleDateString()}
                                                 </span>
@@ -105,7 +102,7 @@ const Section = () => {
                                                     <div className="vr"></div>
                                                     <div>
                                                         <i className="ri-archive-line align-bottom me-1"></i>
-                                                        Archived:{' '}
+                                                        {t('Archived')}:{' '}
                                                         <span className="fw-medium">
                                                             {new Date(project.archivedAt).toLocaleDateString()}
                                                         </span>
@@ -121,7 +118,7 @@ const Section = () => {
                                                             : 'bg-secondary'
                                                     } fs-12`}
                                                 >
-                                                    {project.status}
+                                                    {t(project.status)}
                                                 </span>
                                             </div>
                                         </div>
@@ -133,7 +130,7 @@ const Section = () => {
                                             tag={Link}
                                             to={`/companies/${project.workspaceId}/projects`}
                                         >
-                                            <i className="ri-arrow-left-line me-1"></i> Back to list
+                                            <i className="ri-arrow-left-line me-1"></i> {t('BackToList')}
                                         </Button>
                                     </div>
                                 </Row>
@@ -146,7 +143,7 @@ const Section = () => {
                                             onClick={() => toggleTab('1')}
                                             href="#"
                                         >
-                                            Overview
+                                            {t('Overview')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -155,7 +152,7 @@ const Section = () => {
                                             onClick={() => toggleTab('2')}
                                             href="#"
                                         >
-                                            Documents
+                                            {t('Documents')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -164,7 +161,7 @@ const Section = () => {
                                             onClick={() => toggleTab('3')}
                                             href="#"
                                         >
-                                            Activities
+                                            {t('Activities')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -173,7 +170,7 @@ const Section = () => {
                                             onClick={() => toggleTab('4')}
                                             href="#"
                                         >
-                                            Team
+                                            {t('Team')}
                                         </NavLink>
                                     </NavItem>
                                 </Nav>
@@ -190,15 +187,6 @@ const Section = () => {
                         <TabPane tabId="1">
                             <OverviewTab />
                         </TabPane>
-                        {/*<TabPane tabId="2">*/}
-                        {/*    <DocumentsTab />*/}
-                        {/*</TabPane>*/}
-                        {/*<TabPane tabId="3">*/}
-                        {/*    <ActivitiesTab />*/}
-                        {/*</TabPane>*/}
-                        {/*<TabPane tabId="4">*/}
-                        {/*    <TeamTab />*/}
-                        {/*</TabPane>*/}
                     </TabContent>
                 </Col>
             </Row>
