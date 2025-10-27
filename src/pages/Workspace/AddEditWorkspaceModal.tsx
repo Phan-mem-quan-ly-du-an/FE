@@ -41,7 +41,7 @@ const AddEditWorkspaceModal: React.FC<AddEditWorkspaceModalProps> = ({ isOpen, t
                 onSuccess();
             } catch (error) {
                 if (error instanceof AxiosError && error.response?.status === 409) {
-                    toast.error(`Workspace '${values.name}' already exists, please choose another name.`);
+                    toast.error(t('t-workspace-toast-duplicate-error', { name: values.name }));
                 } else {
                     toast.error(t('t-workspace-toast-generic-error'));
                 }
@@ -96,9 +96,12 @@ const AddEditWorkspaceModal: React.FC<AddEditWorkspaceModalProps> = ({ isOpen, t
                 </ModalBody>
                 <ModalFooter>
                     <div className="hstack gap-2 justify-content-end">
-                        <Button color="light" onClick={toggle}>{t('t-workspace-form-close-btn')}</Button>
-                        <Button type="submit" color="success">
-                            {isEdit ? t('t-workspace-form-update-btn') : t('t-workspace-form-add-btn')}
+                        <Button color="light" onClick={toggle} disabled={validation.isSubmitting}>{t('t-workspace-form-close-btn')}</Button>
+                        <Button type="submit" color="success" disabled={validation.isSubmitting}>
+                            {validation.isSubmitting ? 
+                                (isEdit ? t('t-workspace-form-updating-btn') : t('t-workspace-form-adding-btn')) : 
+                                (isEdit ? t('t-workspace-form-update-btn') : t('t-workspace-form-add-btn'))
+                            }
                         </Button>
                     </div>
                 </ModalFooter>

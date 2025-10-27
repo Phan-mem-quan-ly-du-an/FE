@@ -342,5 +342,18 @@
     "t-workspace-toast-update-success": "Workspace updated successfully",
     "t-workspace-toast-delete-success": "Workspace deleted successfully",
     "t-workspace-toast-delete-error": "Failed to delete workspace",
-    "t-workspace-toast-generic-error": "An error occurred"
+    "t-workspace-toast-generic-error": "An error occurred",
+    "t-menu": "Menu",
+    "t-projects": "Projects",
+    "t-settings": "Settings",
+    "t-company-members": "Company Members",
+    "t-company-roles": "Company Roles",
+    "t-workspace-form-adding-btn": "Adding...",
+    "t-workspace-form-updating-btn": "Updating...",
+    "t-workspace-toast-duplicate-error": "Workspace '{{name}}' already exists, please choose another name.",
+    "t-workspace-delete-modal-title": "Delete Workspace",
+    "t-workspace-delete-modal-body": "Are you sure you want to delete '{{name}}'? This action cannot be undone.",
+    "t-workspace-delete-modal-cancel-btn": "Cancel",
+    "t-workspace-delete-modal-confirm-btn": "Confirm",
+    "t-workspace-delete-modal-deleting-btn": "Deleting..."
 }

@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FeatherIcon from 'feather-icons-react';
+import { useTranslation } from 'react-i18next';
 
 const Navdata = () => {
     const history = useNavigate();
     const { companyId: routeCompanyId } = useParams();
+    const { t } = useTranslation();
 
     const [isDashboard, setIsDashboard] = useState<boolean>(false);
     const [isCurrentState, setIsCurrentState] = useState('Dashboard');
@@ -47,12 +49,12 @@ const Navdata = () => {
 
     const menuItems: any = [
         {
-            label: 'Menu',
+            label: t('t-menu'),
             isHeader: true,
         },
         {
             id: 'Workspaces',
-            label: 'Workspaces',
+            label: t('t-workspace-title'),
             icon: <FeatherIcon icon="briefcase" className="icon-dual" />,
             link: withCompany((id) => `/companies/${id}/workspaces`),
             stateVariables: isDashboard,
@@ -64,7 +66,7 @@ const Navdata = () => {
         },
         {
             id: 'Projects',
-            label: 'Projects',
+            label: t('t-projects'),
             icon: <FeatherIcon icon="folder" className="icon-dual" />,
             link: withCompany((id) => `/companies/${id}/projects`),
             stateVariables: isDashboard,
@@ -76,7 +78,7 @@ const Navdata = () => {
         },
         {
             id: 'Settings',
-            label: 'Settings',
+            label: t('t-settings'),
             icon: <FeatherIcon icon="settings" className="icon-dual" />,
             link: '/#',
             click: function (e: any) {
@@ -88,13 +90,13 @@ const Navdata = () => {
             subItems: [
                 {
                     id: 'CompanyMembers',
-                    label: 'Company Members',
+                    label: t('t-company-members'),
                     link: withCompany((id) => `/companies/${id}/members`),
                     parentId: 'Settings',
                 },
                 {
                     id: 'CompanyRoles',
-                    label: 'Company Roles',
+                    label: t('t-company-roles'),
                     link: withCompany((id) => `/companies/${id}/roles`),
                     parentId: 'Settings',
                 },

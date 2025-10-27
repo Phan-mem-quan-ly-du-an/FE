@@ -339,5 +339,18 @@
     "t-workspace-toast-update-success": "Cập nhật không gian làm việc thành công",
     "t-workspace-toast-delete-success": "Xóa không gian làm việc thành công",
     "t-workspace-toast-delete-error": "Xóa không gian làm việc thất bại",
-    "t-workspace-toast-generic-error": "Đã có lỗi xảy ra"
+    "t-workspace-toast-generic-error": "Đã có lỗi xảy ra",
+    "t-menu": "Danh mục",
+    "t-projects": "Dự án",
+    "t-settings": "Cài đặt",
+    "t-company-members": "Thành viên công ty",
+    "t-company-roles": "Vai trò công ty",
+    "t-workspace-form-adding-btn": "Đang thêm...",
+    "t-workspace-form-updating-btn": "Đang cập nhật...",
+    "t-workspace-toast-duplicate-error": "Không gian làm việc '{{name}}' đã tồn tại, vui lòng chọn tên khác.",
+    "t-workspace-delete-modal-title": "Xóa không gian làm việc",
+    "t-workspace-delete-modal-body": "Bạn có chắc chắn muốn xóa '{{name}}'? Hành động này không thể hoàn tác.",
+    "t-workspace-delete-modal-cancel-btn": "Hủy",
+    "t-workspace-delete-modal-confirm-btn": "Xác nhận",
+    "t-workspace-delete-modal-deleting-btn": "Đang xóa..."
   }
