@@ -102,7 +102,6 @@
     "ConfirmDeleteRoleMessage": "Are you sure you want to delete \"{{name}}\"?",
     "Cancel": "Cancel",
     "Deleting": "Deleting...",
-    "Delete": "Delete",
     "Permission": "Permission",
     "CreateRole": "Create Role",
     "Deals": "Deals",
@@ -299,11 +298,8 @@
     "YesDeleteIt": "Yes, Delete It!",
     "ProjectDeletedSuccessfully": "Project deleted successfully",
     "FailedToDeleteProject": "Failed to delete project",
-    "Deleting": "Deleting...",
-    "Overview": "Overview",
     "Documents": "Documents",
     "Activities": "Activities",
-    "Team": "Team",
     "Created": "Created",
     "Updated": "Updated",
     "Archived": "Archived",
@@ -399,5 +395,7 @@
     "t-workspace-delete-modal-body": "Are you sure you want to delete '{{name}}'? This action cannot be undone.",
     "t-workspace-delete-modal-cancel-btn": "Cancel",
     "t-workspace-delete-modal-confirm-btn": "Confirm",
-    "t-workspace-delete-modal-deleting-btn": "Deleting..."
+    "t-workspace-delete-modal-deleting-btn": "Deleting...",
+    "AreYouSure": "Are you sure ?",
+    "AreYouSureRemoveRecord": "Are you sure you want to remove this record ?"
 }

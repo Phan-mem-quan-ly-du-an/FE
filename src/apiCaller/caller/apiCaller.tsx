@@ -81,4 +81,11 @@ export default class ApiCaller {
             .delete(this.endpoint, this.requestOptions)
             .catch(ApiCaller.handleError);
     }
+
+    async patch(options?: ApiCallMethodPost): Promise<AxiosResponse<unknown>> {
+        this.prepareRequest(options);
+        return await axiosClient
+            .patch(this.endpoint, options?.data, this.requestOptions)
+            .catch(ApiCaller.handleError);
+    }
 }
