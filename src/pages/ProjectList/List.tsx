@@ -20,11 +20,11 @@ import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
 import dropbox from '../../assets/images/brands/dropbox.png';
+import { useParams } from "react-router-dom";
 
-//Import Icons
+
 import FeatherIcon from 'feather-icons-react';
 
-//import action
 import DeleteModal from './DeleteModal';
 import CreateProjectModal from './CreateProjectModal';
 import EditProjectModal from './EditProjectModal';
@@ -43,8 +43,9 @@ const List = ({workspaceId}: ListProps = {}) => {
     const [createModal, setCreateModal] = useState<boolean>(false);
     const [editModal, setEditModal] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const { companyId } = useParams<{ companyId: string }>();
 
-    // Function to map API project data to component format
+
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
         const imageMap = [slack, dribbble, mailChimp, dropbox];
 
@@ -60,8 +61,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         };
     };
 
-
-    // React Query for fetching projects
     const {
         data: projects = [],
         isLoading: loading,
@@ -72,7 +71,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         queryFn: () => getProjectsMine(workspaceId ? { workspaceId } : undefined),
     });
 
-    // Handle error with useEffect
     useEffect(() => {
         if (error) {
             console.error('Error fetching projects:', error);
@@ -80,7 +78,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     }, [error, t]);
 
-    // Delete project mutation
     const deleteProjectMutation = useMutation({
         mutationFn: (projectId: string) => deleteProject(projectId),
         onSuccess: () => {
@@ -95,13 +92,10 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     });
 
-
-    // Map projects to component format
     const projectLists = projects.map((project: Project, index: number) =>
         mapProjectToComponentFormat(project, index)
     );
 
-    // delete
     const onClickData = (project: any) => {
         setProject(project);
         setDeleteModal(true);
@@ -226,8 +220,12 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                         </DropdownToggle>
 
                                                         <DropdownMenu className="dropdown-menu-end">
-                                                            <DropdownItem href="apps-projects-overview"><i
-                                                                className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}</DropdownItem>
+                                                            <DropdownItem
+                                                                tag={Link}
+                                                                to={`/companies/${companyId}/projects/${item.id}`}
+                                                            >
+                                                                <i className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}
+                                                            </DropdownItem>
                                                             <DropdownItem href="#" onClick={() => onClickEdit(projects[index])}><i
                                                                 className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}</DropdownItem>
                                                             <div className="dropdown-divider"></div>
@@ -253,7 +251,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                                             </div>
                                             <div className="flex-grow-1">
                                                 <h5 className="mb-1 fs-15">
-                                                    <Link to="/apps-projects-overview" className="text-dark">
+                                                    <Link to={`/companies/${companyId}/projects/${item.id}`} className="text-dark">
                                                         {item.label}
                                                     </Link>
                                                 </h5>
