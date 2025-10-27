@@ -54,12 +54,16 @@
     "gridjs-react": "^6.1.1",
     "i18next": "^23.15.2",
     "i18next-browser-languagedetector": "^8.0.0",
+    "lucide-react": "^0.460.0",
     "moment": "^2.30.1",
     "nouislider-react": "^3.4.2",
+    "oidc-client-ts": "^3.3.0",
     "prismjs": "^1.29.0",
     "quill": "^2.0.2",
     "react": "^19.0.0",
     "react-apexcharts": "^1.4.1",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-bootstrap": "^2.10.10",
     "react-chartjs-2": "^5.2.0",
     "react-color": "^2.19.3",
     "react-countdown": "^2.3.6",
@@ -124,7 +128,8 @@
     "autoprefixer": "10.4.5"
   },
   "devDependencies": {
-    "@types/feather-icons": "^4.29.4"
+    "@types/feather-icons": "^4.29.4",
+    "@types/react-beautiful-dnd": "^13.1.8"
   },
   "overrides": {
     "typescript": "^5.3.3"

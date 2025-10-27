@@ -16,7 +16,19 @@ function App() {
             <QueryClientProvider client={queryClient}>
                 <ActiveCompanyProvider>
                     <Route/>
-                    <ToastContainer/>
+                    <ToastContainer
+                        position="top-right"
+                        autoClose={3000}
+                        hideProgressBar={false}
+                        newestOnTop={true}
+                        closeOnClick
+                        rtl={false}
+                        pauseOnFocusLoss
+                        draggable
+                        pauseOnHover
+                        theme="light"
+                        style={{ zIndex: 9999 }}
+                    />
                     <ReactQueryDevtools initialIsOpen={false}/>
                 </ActiveCompanyProvider>
             </QueryClientProvider>

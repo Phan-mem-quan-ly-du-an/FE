@@ -70,6 +70,13 @@ export default class ApiCaller {
             .catch(ApiCaller.handleError);
     }
 
+    async patch(options?: ApiCallMethodPost): Promise<AxiosResponse<unknown>> {
+        this.prepareRequest(options);
+        return await axiosClient
+            .patch(this.endpoint, options?.data, this.requestOptions)
+            .catch(ApiCaller.handleError);
+    }
+
     async delete(options?: ApiCallMethodGet): Promise<AxiosResponse<unknown>> {
         this.prepareRequest(options);
         return await axiosClient

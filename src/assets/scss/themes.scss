@@ -198,8 +198,15 @@ aside.EmojiPickerReact.epr-main {
 }
 // Toast
 .Toastify {
+  z-index: 9999 !important;
+  
+  .Toastify__toast-container {
+    z-index: 9999 !important;
+  }
+  
   .Toastify__toast {
     min-height: 43px;
+    z-index: 9999 !important;
   }
 
   .Toastify__close-button {
