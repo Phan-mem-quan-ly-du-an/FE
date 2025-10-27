@@ -61,52 +61,6 @@ const OverviewTab = () => {
                     <span style={{ color: project.color }}>{project.color}</span>
                 </li>
             </ul>
-
-            <Row className="gy-3 border-top border-top-dashed pt-3">
-                <Col lg={3} sm={6}>
-                    <p className="mb-1 text-uppercase fw-medium text-muted">
-                        {t("CreatedAt")}
-                    </p>
-                    <h5 className="fs-15 mb-0">
-                        {new Date(project.createdAt).toLocaleDateString()}
-                    </h5>
-                </Col>
-
-                <Col lg={3} sm={6}>
-                    <p className="mb-1 text-uppercase fw-medium text-muted">
-                        {t("LastUpdated")}
-                    </p>
-                    <h5 className="fs-15 mb-0">
-                        {new Date(project.updatedAt).toLocaleDateString()}
-                    </h5>
-                </Col>
-
-                <Col lg={3} sm={6}>
-                    <p className="mb-1 text-uppercase fw-medium text-muted">
-                        {t("Status")}
-                    </p>
-                    <div
-                        className={`badge fs-12 ${
-                            project.status === "active"
-                                ? "bg-success"
-                                : "bg-secondary"
-                        }`}
-                    >
-                        {t(project.status)}
-                    </div>
-                </Col>
-
-                {project.archivedAt && (
-                    <Col lg={3} sm={6}>
-                        <p className="mb-1 text-uppercase fw-medium text-muted">
-                            {t("ArchivedAt")}
-                        </p>
-                        <h5 className="fs-15 mb-0">
-                            {new Date(project.archivedAt).toLocaleDateString()}
-                        </h5>
-                    </Col>
-                )}
-            </Row>
         </div>
     );
 };
