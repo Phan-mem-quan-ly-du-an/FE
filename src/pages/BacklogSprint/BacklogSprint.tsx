@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautif
 import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CreateSprintModal from './CreateSprintModal';
+import EditSprintModal from './EditSprintModal';
 import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
@@ -64,6 +65,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
   const [sprintTasks, setSprintTasks] = useState<{ [sprintId: number]: Task[] }>({});
   const [loading, setLoading] = useState(true);
   const [showCreateSprint, setShowCreateSprint] = useState(false);
+  const [showEditSprint, setShowEditSprint] = useState(false);
+  const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
+  const [editSprintFocusDates, setEditSprintFocusDates] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -392,12 +396,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
       // Validation 0: Check if sprint has dates - MUST HAVE DATES TO START
       if (!sprint.startDate || !sprint.endDate) {
-        toast.error(
-          '📅 Cannot start sprint without dates!\n\n' +
-          'Please set start date and end date for this sprint before starting it.',
-          { autoClose: 5000 }
+        toast.warning(
+          'Please set start and end dates for this sprint',
+          { autoClose: 3000 }
         );
-        // TODO: In the future, we can open an "Edit Sprint" modal here to set dates
+        // Open edit modal with focus on dates
+        setEditingSprint(sprint);
+        setEditSprintFocusDates(true);
+        setShowEditSprint(true);
         return;
       }
 
@@ -835,7 +841,12 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                               e.stopPropagation();
                               handleStartSprint(sprint.id);
                             }}
-                            title="Start this sprint"
+                            disabled={sprints.some(s => s.status === 'active' && s.id !== sprint.id)}
+                            title={
+                              sprints.some(s => s.status === 'active' && s.id !== sprint.id)
+                                ? "Complete the active sprint first"
+                                : "Start this sprint"
+                            }
                           >
                             <Play size={14} /> Start
                           </Button>
@@ -914,6 +925,22 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         onHide={() => setShowCreateSprint(false)}
         projectId={projectId}
         onSuccess={loadData}
+      />
+      <EditSprintModal
+        show={showEditSprint}
+        onHide={() => {
+          setShowEditSprint(false);
+          setEditingSprint(null);
+          setEditSprintFocusDates(false);
+        }}
+        projectId={projectId}
+        sprint={editingSprint}
+        focusOnDates={editSprintFocusDates}
+        autoStartAfterSave={editSprintFocusDates} // Auto start if we're setting dates to start
+        onSuccess={async () => {
+          // Just reload data, don't try to start again
+          await loadData();
+        }}
       />
       <CreateTaskModal
         show={showCreateTask}

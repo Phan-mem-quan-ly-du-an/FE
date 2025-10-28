@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
     Card,
     CardBody,
@@ -24,8 +24,23 @@ import SprintTab from './SprintTab';
 const Section = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
-    const [activeTab, setActiveTab] = useState('1');
-    const toggleTab = (tab: string) => setActiveTab(tab);
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    // Get tab from URL or default to '1'
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || '1');
+    
+    const toggleTab = (tab: string) => {
+        setActiveTab(tab);
+        setSearchParams({ tab });
+    };
+
+    // Update tab from URL when it changes
+    useEffect(() => {
+        const tabFromUrl = searchParams.get('tab');
+        if (tabFromUrl && tabFromUrl !== activeTab) {
+            setActiveTab(tabFromUrl);
+        }
+    }, [searchParams]);
 
     const { data: project, isLoading, error } = useQuery({
         queryKey: ['project', projectId],
