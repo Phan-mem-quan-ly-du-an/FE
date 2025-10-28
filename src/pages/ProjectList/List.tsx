@@ -20,7 +20,8 @@ import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
 import dropbox from '../../assets/images/brands/dropbox.png';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { AxiosError } from 'axios';
 
 
 import FeatherIcon from 'feather-icons-react';
@@ -44,6 +45,7 @@ const List = ({workspaceId}: ListProps = {}) => {
     const [editModal, setEditModal] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const { companyId } = useParams<{ companyId: string }>();
+    const navigate = useNavigate();
 
 
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
@@ -67,27 +69,57 @@ const List = ({workspaceId}: ListProps = {}) => {
         error,
         refetch
     } = useQuery<Project[]>({
-        queryKey: ['projects', 'mine', workspaceId],
-        queryFn: () => getProjectsMine(workspaceId ? { workspaceId } : undefined),
+        queryKey: ['projects', 'mine', companyId, workspaceId],
+        queryFn: () => getProjectsMine({ companyId, ...(workspaceId ? { workspaceId } : {}) }),
+        enabled: !!companyId,
     });
 
     useEffect(() => {
         if (error) {
+            // Handle 401/403
+            if (error instanceof AxiosError) {
+                const status = error.response?.status;
+                if (status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    navigate('/');
+                    return;
+                }
+                if (status === 403) {
+                    toast.error('You do not have permission to view projects in this company.');
+                    return;
+                }
+                if (status && status >= 500) {
+                    toast.error(t('FailedToLoadProjects'));
+                    return;
+                }
+            }
             console.error('Error fetching projects:', error);
             toast.error(t('FailedToLoadProjects'));
         }
-    }, [error, t]);
+    }, [error, t, navigate]);
 
     const deleteProjectMutation = useMutation({
         mutationFn: (projectId: string) => deleteProject(projectId),
         onSuccess: () => {
             // Invalidate and refetch projects
-            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', companyId, workspaceId] });
             setDeleteModal(false);
             toast.success(t('ProjectDeletedSuccessfully') || 'Project deleted successfully');
         },
-        onError: (error) => {
-            console.error('Error deleting project:', error);
+        onError: (err: unknown) => {
+            console.error('Error deleting project:', err);
+            if (err instanceof AxiosError) {
+                const status = err.response?.status;
+                if (status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    navigate('/');
+                    return;
+                }
+                if (status === 403) {
+                    toast.error('You do not have permission to delete this project.');
+                    return;
+                }
+            }
             toast.error(t('FailedToDeleteProject') || 'Failed to delete project');
         }
     });
@@ -132,7 +164,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                 onClose={() => setCreateModal(false)}
                 onCreated={() => {
                     // Invalidate and refetch projects
-                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', companyId, workspaceId] });
                 }}
             />
             <EditProjectModal
@@ -140,7 +172,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                 onClose={() => setEditModal(false)}
                 onUpdated={() => {
                     // Invalidate and refetch projects
-                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', companyId, workspaceId] });
                 }}
                 project={selectedProject}
             />
