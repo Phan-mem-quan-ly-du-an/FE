@@ -8,7 +8,7 @@ import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
 import { getProjectMembers } from '../../apiCaller/projectMembers';
-import './BacklogSprint.scss';
+import '../../assets/scss/pages/BacklogSprint.scss';
 
 interface Task {
   id: number;

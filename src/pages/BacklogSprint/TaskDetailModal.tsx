@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs, Tab } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { taskAPI } from '../../apiCaller/backlogSprint';
-import './TaskDetailModal.scss';
+import '../../assets/scss/pages/TaskDetailModal.scss';
 
 interface Task {
   id: number;
