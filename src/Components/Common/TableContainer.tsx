@@ -115,6 +115,11 @@ interface TableContainerProps {
   handleContactClick?: any;
   handleTicketClick?: any;
   hidePagination?: boolean;
+  // --- Server side pagination ---
+  isServerSidePagination?: boolean;
+  pageCount?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const TableContainer = ({
@@ -140,7 +145,11 @@ const TableContainer = ({
   divClass,
   SearchPlaceholder,
   hidePagination,
-
+  // --- Server side pagination ---
+  isServerSidePagination = false,
+  pageCount: controlledPageCount,
+  currentPage: controlledPageIndex,
+  onPageChange: onControlledPageChange,
 }: TableContainerProps) => {
   const { t } = useTranslation();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -170,7 +179,11 @@ const TableContainer = ({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    getSortedRowModel: getSortedRowModel(),
+    ...(isServerSidePagination && {
+      manualPagination: true,
+      pageCount: controlledPageCount,
+    })
   });
 
   const {
@@ -189,6 +202,12 @@ const TableContainer = ({
   useEffect(() => {
     Number(customPageSize) && setPageSize(Number(customPageSize));
   }, [customPageSize, setPageSize]);
+
+  useEffect(() => {
+    if (isServerSidePagination && controlledPageIndex !== undefined) {
+      setPageIndex(controlledPageIndex);
+    }
+  }, [controlledPageIndex, isServerSidePagination, setPageIndex]);
 
   return (
     <Fragment>
@@ -307,18 +326,26 @@ const TableContainer = ({
         </div>
         <div className="col-sm-auto">
           <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
-            <li className={!getCanPreviousPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={previousPage}>{t('Previous')}</Link>
+            <li className={(!isServerSidePagination ? !getCanPreviousPage() : controlledPageIndex === 0) ? "page-item disabled" : "page-item"}>
+              <Link to="#" className="page-link" onClick={() => isServerSidePagination ? onControlledPageChange?.(controlledPageIndex! - 1) : previousPage()}>{t('Previous')}</Link>
             </li>
-            {getPageOptions().map((item: any, key: number) => (
-              <React.Fragment key={key}>
-                <li className="page-item">
-                  <Link to="#" className={getState().pagination.pageIndex === item ? "page-link active" : "page-link"} onClick={() => setPageIndex(item)}>{item + 1}</Link>
-                </li>
-              </React.Fragment>
-            ))}
-            <li className={!getCanNextPage() ? "page-item disabled" : "page-item"}>
-              <Link to="#" className="page-link" onClick={nextPage}>{t('Next')}</Link>
+            {isServerSidePagination ? (
+              [...Array(controlledPageCount).keys()].map((p) => (
+                  <li className="page-item" key={p}>
+                      <Link to="#" className={controlledPageIndex === p ? "page-link active" : "page-link"} onClick={() => onControlledPageChange?.(p)}>{p + 1}</Link>
+                  </li>
+              ))
+            ) : (
+              getPageOptions().map((item: any, key: number) => (
+                <React.Fragment key={key}>
+                  <li className="page-item">
+                    <Link to="#" className={getState().pagination.pageIndex === item ? "page-link active" : "page-link"} onClick={() => setPageIndex(item)}>{item + 1}</Link>
+                  </li>
+                </React.Fragment>
+              ))
+            )}
+            <li className={(!isServerSidePagination ? !getCanNextPage() : controlledPageIndex! >= controlledPageCount! - 1) ? "page-item disabled" : "page-item"}>
+              <Link to="#" className="page-link" onClick={() => isServerSidePagination ? onControlledPageChange?.(controlledPageIndex! + 1) : nextPage()}>{t('Next')}</Link>
             </li>
           </ul>
         </div>

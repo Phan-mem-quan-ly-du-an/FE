@@ -182,7 +182,7 @@ export default function CompaniesList() {
                                                         <td className="text-white">{c.name}</td>
                                                         <td className="text-end" style={{ width: 200 }}>
                                                             <div className="btn-group">
-                                                                <Button size="sm" color="light" outline href={`/companies/${c.id}/members`}>View</Button>
+                                                                <Button size="sm" color="light" outline href={`/companies/${c.id}/workspaces`}>View</Button>
                                                                 <Button size="sm" color="light" onClick={() => { setEditing(c); setShowEdit(true); }}>Edit</Button>
                                                                 <Button size="sm" color="danger" outline onClick={() => setToDelete(c)}>Delete</Button>
                                                             </div>
