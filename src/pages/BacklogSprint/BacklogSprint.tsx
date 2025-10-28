@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Dropdown } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, Dropdown, Accordion } from 'react-bootstrap';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle } from 'lucide-react';
+import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CreateSprintModal from './CreateSprintModal';
 import CreateTaskModal from './CreateTaskModal';
@@ -72,12 +72,13 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     { userId: 'unassigned', displayName: 'Unassigned', email: '' }
   ]);
   const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' } | null>(null);
+  const [expandedSprints, setExpandedSprints] = useState<{ [sprintId: number]: boolean }>({});
 
   // Status columns from database (correct IDs)
   const statusColumns: StatusColumn[] = [
     { id: 1, name: 'TO DO', color: '#6b7280' },
-    { id: 1, name: 'IN PROGRESS', color: '#3b82f6' },  // Same ID as TO DO in DB
-    { id: 2, name: 'DONE', color: '#10b981' }
+    { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
+    { id: 3, name: 'DONE', color: '#10b981' }
   ];
 
   useEffect(() => {
@@ -211,14 +212,31 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     });
 
     try {
-      // Send only columnId to backend
-      await taskAPI.update(projectId, task.id, {
-        ...task,
-        columnId: statusId  // Send columnId instead of statusColumn object
-      });
+      // Send complete task object with updated statusColumn
+      const updatedTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        projectId: task.projectId,
+        sprintId: task.sprintId,
+        assignedTo: task.assignedTo,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        estimatedHours: task.estimatedHours,
+        tags: task.tags,
+        orderIndex: task.orderIndex,
+        statusColumn: { 
+          id: statusId, 
+          name: statusName 
+        }
+      };
+      
+      console.log('Updating task with statusColumn:', updatedTask);
+      await taskAPI.update(projectId, task.id, updatedTask);
       toast.success(`Status updated to ${statusName}`, { autoClose: 2000 });
     } catch (error: any) {
       console.error('Error updating status:', error);
+      console.error('Error details:', error.response?.data);
       toast.error('Failed to update status');
       // Revert on error
       updateTaskLocally(task.id, { statusColumn: previousStatus });
@@ -239,10 +257,23 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     });
 
     try {
-      await taskAPI.update(projectId, task.id, {
-        ...task,
-        assignedTo: userId === 'unassigned' ? undefined : userId
-      });
+      // Send complete task object with updated assignedTo
+      const updatedTask = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        projectId: task.projectId,
+        sprintId: task.sprintId,
+        assignedTo: userId === 'unassigned' ? undefined : userId,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        estimatedHours: task.estimatedHours,
+        tags: task.tags,
+        orderIndex: task.orderIndex,
+        statusColumn: task.statusColumn
+      };
+      
+      await taskAPI.update(projectId, task.id, updatedTask);
       toast.success(`Assigned to ${displayName}`, { autoClose: 2000 });
     } catch (error: any) {
       console.error('Error updating assignee:', error);
@@ -264,6 +295,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     const sourceSprintId = source.droppableId === 'backlog' ? null : parseInt(source.droppableId);
     const destSprintId = destination.droppableId === 'backlog' ? null : parseInt(destination.droppableId);
 
+    // Store original state for rollback on error
+    const originalBacklogTasks = [...backlogTasks];
+    const originalSprintTasks = { ...sprintTasks };
+
     try {
       // Find the task
       let task: Task | undefined;
@@ -273,26 +308,29 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         task = sprintTasks[sourceSprintId]?.find(t => t.id === taskId);
       }
 
-      if (!task) return;
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
 
-      // Update task's sprintId
-      await taskAPI.update(projectId, taskId, {
-        ...task,
-        sprintId: destSprintId,
-        orderIndex: destination.index
-      });
-
-      // Update local state
+      // Update local state OPTIMISTICALLY (before API call completes)
       if (sourceSprintId === null) {
         // Moving from backlog
         const newBacklog = Array.from(backlogTasks);
         const [removed] = newBacklog.splice(source.index, 1);
-        setBacklogTasks(newBacklog);
-
+        
         if (destSprintId !== null) {
+          // Moving to sprint
           const newSprintTasks = Array.from(sprintTasks[destSprintId] || []);
           newSprintTasks.splice(destination.index, 0, { ...removed, sprintId: destSprintId });
+          
+          // Update both states
+          setBacklogTasks(newBacklog);
           setSprintTasks({ ...sprintTasks, [destSprintId]: newSprintTasks });
+        } else {
+          // Moving within backlog (reorder)
+          newBacklog.splice(destination.index, 0, removed);
+          setBacklogTasks(newBacklog);
         }
       } else {
         // Moving from sprint
@@ -301,28 +339,45 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         
         if (destSprintId === null) {
           // Moving to backlog
-          setSprintTasks({ ...sprintTasks, [sourceSprintId]: sourceList });
           const newBacklog = Array.from(backlogTasks);
           newBacklog.splice(destination.index, 0, { ...removed, sprintId: null });
+          
+          // Update both states
           setBacklogTasks(newBacklog);
+          setSprintTasks({ ...sprintTasks, [sourceSprintId]: sourceList });
         } else if (sourceSprintId === destSprintId) {
           // Reordering within same sprint
           sourceList.splice(destination.index, 0, removed);
           setSprintTasks({ ...sprintTasks, [sourceSprintId]: sourceList });
         } else {
           // Moving between sprints
-          setSprintTasks({ ...sprintTasks, [sourceSprintId]: sourceList });
           const destList = Array.from(sprintTasks[destSprintId] || []);
           destList.splice(destination.index, 0, { ...removed, sprintId: destSprintId });
-          setSprintTasks({ ...sprintTasks, [destSprintId]: destList });
+          
+          // Update both sprint states
+          setSprintTasks({ 
+            ...sprintTasks, 
+            [sourceSprintId]: sourceList,
+            [destSprintId]: destList 
+          });
         }
       }
 
-      toast.success('Task moved successfully');
+      // Now update backend
+      await taskAPI.update(projectId, taskId, {
+        ...task,
+        sprintId: destSprintId,
+        orderIndex: destination.index
+      });
+
+      toast.success('Task moved successfully', { autoClose: 1500 });
     } catch (error) {
       console.error('Error moving task:', error);
-      toast.error('Failed to move task');
-      loadData(); // Reload on error
+      toast.error('Failed to move task. Rolling back...');
+      
+      // Rollback to original state
+      setBacklogTasks(originalBacklogTasks);
+      setSprintTasks(originalSprintTasks);
     }
   };
 
@@ -332,6 +387,17 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
       const sprint = sprints.find(s => s.id === sprintId);
       if (!sprint) {
         toast.error('Sprint not found');
+        return;
+      }
+
+      // Validation 0: Check if sprint has dates - MUST HAVE DATES TO START
+      if (!sprint.startDate || !sprint.endDate) {
+        toast.error(
+          '📅 Cannot start sprint without dates!\n\n' +
+          'Please set start date and end date for this sprint before starting it.',
+          { autoClose: 5000 }
+        );
+        // TODO: In the future, we can open an "Edit Sprint" modal here to set dates
         return;
       }
 
@@ -434,9 +500,30 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
   };
 
   const handleDeleteSprint = async (sprintId: number) => {
-    if (!window.confirm('Are you sure you want to delete this sprint? Tasks will be moved to backlog.')) {
+    const sprint = sprints.find(s => s.id === sprintId);
+    if (!sprint) {
+      toast.error('Sprint not found');
       return;
     }
+
+    // Warning for active sprints
+    if (sprint.status === 'active') {
+      if (!window.confirm(
+        '⚠️ Warning: This is an ACTIVE sprint!\n\n' +
+        'Deleting an active sprint will move all tasks back to the backlog.\n\n' +
+        'Are you sure you want to delete this sprint?'
+      )) {
+        return;
+      }
+    } else {
+      if (!window.confirm(
+        'Are you sure you want to delete this sprint?\n\n' +
+        'All tasks will be moved back to the backlog.'
+      )) {
+        return;
+      }
+    }
+
     try {
       await sprintAPI.delete(projectId, sprintId);
       toast.success('Sprint deleted successfully');
@@ -492,125 +579,129 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
               </Badge>
             </div>
             
-            <div 
-              className="task-title"
-              onClick={() => {
-                setSelectedTask(task);
-                setShowTaskDetail(true);
-              }}
-            >
-              {task.title}
-            </div>
-            
-            {task.description && (
-              <div className="task-description">{task.description.substring(0, 80)}...</div>
-            )}
-            
-            {/* Action buttons */}
-            <div className="task-actions" onClick={(e) => e.stopPropagation()}>
-              {/* Status Dropdown */}
-              <Dropdown 
-                className="d-inline-block" 
-                drop="down"
-                show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
-                onToggle={(isOpen) => {
-                  if (isOpen) {
-                    setOpenDropdown({ taskId: task.id, type: 'status' });
-                  } else {
-                    setOpenDropdown(null);
-                  }
-                }}
-              >
-                <Dropdown.Toggle 
-                  variant="light" 
-                  size="sm"
-                  id={`status-dropdown-${task.id}`}
-                  className="task-action-btn"
-                  style={{ 
-                    borderColor: currentStatus.color,
-                    color: currentStatus.color,
-                    fontSize: '11px',
-                    padding: '2px 8px'
+            <div className="task-content-row">
+              <div className="task-main-content">
+                <div 
+                  className="task-title"
+                  onClick={() => {
+                    setSelectedTask(task);
+                    setShowTaskDetail(true);
                   }}
                 >
-                  <CheckCircle size={12} className="me-1" />
-                  {currentStatus.name}
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  {statusColumns.map((status, index) => (
-                    <Dropdown.Item
-                      key={`${status.name}-${index}`}
-                      onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
-                      active={currentStatus.name === status.name}
-                    >
-                      <span
-                        className="d-inline-block me-2"
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          backgroundColor: status.color
-                        }}
-                      />
-                      {status.name}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
+                  {task.title}
+                </div>
+                
+                {task.description && (
+                  <div className="task-description">{task.description.substring(0, 80)}...</div>
+                )}
+              </div>
 
-              {/* Assignee Dropdown */}
-              <Dropdown 
-                className="d-inline-block ms-2" 
-                drop="down"
-                show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
-                onToggle={(isOpen) => {
-                  if (isOpen) {
-                    setOpenDropdown({ taskId: task.id, type: 'assignee' });
-                  } else {
-                    setOpenDropdown(null);
-                  }
-                }}
-              >
-                <Dropdown.Toggle 
-                  variant="light" 
-                  size="sm"
-                  id={`assignee-dropdown-${task.id}`}
-                  className="task-action-btn"
-                  style={{ 
-                    fontSize: '11px',
-                    padding: '2px 8px'
+              {/* Action buttons on the right */}
+              <div className="task-actions-right" onClick={(e) => e.stopPropagation()}>
+                {/* Status Dropdown */}
+                <Dropdown 
+                  className="d-inline-block" 
+                  drop="down"
+                  show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
+                  onToggle={(isOpen) => {
+                    if (isOpen) {
+                      setOpenDropdown({ taskId: task.id, type: 'status' });
+                    } else {
+                      setOpenDropdown(null);
+                    }
                   }}
                 >
-                  <User size={12} className="me-1" />
-                  {currentAssignee.displayName}
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  {projectMembers.map(member => (
-                    <Dropdown.Item
-                      key={member.userId}
-                      onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
-                      active={currentAssignee.userId === member.userId}
-                    >
-                      <User size={12} className="me-2" />
-                      {member.displayName}
-                      {member.email && (
-                        <small className="text-muted ms-2">({member.email})</small>
-                      )}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
+                  <Dropdown.Toggle 
+                    variant="light" 
+                    size="sm"
+                    id={`status-dropdown-${task.id}`}
+                    className="task-action-btn"
+                    style={{ 
+                      borderColor: currentStatus.color,
+                      color: currentStatus.color,
+                      fontSize: '10px',
+                      padding: '2px 6px'
+                    }}
+                  >
+                    <CheckCircle size={10} className="me-1" />
+                    {currentStatus.name}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {statusColumns.map((status, index) => (
+                      <Dropdown.Item
+                        key={`${status.name}-${index}`}
+                        onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
+                        active={currentStatus.name === status.name}
+                      >
+                        <span
+                          className="d-inline-block me-2"
+                          style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor: status.color
+                          }}
+                        />
+                        {status.name}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+
+                {/* Assignee Dropdown */}
+                <Dropdown 
+                  className="d-inline-block" 
+                  drop="down"
+                  show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
+                  onToggle={(isOpen) => {
+                    if (isOpen) {
+                      setOpenDropdown({ taskId: task.id, type: 'assignee' });
+                    } else {
+                      setOpenDropdown(null);
+                    }
+                  }}
+                >
+                  <Dropdown.Toggle 
+                    variant="light" 
+                    size="sm"
+                    id={`assignee-dropdown-${task.id}`}
+                    className="task-action-btn"
+                    style={{ 
+                      fontSize: '10px',
+                      padding: '2px 6px'
+                    }}
+                  >
+                    <User size={10} className="me-1" />
+                    {currentAssignee.displayName}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {projectMembers.map(member => (
+                      <Dropdown.Item
+                        key={member.userId}
+                        onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
+                        active={currentAssignee.userId === member.userId}
+                      >
+                        <User size={12} className="me-2" />
+                        {member.displayName}
+                        {member.email && (
+                          <small className="text-muted ms-2">({member.email})</small>
+                        )}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
             </div>
 
             <div className="task-footer">
               {task.estimatedHours && (
                 <span className="task-meta">
-                  <Clock size={14} /> {task.estimatedHours}h
+                  <Clock size={12} /> {task.estimatedHours}h
                 </span>
               )}
               {task.dueDate && (
                 <span className="task-meta">
-                  <Calendar size={14} /> {new Date(task.dueDate).toLocaleDateString()}
+                  <Calendar size={12} /> {new Date(task.dueDate).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -631,9 +722,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
   return (
     <Container fluid className="backlog-sprint-page">
       <Row className="mb-3 align-items-center page-header">
-        <Col>
-          <h2>📋 Backlog & Sprints</h2>
-        </Col>
         <Col xs="auto">
           <Button variant="primary" onClick={() => setShowCreateSprint(true)}>
             <Plus size={16} className="me-1" /> Create Sprint
@@ -643,158 +731,181 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
       <DragDropContext onDragEnd={onDragEnd}>
         {/* Backlog Section */}
-        <Card className="backlog-section">
-          <Card.Header>
-            <h5>📦 Backlog</h5>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => {
-                setCreateTaskSprintId(null);
-                setShowCreateTask(true);
-              }}
-            >
-              <Plus size={14} className="me-1" /> Add Issue
-            </Button>
-          </Card.Header>
-          <Card.Body>
-            <Droppable droppableId="backlog">
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`tasks-list ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
-                >
-                  {backlogTasks.length === 0 ? (
-                    <div className="empty-state">No tasks in backlog</div>
-                  ) : (
-                    backlogTasks.map((task, index) => renderTask(task, index))
-                  )}
-                  {provided.placeholder}
+        <Accordion defaultActiveKey="backlog" alwaysOpen className="mb-3">
+          <Accordion.Item eventKey="backlog" className="sprint-accordion-item">
+            <Accordion.Header className="sprint-accordion-header">
+              <div className="d-flex align-items-center justify-content-between w-100 pe-3">
+                <div className="d-flex align-items-center gap-3">
+                  <h5 className="mb-0">📦 Backlog</h5>
+                  <Badge bg="secondary" className="task-count-badge">
+                    {backlogTasks.length} {backlogTasks.length === 1 ? 'task' : 'tasks'}
+                  </Badge>
                 </div>
-              )}
-            </Droppable>
-          </Card.Body>
-        </Card>
+                <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCreateTaskSprintId(null);
+                      setShowCreateTask(true);
+                    }}
+                    title="Add a new task to backlog"
+                  >
+                    <Plus size={14} /> Add Task
+                  </Button>
+                </div>
+              </div>
+            </Accordion.Header>
+            <Accordion.Body className="sprint-accordion-body">
+              <Droppable droppableId="backlog">
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`tasks-list ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
+                  >
+                    {backlogTasks.length === 0 ? (
+                      <div className="empty-state">No tasks in backlog</div>
+                    ) : (
+                      backlogTasks.map((task, index) => renderTask(task, index))
+                    )}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </Accordion.Body>
+          </Accordion.Item>
+        </Accordion>
 
         {/* Sprints Section */}
-        {sprints
-          .filter(sprint => !sprint.isBacklog)
-          .sort((a, b) => {
-            // Active sprints first, then by start date
-            if (a.status === 'active' && b.status !== 'active') return -1;
-            if (a.status !== 'active' && b.status === 'active') return 1;
-            return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
-          })
-          .map(sprint => {
-            const tasks = sprintTasks[sprint.id] || [];
-            return (
-              <Card key={sprint.id} className="mb-4 sprint-section">
-                <Card.Header className="d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center gap-3">
-                    <h5 className="mb-0">🏃 {sprint.name}</h5>
-                    <Badge bg={getStatusColor(sprint.status)}>
-                      {sprint.status.toUpperCase()}
-                    </Badge>
-                    <small className="text-muted">
-                      {new Date(sprint.startDate).toLocaleDateString()} -{' '}
-                      {new Date(sprint.endDate).toLocaleDateString()}
-                    </small>
-                  </div>
-                  <div className="d-flex gap-2">
-                    {(() => {
-                      console.log(`🔍 Sprint ${sprint.id} status:`, sprint.status, '(is planned?', sprint.status === 'planned', ')');
-                      return null;
-                    })()}
-                    {sprint.status === 'planned' && (
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={async (e) => {
-                          console.log('🔴 BUTTON CLICKED - Sprint ID:', sprint.id);
-                          console.log('� Event:', e);
-                          console.log('🔴 handleStartSprint type:', typeof handleStartSprint);
-                          
-                          e.preventDefault();
-                          e.stopPropagation();
-                          
-                          console.log('🔴 About to call handleStartSprint...');
-                          
-                          try {
-                            await handleStartSprint(sprint.id);
-                            console.log('🔴 handleStartSprint completed');
-                          } catch (err) {
-                            console.error('🔴 Error calling handleStartSprint:', err);
-                          }
-                        }}
-                        title="Start this sprint"
-                      >
-                        <Play size={16} /> Start Sprint
-                      </Button>
-                    )}
-                    {sprint.status === 'active' && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleCompleteSprint(sprint.id)}
-                        title="Complete this sprint and move incomplete tasks to backlog"
-                      >
-                        <Check size={16} /> Complete Sprint
-                      </Button>
-                    )}
-                    {sprint.status === 'completed' && (
-                      <Badge bg="secondary" className="px-3 py-2">
-                        ✓ Completed
-                      </Badge>
-                    )}
-                    {sprint.status !== 'completed' && (
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => {
-                          setCreateTaskSprintId(sprint.id);
-                          setShowCreateTask(true);
-                        }}
-                        title="Add a new task to this sprint"
-                      >
-                        <Plus size={16} /> Add Task
-                      </Button>
-                    )}
-                    <Dropdown align="end">
-                      <Dropdown.Toggle variant="outline-secondary" size="sm">
-                        <MoreVertical size={16} />
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item onClick={() => handleDeleteSprint(sprint.id)}>
-                          Delete Sprint
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </div>
-                </Card.Header>
-                <Card.Body>
-                  <Droppable droppableId={sprint.id.toString()}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`tasks-list ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
-                      >
-                        {tasks.length === 0 ? (
-                          <div className="empty-state">
-                            No tasks in this sprint. Drag tasks here to start planning.
-                          </div>
-                        ) : (
-                          tasks.map((task, index) => renderTask(task, index))
+        <Accordion defaultActiveKey="0" alwaysOpen>
+          {sprints
+            .filter(sprint => !sprint.isBacklog && sprint.status !== 'completed')
+            .sort((a, b) => {
+              // Active sprints always come first
+              if (a.status === 'active' && b.status !== 'active') return -1;
+              if (a.status !== 'active' && b.status === 'active') return 1;
+              
+              // Sort by start date if both have dates
+              if (a.startDate && b.startDate) {
+                return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+              }
+              
+              // Sprints with dates come before sprints without dates
+              if (a.startDate && !b.startDate) return -1;
+              if (!a.startDate && b.startDate) return 1;
+              
+              // If both have no dates, maintain original order
+              return 0;
+            })
+            .map((sprint, index) => {
+              const tasks = sprintTasks[sprint.id] || [];
+              const isExpanded = expandedSprints[sprint.id] !== false; // Default expanded
+              
+              return (
+                <Accordion.Item eventKey={index.toString()} key={sprint.id} className="mb-3 sprint-accordion-item">
+                  <Accordion.Header className="sprint-accordion-header">
+                    <div className="d-flex align-items-center justify-content-between w-100 pe-3">
+                      <div className="d-flex align-items-center gap-3">
+                        <h5 className="mb-0">🏃 {sprint.name}</h5>
+                        <Badge bg={getStatusColor(sprint.status)} className="sprint-badge">
+                          {sprint.status.toUpperCase()}
+                        </Badge>
+                        {sprint.startDate && sprint.endDate && (
+                          <span className="text-muted small">
+                            {new Date(sprint.startDate).toLocaleDateString()} - {new Date(sprint.endDate).toLocaleDateString()}
+                          </span>
                         )}
-                        {provided.placeholder}
+                        {!sprint.startDate && !sprint.endDate && (
+                          <span className="text-muted small fst-italic">
+                            📅 No dates set
+                          </span>
+                        )}
+                        <Badge bg="secondary" className="task-count-badge">
+                          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+                        </Badge>
                       </div>
-                    )}
-                  </Droppable>
-                </Card.Body>
-              </Card>
-            );
-          })}
+                      <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        {sprint.status === 'planned' && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartSprint(sprint.id);
+                            }}
+                            title="Start this sprint"
+                          >
+                            <Play size={14} /> Start
+                          </Button>
+                        )}
+                        {sprint.status === 'active' && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCompleteSprint(sprint.id);
+                            }}
+                            title="Complete this sprint"
+                          >
+                            <Check size={14} /> Complete
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCreateTaskSprintId(sprint.id);
+                            setShowCreateTask(true);
+                          }}
+                          title="Add a new task"
+                        >
+                          <Plus size={14} />
+                        </Button>
+                        <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                          <Dropdown.Toggle variant="outline-secondary" size="sm">
+                            <MoreVertical size={14} />
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            <Dropdown.Item 
+                              onClick={() => handleDeleteSprint(sprint.id)}
+                              className="text-danger"
+                            >
+                              <i className="ri-delete-bin-line me-2"></i>
+                              Delete Sprint
+                            </Dropdown.Item>
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      </div>
+                    </div>
+                  </Accordion.Header>
+                  <Accordion.Body className="sprint-accordion-body">
+                    <Droppable droppableId={sprint.id.toString()}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`tasks-list ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
+                        >
+                          {tasks.length === 0 ? (
+                            <div className="empty-state">
+                              No tasks in this sprint. Drag tasks here to start planning.
+                            </div>
+                          ) : (
+                            tasks.map((task, index) => renderTask(task, index))
+                          )}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </Accordion.Body>
+                </Accordion.Item>
+              );
+            })}
+        </Accordion>
       </DragDropContext>
 
       {/* Modals */}

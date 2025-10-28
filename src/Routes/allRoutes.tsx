@@ -5,8 +5,7 @@ import EditRolePermissionPage from '../pages/Companies/Roles/EditRolePermissionP
 import Companies from '../pages/Companies/CompaniesMainPage';
 import AccountPage from '../pages/Accounts/AccountPage';
 import ProjectList from '../pages/ProjectList';
-import BacklogSprintPage from '../pages/BacklogSprint/BacklogSprintPage';
-import BacklogSprintDemo from '../pages/BacklogSprint/BacklogSprintDemo';
+import ProjectDetail from "../pages/ProjectsDetails";
 
 export type AuthRoute = {
     path: string;
@@ -24,12 +23,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/roles', component: <CompaniesRolePage/>},
     {path: '/companies/:companyId/roles/:roleId/permission', component: <EditRolePermissionPage/>},
     {path: '/companies/:companyId/projects', component: <ProjectList/>},
-    
-    // === Projects ===
-    {path: '/companies/:companyId/projects/:projectId/backlog', component: <BacklogSprintPage/>},
-    
-    // === Demo & Testing ===
-    {path: '/backlog-demo', component: <BacklogSprintDemo/>},
+    {path: '/companies/:companyId/projects/:projectId', component: <ProjectDetail/> },
 ];
 
 const publicRoutes = [];

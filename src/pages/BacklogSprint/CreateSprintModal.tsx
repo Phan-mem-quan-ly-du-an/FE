@@ -44,69 +44,84 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
       return;
     }
 
-    // Validation 3: Dates are required
-    if (!formData.startDate || !formData.endDate) {
-      toast.error('Start date and end date are required');
-      return;
+    // Validation 3: If dates are provided, validate them
+    if (formData.startDate || formData.endDate) {
+      // If one date is provided, the other must be provided too
+      if (!formData.startDate || !formData.endDate) {
+        toast.error('If you provide a date, both start date and end date are required');
+        return;
+      }
+
+      // Validation 4: Start date cannot be in the past (except if creating an active sprint)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+      const startDate = new Date(formData.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      if (startDate < today) {
+        toast.error('Start date cannot be in the past. Please select today or a future date.');
+        return;
+      }
+
+      // Validation 5: End date must be after start date
+      const endDate = new Date(formData.endDate);
+      if (endDate <= startDate) {
+        toast.error('End date must be after start date');
+        return;
+      }
+
+      // Validation 6: Sprint duration validation (minimum 1 day, maximum 90 days)
+      const durationInDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (durationInDays < 1) {
+        toast.error('Sprint duration must be at least 1 day');
+        return;
+      }
+      if (durationInDays > 90) {
+        toast.error('Sprint duration cannot exceed 90 days (3 months)');
+        return;
+      }
+
+      // Validation 7: Warn if sprint duration is unusual
+      if (durationInDays < 7 || durationInDays > 30) {
+        const proceed = window.confirm(
+          `Sprint duration is ${durationInDays} days. Typical sprints are 1-4 weeks (7-30 days). Do you want to continue?`
+        );
+        if (!proceed) return;
+      }
+
+      // Validation 8: If status is 'active', start date should be today
+      if (formData.status === 'active' && startDate.getTime() !== today.getTime()) {
+        toast.warning('Active sprints should start today. Adjusting start date to today.');
+        setFormData(prev => ({
+          ...prev,
+          startDate: today.toISOString().split('T')[0]
+        }));
+        return;
+      }
     }
 
-    // Validation 4: Start date cannot be in the past (except if creating an active sprint)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to compare dates only
-    const startDate = new Date(formData.startDate);
-    startDate.setHours(0, 0, 0, 0);
-    
-    if (startDate < today) {
-      toast.error('Start date cannot be in the past. Please select today or a future date.');
-      return;
-    }
-
-    // Validation 5: End date must be after start date
-    const endDate = new Date(formData.endDate);
-    if (endDate <= startDate) {
-      toast.error('End date must be after start date');
-      return;
-    }
-
-    // Validation 6: Sprint duration validation (minimum 1 day, maximum 90 days)
-    const durationInDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (durationInDays < 1) {
-      toast.error('Sprint duration must be at least 1 day');
-      return;
-    }
-    if (durationInDays > 90) {
-      toast.error('Sprint duration cannot exceed 90 days (3 months)');
-      return;
-    }
-
-    // Validation 7: Warn if sprint duration is unusual
-    if (durationInDays < 7 || durationInDays > 30) {
-      const proceed = window.confirm(
-        `Sprint duration is ${durationInDays} days. Typical sprints are 1-4 weeks (7-30 days). Do you want to continue?`
-      );
-      if (!proceed) return;
-    }
-
-    // Validation 8: If status is 'active', start date should be today
-    if (formData.status === 'active' && startDate.getTime() !== today.getTime()) {
-      toast.warning('Active sprints should start today. Adjusting start date to today.');
-      setFormData(prev => ({
-        ...prev,
-        startDate: today.toISOString().split('T')[0]
-      }));
+    // Validation 9: If status is 'active', dates must be provided
+    if (formData.status === 'active' && (!formData.startDate || !formData.endDate)) {
+      toast.error('Active sprints must have start and end dates. Please provide dates or set status to "Planned".');
       return;
     }
 
     try {
       setLoading(true);
-      await sprintAPI.create(projectId, {
+      const sprintData: any = {
         name: formData.name.trim(),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
         status: formData.status,
         description: formData.description.trim(),
         isBacklog: false
-      });
+      };
+
+      // Only include dates if they are provided
+      if (formData.startDate && formData.endDate) {
+        sprintData.startDate = formData.startDate;
+        sprintData.endDate = formData.endDate;
+      }
+
+      await sprintAPI.create(projectId, sprintData);
       toast.success('Sprint created successfully');
       onSuccess();
       handleClose();
@@ -205,42 +220,47 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
           <div className="row">
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>Start Date *</Form.Label>
+                <Form.Label>Start Date {formData.status === 'active' && '*'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   min={getTodayDate()}
-                  required
                 />
                 <Form.Text className="text-muted">
-                  Cannot be in the past
+                  Optional for planning. Required for active sprints.
                 </Form.Text>
               </Form.Group>
             </div>
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>End Date *</Form.Label>
+                <Form.Label>End Date {formData.status === 'active' && '*'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   min={formData.startDate || getTodayDate()}
-                  required
                 />
                 <Form.Text className="text-muted">
-                  Must be after start date
+                  Optional for planning. Required for active sprints.
                 </Form.Text>
               </Form.Group>
             </div>
           </div>
 
           {sprintDuration !== null && (
-            <div className="alert alert-info mb-3">
+            <div className="alert alert-info mb-3 py-2" style={{ fontSize: '13px' }}>
               <strong>Sprint Duration:</strong> {sprintDuration} day(s)
               {sprintDuration < 7 && <span className="text-warning"> (⚠️ Shorter than typical 1-2 week sprint)</span>}
               {sprintDuration > 30 && <span className="text-warning"> (⚠️ Longer than typical 4-week sprint)</span>}
               {sprintDuration >= 7 && sprintDuration <= 30 && <span className="text-success"> ✓</span>}
+            </div>
+          )}
+
+          {!formData.startDate && !formData.endDate && (
+            <div className="alert alert-info mb-3 py-2" style={{ fontSize: '13px' }}>
+              💡 <strong>Tip:</strong> You can create a sprint without dates for planning purposes. 
+              Set the dates later when you're ready to start the sprint.
             </div>
           )}
 
@@ -262,11 +282,13 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
                 status: e.target.value as any 
               })}
             >
-              <option value="planned">Planned</option>
-              <option value="active">Active</option>
+              <option value="planned">Planned (for future planning)</option>
+              <option value="active">Active (requires dates)</option>
             </Form.Select>
             <Form.Text className="text-muted">
-              You can start the sprint later from the backlog view
+              {formData.status === 'planned' 
+                ? 'Perfect for planning sprints. You can set dates later when ready to start.' 
+                : 'Active sprints require start and end dates.'}
             </Form.Text>
           </Form.Group>
         </Form>

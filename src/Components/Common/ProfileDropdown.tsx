@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownToggle } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
-import avatar1 from "../../assets/images/users/sybau.jpg";
+import avatar1 from "../../assets/images/users/avatar-1.jpg";
 import { useAuth } from "react-oidc-context";
 
 const ProfileDropdown = () => {

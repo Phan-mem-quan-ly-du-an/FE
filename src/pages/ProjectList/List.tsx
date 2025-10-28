@@ -20,14 +20,15 @@ import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
 import dropbox from '../../assets/images/brands/dropbox.png';
+import { useParams } from "react-router-dom";
 
-//Import Icons
+
 import FeatherIcon from 'feather-icons-react';
 
-//import action
-import DeleteModal from '../../Components/Common/DeleteModal';
+import DeleteModal from './DeleteModal';
 import CreateProjectModal from './CreateProjectModal';
-import {getProjectsMine, deleteProject, createProject, Project} from '../../apiCaller/projects';
+import EditProjectModal from './EditProjectModal';
+import {getProjectsMine, deleteProject, Project} from '../../apiCaller/projects';
 
 interface ListProps {
     workspaceId?: string;
@@ -40,25 +41,19 @@ const List = ({workspaceId}: ListProps = {}) => {
     const [project, setProject] = useState<any>(null);
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [createModal, setCreateModal] = useState<boolean>(false);
+    const [editModal, setEditModal] = useState<boolean>(false);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const { companyId } = useParams<{ companyId: string }>();
 
-    // Function to map API project data to component format
+
     const mapProjectToComponentFormat = (apiProject: Project, index: number) => {
-        const colorMap: { [key: string]: string } = {
-            'red': 'danger',
-            'blue': 'primary',
-            'green': 'success',
-            'yellow': 'warning',
-            'purple': 'info',
-            'orange': 'warning'
-        };
-
         const imageMap = [slack, dribbble, mailChimp, dropbox];
 
         return {
             id: apiProject.id,
             time: `${t('Updated')} ${new Date(apiProject.updatedAt).toLocaleDateString()}`,
             img: imageMap[index % imageMap.length],
-            imgbgColor: colorMap[apiProject.color] || 'primary',
+            color: apiProject.color || '#3b82f6',
             label: apiProject.name,
             caption: apiProject.description || t('NoDescriptionAvailable'),
             date: new Date(apiProject.createdAt).toLocaleDateString(),
@@ -66,7 +61,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         };
     };
 
-    // React Query for fetching projects
     const {
         data: projects = [],
         isLoading: loading,
@@ -77,7 +71,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         queryFn: () => getProjectsMine(workspaceId ? { workspaceId } : undefined),
     });
 
-    // Handle error with useEffect
     useEffect(() => {
         if (error) {
             console.error('Error fetching projects:', error);
@@ -85,7 +78,6 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     }, [error, t]);
 
-    // Delete project mutation
     const deleteProjectMutation = useMutation({
         mutationFn: (projectId: string) => deleteProject(projectId),
         onSuccess: () => {
@@ -100,28 +92,10 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     });
 
-    // Create project mutation
-    const createProjectMutation = useMutation({
-        mutationFn: (payload: { name: string; description?: string; color: string }) => 
-            createProject(workspaceId || '', payload),
-        onSuccess: () => {
-            // Invalidate and refetch projects
-            queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
-            setCreateModal(false);
-            toast.success(t('ProjectCreatedSuccessfully') || 'Project created successfully');
-        },
-        onError: (error) => {
-            console.error('Error creating project:', error);
-            toast.error(t('FailedToCreateProject') || 'Failed to create project');
-        }
-    });
-
-    // Map projects to component format
     const projectLists = projects.map((project: Project, index: number) =>
         mapProjectToComponentFormat(project, index)
     );
 
-    // delete
     const onClickData = (project: any) => {
         setProject(project);
         setDeleteModal(true);
@@ -136,6 +110,13 @@ const List = ({workspaceId}: ListProps = {}) => {
     const handleCreateProject = () => {
         setCreateModal(true);
     };
+
+    // Edit project handlers
+    const onClickEdit = (project: Project) => {
+        setSelectedProject(project);
+        setEditModal(true);
+    };
+
 
     return (
         <React.Fragment>
@@ -153,6 +134,15 @@ const List = ({workspaceId}: ListProps = {}) => {
                     // Invalidate and refetch projects
                     queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
                 }}
+            />
+            <EditProjectModal
+                open={editModal}
+                onClose={() => setEditModal(false)}
+                onUpdated={() => {
+                    // Invalidate and refetch projects
+                    queryClient.invalidateQueries({ queryKey: ['projects', 'mine', workspaceId] });
+                }}
+                project={selectedProject}
             />
             <Row className="g-4 mb-3">
                 <div className="col-sm-auto">
@@ -230,9 +220,13 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                         </DropdownToggle>
 
                                                         <DropdownMenu className="dropdown-menu-end">
-                                                            <DropdownItem href="apps-projects-overview"><i
-                                                                className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}</DropdownItem>
-                                                            <DropdownItem href="apps-projects-create"><i
+                                                            <DropdownItem
+                                                                tag={Link}
+                                                                to={`/companies/${companyId}/projects/${item.id}`}
+                                                            >
+                                                                <i className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}
+                                                            </DropdownItem>
+                                                            <DropdownItem href="#" onClick={() => onClickEdit(projects[index])}><i
                                                                 className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}</DropdownItem>
                                                             <div className="dropdown-divider"></div>
                                                             <DropdownItem href="#" onClick={() => onClickData(item)}
@@ -248,14 +242,16 @@ const List = ({workspaceId}: ListProps = {}) => {
                                             <div className="flex-shrink-0 me-3">
                                                 <div className="avatar-sm">
                                                     <span
-                                                        className={'avatar-title rounded p-2 bg-' + item.imgbgColor + '-subtle'}>
-                                                        <img src={item.img} alt="" className="img-fluid p-1"/>
+                                                        className="avatar-title rounded p-2"
+                                                        style={{ backgroundColor: item.color }}
+                                                    >
+                                                      <img src={item.img} alt="" className="img-fluid p-1" />
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="flex-grow-1">
                                                 <h5 className="mb-1 fs-15">
-                                                    <Link to="/apps-projects-overview" className="text-dark">
+                                                    <Link to={`/companies/${companyId}/projects/${item.id}`} className="text-dark">
                                                         {item.label}
                                                     </Link>
                                                 </h5>

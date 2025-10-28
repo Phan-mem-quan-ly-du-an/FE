@@ -28,6 +28,17 @@ function App() {
                         pauseOnHover
                         theme="light"
                         style={{ zIndex: 9999 }}
+                        toastStyle={{
+                            fontSize: '14px',
+                            padding: '12px'
+                        }}
+                        icon={({ type }) => {
+                            if (type === 'success') return '✅';
+                            if (type === 'error') return '❌';
+                            if (type === 'warning') return '⚠️';
+                            if (type === 'info') return 'ℹ️';
+                            return null;
+                        }}
                     />
                     <ReactQueryDevtools initialIsOpen={false}/>
                 </ActiveCompanyProvider>

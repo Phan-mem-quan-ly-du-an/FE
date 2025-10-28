@@ -86,22 +86,6 @@ const Navdata = () => {
                 updateIconSidebar(e);
             },
         },
-        {
-            id: 'Backlog',
-            label: 'Backlog & Sprint',
-            icon: <FeatherIcon icon="list" className="icon-dual" />,
-            link: '/backlog-demo',
-            badge: {
-                variant: 'success',
-                text: 'New',
-            },
-            stateVariables: isDashboard,
-            click: function (e: any) {
-                e.preventDefault();
-                setIsCurrentState('Backlog');
-                updateIconSidebar(e);
-            },
-        },
     ];
 
     return <React.Fragment>{menuItems}</React.Fragment>;

@@ -83,4 +83,5 @@ export default class ApiCaller {
             .delete(this.endpoint, this.requestOptions)
             .catch(ApiCaller.handleError);
     }
+
 }

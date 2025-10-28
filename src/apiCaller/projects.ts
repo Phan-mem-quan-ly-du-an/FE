@@ -67,3 +67,48 @@ export const createProject = async (workspaceId: string, payload: CreateProjectR
         throw error;
     }
 };
+
+export interface RenameProjectRequest {
+    name: string;
+}
+
+export const renameProject = async (projectId: string, payload: RenameProjectRequest): Promise<Project> => {
+    try {
+        const apiCaller = new ApiCaller();
+        const response = await apiCaller
+            .setUrl(`/projects/${projectId}/rename`)
+            .patch({ data: payload });
+        
+        return response.data as Project;
+    } catch (error) {
+        console.error("Error renaming project:", error);
+        throw error;
+    }
+};
+export interface UpdateProjectRequest {
+    name?: string;
+    description?: string;
+    color?: string;
+}
+
+export const updateProject = async (projectId: string, data: UpdateProjectRequest): Promise<Project> => {
+    const apiCaller = new ApiCaller();
+    const response = await apiCaller
+        .setUrl(`/projects/${projectId}`)
+        .patch({ data });
+    return response.data as Project;
+};
+
+export const getProjectById = async (projectId: string): Promise<Project> => {
+    try {
+        const apiCaller = new ApiCaller();
+        const response = await apiCaller
+            .setUrl(`/projects/${projectId}`)
+            .get();
+        return response.data as Project;
+    } catch (error) {
+        console.error(`Error fetching project with ID ${projectId}:`, error);
+        throw error;
+    }
+};
+
