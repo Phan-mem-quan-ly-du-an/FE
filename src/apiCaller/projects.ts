@@ -13,22 +13,39 @@ export interface Project {
 }
 
 export interface GetProjectsMineParams {
+    companyId?: string;
     workspaceId?: string;
 }
 
 export const getProjectsMine = async (params?: GetProjectsMineParams): Promise<Project[]> => {
     try {
         const apiCaller = new ApiCaller();
-        let url = '/projects/mine';
-        
-        if (params?.workspaceId) {
-            url += `?workspaceId=${params.workspaceId}`;
+        const companyId = params?.companyId;
+        const workspaceId = params?.workspaceId;
+
+        let url: string;
+        let query: Record<string, any> | undefined;
+
+        if (companyId) {
+            // New RESTful endpoint, company-scoped
+            url = `/companies/${companyId}/projects/mine`;
+            if (workspaceId) {
+                query = { workspaceId };
+            }
+        } else {
+            // Backward-compatible fallback
+            url = `/projects/mine`;
+            if (workspaceId) {
+                query = { ...(query || {}), workspaceId };
+            }
         }
-        
-        const response = await apiCaller
-            .setUrl(url)
-            .get();
-        
+
+        const caller = apiCaller.setUrl(url);
+        if (query && Object.keys(query).length > 0) {
+            caller.setQueryParams(query);
+        }
+        const response = await caller.get();
+
         return response.data as Project[];
     } catch (error) {
         console.error("Error fetching projects:", error);
