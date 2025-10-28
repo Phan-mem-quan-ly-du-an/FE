@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FeatherIcon from 'feather-icons-react';
+import { useTranslation } from 'react-i18next';
 
 const Navdata = () => {
     const history = useNavigate();
     const { companyId: routeCompanyId } = useParams();
+    const { t } = useTranslation();
 
     const [isDashboard, setIsDashboard] = useState<boolean>(false);
     const [isCurrentState, setIsCurrentState] = useState('Dashboard');
@@ -47,36 +49,24 @@ const Navdata = () => {
 
     const menuItems: any = [
         {
-            label: 'Menu',
+            label: t('t-menu'),
             isHeader: true,
         },
         {
-            id: 'CompanyMembers',
-            label: 'CompanyMembers',
-            icon: <FeatherIcon icon="users" className="icon-dual" />,
-            link: withCompany((id) => `/companies/${id}/members`),
+            id: 'Workspaces',
+            label: t('t-workspace-title'),
+            icon: <FeatherIcon icon="briefcase" className="icon-dual" />,
+            link: withCompany((id) => `/companies/${id}/workspaces`),
             stateVariables: isDashboard,
             click: function (e: any) {
                 e.preventDefault();
-                setIsCurrentState('CompanyMembers');
-                updateIconSidebar(e);
-            },
-        },
-        {
-            id: 'CompanyRoles',
-            label: 'CompanyRoles',
-            icon: <FeatherIcon icon="shield" className="icon-dual" />,
-            link: withCompany((id) => `/companies/${id}/roles`),
-            stateVariables: isDashboard,
-            click: function (e: any) {
-                e.preventDefault();
-                setIsCurrentState('CompanyRoles');
+                setIsCurrentState('Workspaces');
                 updateIconSidebar(e);
             },
         },
         {
             id: 'Projects',
-            label: 'Projects',
+            label: t('t-projects'),
             icon: <FeatherIcon icon="folder" className="icon-dual" />,
             link: withCompany((id) => `/companies/${id}/projects`),
             stateVariables: isDashboard,
@@ -85,6 +75,32 @@ const Navdata = () => {
                 setIsCurrentState('Projects');
                 updateIconSidebar(e);
             },
+        },
+        {
+            id: 'Settings',
+            label: t('t-settings'),
+            icon: <FeatherIcon icon="settings" className="icon-dual" />,
+            link: '/#',
+            click: function (e: any) {
+                e.preventDefault();
+                const nextState = isCurrentState === 'Settings' ? '' : 'Settings';
+                setIsCurrentState(nextState);
+            },
+            stateVariables: isCurrentState === 'Settings',
+            subItems: [
+                {
+                    id: 'CompanyMembers',
+                    label: t('t-company-members'),
+                    link: withCompany((id) => `/companies/${id}/members`),
+                    parentId: 'Settings',
+                },
+                {
+                    id: 'CompanyRoles',
+                    label: t('t-company-roles'),
+                    link: withCompany((id) => `/companies/${id}/roles`),
+                    parentId: 'Settings',
+                },
+            ],
         },
     ];
 

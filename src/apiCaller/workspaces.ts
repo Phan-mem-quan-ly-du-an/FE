@@ -11,50 +11,63 @@ export interface Workspace {
     archivedAt?: string | null;
 }
 
-export interface GetWorkspacesByCompanyIdParams {
-    companyId?: string;
-}
-
-// Spring Boot Page response interface
-interface PageResponse<T> {
+export interface Page<T> {
     content: T[];
-    totalElements: number;
     totalPages: number;
+    totalElements: number;
     size: number;
     number: number;
 }
 
-export const getWorkspacesByCompanyIdParams = async (params?: GetWorkspacesByCompanyIdParams): Promise<Workspace[]> => {
-    try {
-        if (!params?.companyId) {
-            throw new Error("companyId is required");
-        }
-        
-        const apiCaller = new ApiCaller();
-        // Updated to use new API endpoint: GET /api/companies/{companyId}/workspaces
-        // Backend returns Page<Workspace>, so we need to extract the content array
-        const url = `/companies/${params.companyId}/workspaces`;
-        
-        const response = await apiCaller
-            .setUrl(url)
-            .get();
-        
-        // Backend returns paginated response: { content: Workspace[], totalElements, totalPages, ... }
-        // Extract the content array
-        const data = response.data as PageResponse<Workspace>;
-        if (data && Array.isArray(data.content)) {
-            return data.content;
-        }
-        
-        // Fallback: if response is already an array (shouldn't happen but just in case)
-        if (Array.isArray(data)) {
-            return data as Workspace[];
-        }
-        
-        console.warn("Unexpected workspace API response format:", data);
-        return [];
-    } catch (error) {
-        console.error("Error fetching workspaces:", error);
-        throw error;
-    }
+export interface GetWorkspacesByCompanyIdParams {
+    companyId?: string;
+    page?: number;
+    size?: number;
+    q?: string;
+}
+
+export interface CreateWorkspacePayload {
+    name: string;
+    description?: string;
+}
+
+export interface UpdateWorkspacePayload extends CreateWorkspacePayload {}
+
+export const createWorkspace = async (companyId: string, payload: CreateWorkspacePayload): Promise<Workspace> => {
+    const apiCaller = new ApiCaller();
+    const url = `/companies/${companyId}/workspaces`;
+    const response = await apiCaller.setUrl(url).post({ data: payload });
+    return response.data as Workspace;
+};
+
+export const updateWorkspace = async (companyId: string, workspaceId: string, payload: UpdateWorkspacePayload): Promise<Workspace> => {
+    const apiCaller = new ApiCaller();
+    const url = `/companies/${companyId}/workspaces/${workspaceId}`;
+    const response = await apiCaller.setUrl(url).put({ data: payload });
+    return response.data as Workspace;
+};
+
+export const deleteWorkspace = async (companyId: string, workspaceId: string): Promise<void> => {
+    const apiCaller = new ApiCaller();
+    const url = `/companies/${companyId}/workspaces/${workspaceId}`;
+    await apiCaller.setUrl(url).delete();
+};
+
+export const getWorkspacesByCompanyIdParams = async (params: GetWorkspacesByCompanyIdParams): Promise<Page<Workspace>> => {
+    const { companyId, ...queryParams } = params;
+    const apiCaller = new ApiCaller();
+    const url = `/companies/${companyId}/workspaces`;
+    
+    const response = await apiCaller
+        .setUrl(url)
+        .setQueryParams(queryParams)
+        .get();
+    
+    return response.data as Page<Workspace>;
+};
+
+export const getAllWorkspacesByCompanyId = async (companyId: string): Promise<Workspace[]> => {
+    const params = { companyId, page: 0, size: 1000 }; 
+    const response = await getWorkspacesByCompanyIdParams(params);
+    return response.content;
 };

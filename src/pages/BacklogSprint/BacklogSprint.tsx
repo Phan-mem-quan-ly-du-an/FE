@@ -76,7 +76,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
   // Status columns from database (correct IDs)
   const statusColumns: StatusColumn[] = [
-    { id: 1, name: 'TO DO', color: '#6b7280' },
+    { id: 1, name: 'TO DO', color: '#840417ff' },
     { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
     { id: 3, name: 'DONE', color: '#10b981' }
   ];

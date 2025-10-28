@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Badge, Tab, Tabs, Dropdown, ButtonGroup } from 'react-bootstrap';
+import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs, Tab } from 'react-bootstrap';
 import { toast } from 'react-toastify';
-import { Trash2, Save, User, CheckCircle } from 'lucide-react';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import './TaskDetailModal.scss';
 
 interface Task {
   id: number;
@@ -200,7 +200,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   color: getStatusColor(getCurrentStatus().name)
                 }}
               >
-                <CheckCircle size={16} className="me-1" />
+                <i className="ri-checkbox-circle-line me-1"></i>
                 {getCurrentStatus().name}
               </Button>
               <Dropdown.Toggle 
@@ -237,7 +237,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {/* Assignee Dropdown */}
             <Dropdown as={ButtonGroup}>
               <Button variant="outline-secondary" size="sm">
-                <User size={16} className="me-1" />
+                <i className="ri-user-line me-1"></i>
                 {getCurrentAssignee().displayName}
               </Button>
               <Dropdown.Toggle split variant="outline-secondary" size="sm" />
@@ -248,7 +248,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     onClick={() => handleAssigneeChange(member.userId, member.displayName)}
                     active={getCurrentAssignee().userId === member.userId}
                   >
-                    <User size={14} className="me-2" />
+                    <i className="ri-user-line me-2"></i>
                     {member.displayName}
                     {member.email && (
                       <small className="text-muted ms-2">({member.email})</small>
@@ -385,7 +385,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           onClick={handleDelete}
           disabled={loading}
         >
-          <Trash2 size={16} className="me-2" />
+          <i className="ri-delete-bin-line me-2"></i>
           Delete
         </Button>
         <div>
@@ -397,7 +397,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             onClick={handleSubmit}
             disabled={loading}
           >
-            <Save size={16} className="me-2" />
+            <i className="ri-save-line me-2"></i>
             {loading ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>

@@ -3,7 +3,7 @@ import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { createProject, CreateProjectRequest } from '../../apiCaller/projects';
-import { getWorkspacesByCompanyIdParams, Workspace } from '../../apiCaller/workspaces';
+import { getAllWorkspacesByCompanyId, Workspace } from '../../apiCaller/workspaces';
 import { useTranslation } from 'react-i18next';
 
 function friendlyNetworkMessage(msg?: string, t?: (key: string) => string) {
@@ -33,7 +33,7 @@ export default function CreateProjectModal({
     // Fetch workspaces
     const { data: workspaces = [], isLoading: loadingWorkspaces, error: workspacesError } = useQuery<Workspace[]>({
         queryKey: ['workspaces', companyId],
-        queryFn: () => getWorkspacesByCompanyIdParams({ companyId }),
+        queryFn: () => getAllWorkspacesByCompanyId(companyId as string),
         enabled: !!companyId && open,
     });
 
