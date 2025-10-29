@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
     Card,
     CardBody,
@@ -19,12 +19,28 @@ import { getProjectById } from '../../apiCaller/projects';
 import { useTranslation } from 'react-i18next';
 
 import OverviewTab from './OverviewTab';
+import SprintTab from './SprintTab';
 
 const Section = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
-    const [activeTab, setActiveTab] = useState('1');
-    const toggleTab = (tab: string) => setActiveTab(tab);
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    // Get tab from URL or default to '1'
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || '1');
+    
+    const toggleTab = (tab: string) => {
+        setActiveTab(tab);
+        setSearchParams({ tab });
+    };
+
+    // Update tab from URL when it changes
+    useEffect(() => {
+        const tabFromUrl = searchParams.get('tab');
+        if (tabFromUrl && tabFromUrl !== activeTab) {
+            setActiveTab(tabFromUrl);
+        }
+    }, [searchParams]);
 
     const { data: project, isLoading, error } = useQuery({
         queryKey: ['project', projectId],
@@ -152,7 +168,7 @@ const Section = () => {
                                             onClick={() => toggleTab('2')}
                                             href="#"
                                         >
-                                            {t('Documents')}
+                                            {t('Sprint')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -186,6 +202,21 @@ const Section = () => {
                     <TabContent activeTab={activeTab} className="text-muted">
                         <TabPane tabId="1">
                             <OverviewTab />
+                        </TabPane>
+                        <TabPane tabId="2">
+                            <SprintTab />
+                        </TabPane>
+                        <TabPane tabId="3">
+                            <div className="py-4 text-center">
+                                <i className="ri-time-line fs-1 text-muted"></i>
+                                <p className="text-muted mt-2">Activities coming soon...</p>
+                            </div>
+                        </TabPane>
+                        <TabPane tabId="4">
+                            <div className="py-4 text-center">
+                                <i className="ri-team-line fs-1 text-muted"></i>
+                                <p className="text-muted mt-2">Team management coming soon...</p>
+                            </div>
                         </TabPane>
                     </TabContent>
                 </Col>

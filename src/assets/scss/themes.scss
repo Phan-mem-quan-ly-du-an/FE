@@ -198,8 +198,15 @@ aside.EmojiPickerReact.epr-main {
 }
 // Toast
 .Toastify {
+  z-index: 9999 !important;
+  
+  .Toastify__toast-container {
+    z-index: 9999 !important;
+  }
+  
   .Toastify__toast {
     min-height: 43px;
+    z-index: 9999 !important;
   }
 
   .Toastify__close-button {
@@ -208,6 +215,19 @@ aside.EmojiPickerReact.epr-main {
 
   .Toastify__close-button--light {
     color: $light;
+  }
+
+  // Fix oversized SVG icons in toast
+  .Toastify__toast-icon {
+    width: 20px !important;
+    height: 20px !important;
+    
+    svg {
+      width: 20px !important;
+      height: 20px !important;
+      max-width: 20px !important;
+      max-height: 20px !important;
+    }
   }
 }
 

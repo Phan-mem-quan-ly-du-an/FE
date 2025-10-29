@@ -42,14 +42,14 @@ export const createWorkspace = async (companyId: string, payload: CreateWorkspac
 
 export const updateWorkspace = async (companyId: string, workspaceId: string, payload: UpdateWorkspacePayload): Promise<Workspace> => {
     const apiCaller = new ApiCaller();
-    const url = `/companies/${companyId}/${workspaceId}`;
+    const url = `/companies/${companyId}/workspaces/${workspaceId}`;
     const response = await apiCaller.setUrl(url).put({ data: payload });
     return response.data as Workspace;
 };
 
 export const deleteWorkspace = async (companyId: string, workspaceId: string): Promise<void> => {
     const apiCaller = new ApiCaller();
-    const url = `/companies/${companyId}/${workspaceId}`;
+    const url = `/companies/${companyId}/workspaces/${workspaceId}`;
     await apiCaller.setUrl(url).delete();
 };
 

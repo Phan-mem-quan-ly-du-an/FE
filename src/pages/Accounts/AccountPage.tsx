@@ -81,7 +81,7 @@ export default function AccountPage() {
                                                         aria-label="avatar"
                                                     >
                                                         {initials}
-                                                    </div>
+                                                    </div>  
                                                     <div>
                                                         <div className="fw-semibold">{displayName}</div>
                                                         <div className="text-muted small">{email}</div>
