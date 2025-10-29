@@ -14,7 +14,6 @@ interface Task {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   dueDate?: string;
   estimatedHours?: number;
-  actualHours?: number;
   tags?: string;
   orderIndex: number;
   statusColumn?: {
@@ -329,20 +328,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       onChange={(e) => setFormData({ 
                         ...formData, 
                         estimatedHours: e.target.value ? parseInt(e.target.value) : undefined 
-                      })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Actual Hours</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="0"
-                      value={formData.actualHours || ''}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        actualHours: e.target.value ? parseInt(e.target.value) : undefined 
                       })}
                     />
                   </Form.Group>
