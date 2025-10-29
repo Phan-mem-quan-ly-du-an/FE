@@ -24,7 +24,6 @@ interface Task {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   dueDate?: string;
   estimatedHours?: number;
-  actualHours?: number;
   tags?: string;
   orderIndex: number;
   statusColumn?: {
