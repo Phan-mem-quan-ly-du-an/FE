@@ -102,12 +102,6 @@ export default function CompaniesRolePage() {
             },
         },
         {
-            header: 'Role ID',
-            accessorKey: 'id',
-            enableColumnFilter: false,
-            cell: (info: any) => <span className="font-monospace">{info.getValue()}</span>,
-        },
-        {
             header: 'Name',
             accessorKey: 'name',
             enableColumnFilter: false,

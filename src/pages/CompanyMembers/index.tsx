@@ -192,6 +192,7 @@ export default function CompanyMemberPage() {
                                 <MembersTable
                                     members={members}
                                     companyId={companyId!}
+                                    roles={roles}
                                     deletingUserId={deletingUserId}
                                     onDelete={handleDelete}
                                     onTransferOwnership={openTransferModal}
