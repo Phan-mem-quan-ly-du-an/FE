@@ -28,7 +28,11 @@ export default function MembersTable({
     deleteMemberMutation
 }: MembersTableProps) {
     const { t } = useTranslation();
+
+    // State mới để quản lý dropdown
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+    // Hàm để bật/tắt dropdown cho từng dòng
     const toggleDropdown = useCallback((userId: string) => {
         setOpenDropdownId(prevId => (prevId === userId ? null : userId));
     }, []);
