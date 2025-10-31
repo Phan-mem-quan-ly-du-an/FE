@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {Card, CardBody, Col, Row, Button, Input, Modal, ModalHeader, ModalBody} from 'reactstrap';
+import { Card, CardBody, Col, Row, Button, Input, Modal, ModalHeader, ModalBody,
+    DropdownToggle, DropdownMenu, DropdownItem, UncontrolledDropdown
+} from 'reactstrap';
 import SimpleBar from 'simplebar-react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import ApiCaller from '../../helpers/apiCaller/caller/apiCaller';
@@ -22,7 +24,6 @@ function friendlyNetworkMessage(msg?: string) {
         : (msg || 'An error occurred.');
 }
 
-/** Small confirm-delete modal */
 function ConfirmDeleteModal({
                                 open, onClose, company, onDeleted,
                             }: {
@@ -43,7 +44,6 @@ function ConfirmDeleteModal({
         setBusy(true);
         setMsg(null);
         try {
-            // dùng fetch thẳng để chắc chắn DELETE
             const url = new URL(`api/companies/${company.id}`, base).toString();
             const res = await fetch(url, {
                 method: 'DELETE',
@@ -81,14 +81,17 @@ function ConfirmDeleteModal({
         </Modal>
     );
 }
+
 export default function CompaniesList() {
-    // search + debounce
     const [search, setSearch] = useState('');
     const [debounced, setDebounced] = useState('');
-    useEffect(() => { const t = setTimeout(()=>setDebounced(search.trim()), 400); return ()=>clearTimeout(t); }, [search]);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(search.trim()), 400);
+        return () => clearTimeout(t);
+    }, [search]);
 
     const queryClient = useQueryClient();
-    const pageSize = 7; // giữ 10 item/đợt để bảng không chạm đáy
+    const pageSize = 7;
 
     const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
         useInfiniteQuery<Page<Company>>({
@@ -96,7 +99,7 @@ export default function CompaniesList() {
             queryFn: async ({ pageParam = 0 }) => {
                 const { data } = await new ApiCaller()
                     .setUrl('api/companies')
-                    .setParams({ page: pageParam, size: pageSize, q: debounced || undefined, keyword: debounced || undefined, search: debounced || undefined })
+                    .setParams({ page: pageParam, size: pageSize, q: debounced || undefined })
                     .get<Page<Company>>();
                 return data;
             },
@@ -104,17 +107,17 @@ export default function CompaniesList() {
             initialPageParam: 0,
         });
 
-    const companies = useMemo(() => ((data?.pages as Array<Page<Company>> | undefined) || []).flatMap(p => p.content || []), [data]);
+    const companies = useMemo(() => (
+        ((data?.pages as Array<Page<Company>> | undefined) || []).flatMap(p => p.content || [])
+    ), [data]);
 
-    // modal states
     const [showCreate, setShowCreate] = useState(false);
     const [editing, setEditing] = useState<Company | null>(null);
     const [showEdit, setShowEdit] = useState(false);
-
     const [toDelete, setToDelete] = useState<Company | null>(null);
 
     const onCreated = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
-    const onSaved   = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
+    const onSaved = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
     const onDeleted = () => { queryClient.invalidateQueries({ queryKey: ['companies'] }); refetch(); };
 
     return (
@@ -131,33 +134,39 @@ export default function CompaniesList() {
         .avatar-sm { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #f1f3f5;
           display:flex; align-items:center; justify-content:center; border: 1px solid rgba(0,0,0,.06); font-size:12px; color:#6c757d; }
         .avatar-sm img { width:100%; height:100%; object-fit:cover; }
-        .table-pro tr:hover td { background: rgba(255,255,255,0.04); }
-        .table-pro td { border: 0; }
+        .table-pro tr:hover td { background: rgba(0,0,0,0.04); cursor: pointer; }
+        .dropdown-menu { min-width: 120px; }
       `}</style>
 
-            {/* card centered */}
             <Row className="justify-content-center mb-4">
                 <Col xxl={5} lg={6} md={8}>
                     <Card className="rounded-3 glass-card list-card">
-                        {/* Header: Title + Search + Create (right aligned) */}
-                        <div className="card-header d-flex align-items-center gap-2" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.15)'}}>
-                            <h4 className="card-title mb-0 flex-grow-1 text-white">Companies</h4>
-
-                            {/* Search desktop */}
+                        <div
+                            className="card-header d-flex align-items-center gap-2"
+                            style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.15)' }}
+                        >
+                            <h4 className="card-title mb-0 flex-grow-1 text-black">Companies</h4>
                             <div className="d-none d-md-flex align-items-center" style={{ minWidth: 260 }}>
-                                <Input type="search" placeholder="Search companies..." value={search} onChange={(e)=>setSearch(e.target.value)} />
+                                <Input
+                                    type="search"
+                                    placeholder="Search companies..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
                             </div>
-
-                            {/* Create button -> modal center */}
                             <div className="ms-auto">
                                 <Button color="primary" onClick={() => setShowCreate(true)}>+ Create Company</Button>
                             </div>
                         </div>
 
                         <CardBody className="pt-2 pb-3">
-                            {/* Search mobile */}
                             <div className="d-md-none mb-3">
-                                <Input type="search" placeholder="Search companies..." value={search} onChange={(e)=>setSearch(e.target.value)} />
+                                <Input
+                                    type="search"
+                                    placeholder="Search companies..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
                             </div>
 
                             <div className="table-responsive table-card table-wrap">
@@ -165,27 +174,55 @@ export default function CompaniesList() {
                                     <table className="table table-pro table-hover table-nowrap align-middle mb-0">
                                         <tbody>
                                         {isLoading ? (
-                                            <tr><td className="text-center py-4 text-white-50">Loading...</td></tr>
+                                            <tr><td className="text-center py-4 text-black-50">Loading...</td></tr>
                                         ) : isError ? (
                                             <tr><td className="text-center py-4 text-danger">Network error. Please reload.</td></tr>
                                         ) : companies.length === 0 ? (
-                                            <tr><td className="text-center py-4 text-white-50">No companies found.</td></tr>
+                                            <tr><td className="text-center py-4 text-black-50">No companies found.</td></tr>
                                         ) : (
                                             companies.map((c) => {
                                                 const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
                                                 const logo = toAbsUrl(c.logoUrl || '', base);
+
+                                                const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+                                                    const target = e.target as HTMLElement;
+                                                    if (target.closest('button') || target.closest('.dropdown-menu')) return;
+                                                    window.location.href = `/companies/${c.id}/workspaces`;
+                                                };
+
                                                 return (
-                                                    <tr key={c.id}>
+                                                    <tr key={c.id} onClick={handleRowClick} style={{ cursor: 'pointer' }}>
                                                         <td style={{ width: 56 }}>
-                                                            <div className="avatar-sm">{logo ? <img src={logo} alt={c.name} /> : <span>Logo</span>}</div>
-                                                        </td>
-                                                        <td className="text-white">{c.name}</td>
-                                                        <td className="text-end" style={{ width: 200 }}>
-                                                            <div className="btn-group">
-                                                                <Button size="sm" color="light" outline href={`/companies/${c.id}/workspaces`}>View</Button>
-                                                                <Button size="sm" color="light" onClick={() => { setEditing(c); setShowEdit(true); }}>Edit</Button>
-                                                                <Button size="sm" color="danger" outline onClick={() => setToDelete(c)}>Delete</Button>
+                                                            <div className="avatar-sm">
+                                                                {logo ? <img src={logo} alt={c.name} /> : <span>Logo</span>}
                                                             </div>
+                                                        </td>
+                                                        <td className="text-black">{c.name}</td>
+                                                        <td className="text-end" style={{ width: 80 }}>
+                                                            <UncontrolledDropdown>
+                                                                <DropdownToggle tag="button" className="btn btn-link text-muted p-0">
+                                                                    <i className="ri-more-2-fill fs-16"></i>
+                                                                </DropdownToggle>
+                                                                <DropdownMenu end>
+                                                                    <DropdownItem
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditing(c);
+                                                                            setShowEdit(true);
+                                                                        }}
+                                                                    >
+                                                                        <i className="ri-edit-line me-2 text-muted"></i> Edit
+                                                                    </DropdownItem>
+                                                                    <DropdownItem
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setToDelete(c);
+                                                                        }}
+                                                                    >
+                                                                        <i className="ri-delete-bin-line me-2 text-danger"></i> Delete
+                                                                    </DropdownItem>
+                                                                </DropdownMenu>
+                                                            </UncontrolledDropdown>
                                                         </td>
                                                     </tr>
                                                 );
@@ -196,10 +233,14 @@ export default function CompaniesList() {
                                 </SimpleBar>
                             </div>
 
-                            {/* Load more */}
                             {hasNextPage && (
                                 <div className="d-flex justify-content-center mt-3">
-                                    <Button color="secondary" outline onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                                    <Button
+                                        color="secondary"
+                                        outline
+                                        onClick={() => fetchNextPage()}
+                                        disabled={isFetchingNextPage}
+                                    >
                                         {isFetchingNextPage ? 'Loading...' : 'Load more'}
                                     </Button>
                                 </div>
@@ -209,7 +250,6 @@ export default function CompaniesList() {
                 </Col>
             </Row>
 
-            {/* Modals (centered, slightly larger) */}
             <CreateCompanyModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={onCreated} />
             <EditCompanyModal open={showEdit} onClose={() => setShowEdit(false)} company={editing} onSaved={onSaved} />
             <ConfirmDeleteModal open={!!toDelete} onClose={() => setToDelete(null)} company={toDelete} onDeleted={onDeleted} />
