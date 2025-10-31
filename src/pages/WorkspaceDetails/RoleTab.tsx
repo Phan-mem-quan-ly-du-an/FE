@@ -65,12 +65,6 @@ const RoleTab: React.FC = () => {
             ),
         },
         {
-            header: 'Role ID',
-            accessorKey: 'id',
-            enableColumnFilter: false,
-            cell: (info: any) => <span className="font-monospace">{info.getValue()}</span>,
-        },
-        {
             header: 'Name',
             accessorKey: 'name',
             enableColumnFilter: false,
@@ -180,7 +174,6 @@ const RoleTab: React.FC = () => {
                                 {roles.map((role, index) => (
                                     <tr key={role.id}>
                                         <td className="text-muted">{index + 1}</td>
-                                        <td><span className="font-monospace">{role.id}</span></td>
                                         <td>
                                             <div className="fw-semibold">{role.name || '—'}</div>
                                             {role.code && <div className="text-muted small">{role.code}</div>}

@@ -11,8 +11,11 @@ import TransferOwnershipModal from './TransferOwnershipModal';
 import { useAuth } from 'react-oidc-context';
 import { toast } from 'react-toastify';
 import AssignWorkspaceRoleModal from './AssignWorkspaceRoleModal';
+import { getUsersByIds, UserBrief } from '../../apiCaller/users';
+import { useTranslation } from 'react-i18next';
 
 const MemberTab: React.FC = () => {
+    const { t } = useTranslation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const queryClient = useQueryClient();
     const auth = useAuth();
@@ -64,6 +67,16 @@ const MemberTab: React.FC = () => {
         staleTime: 60_000,
     });
 
+    // Fetch emails for member userIds to display in table
+    const userIds = React.useMemo(() => Array.from(new Set((members || []).map(m => m.userId))).filter(Boolean), [members]);
+    const { data: usersBrief = [] } = useQuery<UserBrief[]>({
+        queryKey: ['users-brief', userIds.join(',')],
+        queryFn: () => getUsersByIds(userIds),
+        enabled: userIds.length > 0,
+        staleTime: 60_000,
+    });
+    const idToEmail = React.useMemo(() => Object.fromEntries(usersBrief.map(u => [u.id, u.email])), [usersBrief]);
+
     // No owner-gating on the frontend; backend will enforce permissions
 
     const transferOwnershipMutation = useMutation({
@@ -99,22 +112,30 @@ const MemberTab: React.FC = () => {
                 cell: (cell: any) => cell.row.index + 1,
             },
             {
-                header: 'User ID',
+                header: 'Email',
                 accessorKey: 'userId',
                 enableColumnFilter: false,
-                cell: (cell: any) => (
-                    <span className="font-monospace">{cell.getValue()}</span>
-                ),
+                cell: (cell: any) => {
+                    const uid: string = cell.getValue();
+                    const email = idToEmail[uid] || uid;
+                    return <span className="font-monospace">{email}</span>;
+                },
             },
             {
-                header: 'Role ID',
+                header: 'Role',
                 accessorKey: 'roleId',
                 enableColumnFilter: false,
                 cell: (cell: any) => {
                     const m: WorkspaceMember = cell.row.original;
-                    return m.owner ? (
-                        <span className="badge text-uppercase bg-success-subtle text-success">Owner</span>
-                    ) : (m.roleId ?? m.role?.id ?? '—');
+                    if (m.owner) {
+                        return <span className="badge text-uppercase bg-success-subtle text-success">{t('Owner')}</span>;
+                    }
+                    const rid = m.roleId ?? m.role?.id;
+                    const r = roles.find(rr => rr.id === rid);
+                    const roleName = r ? (r.name || r.code) : (m.role?.name || (typeof rid === 'number' ? String(rid) : '—'));
+                    return roleName ? (
+                        <span className="badge text-uppercase bg-dark-subtle text-black">{roleName}</span>
+                    ) : '—';
                 },
             },
             {

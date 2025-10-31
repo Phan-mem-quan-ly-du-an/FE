@@ -53,85 +53,9 @@ const OverviewTab = () => {
                     </Card>
                 </Col>
 
-                {/* Quick Info */}
-                <Col lg={4}>
-                    <Card>
-                        <CardBody>
-                            <h5 className="card-title mb-3">
-                                <i className="ri-information-line me-2"></i>
-                                Information
-                            </h5>
-                            <div className="vstack gap-2">
-                                <div>
-                                    <small className="text-muted d-block">Workspace ID</small>
-                                    <span className="font-monospace small">{workspace.id}</span>
-                                </div>
-                                <div className="border-top pt-2">
-                                    <small className="text-muted d-block">Company ID</small>
-                                    <span className="font-monospace small">{workspace.companyId}</span>
-                                </div>
-                            </div>
-                        </CardBody>
-                    </Card>
-                </Col>
 
-                {/* Timeline */}
-                <Col lg={12}>
-                    <Card>
-                        <CardBody>
-                            <h5 className="card-title mb-3">
-                                <i className="ri-time-line me-2"></i>
-                                Timeline
-                            </h5>
-                            <Row>
-                                <Col md={4}>
-                                    <div className="mb-3">
-                                        <small className="text-muted d-block">Created</small>
-                                        <span className="fw-semibold">
-                                            {new Date(workspace.createdAt).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </span>
-                                    </div>
-                                </Col>
-                                <Col md={4}>
-                                    <div className="mb-3">
-                                        <small className="text-muted d-block">Last Updated</small>
-                                        <span className="fw-semibold">
-                                            {new Date(workspace.updatedAt).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </span>
-                                    </div>
-                                </Col>
-                                {workspace.archivedAt && (
-                                    <Col md={4}>
-                                        <div className="mb-3">
-                                            <small className="text-muted d-block">Archived</small>
-                                            <span className="fw-semibold text-danger">
-                                                {new Date(workspace.archivedAt).toLocaleDateString('en-US', {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </span>
-                                        </div>
-                                    </Col>
-                                )}
-                            </Row>
-                        </CardBody>
-                    </Card>
-                </Col>
+
+
             </Row>
         </div>
     );
