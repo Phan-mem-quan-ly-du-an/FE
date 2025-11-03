@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 type Permission = {
@@ -20,7 +19,6 @@ export default function EditRolePermissionPage() {
     const companyId = useMemo(
         () =>
             (params as any).companyId ||
-            (params as any).id ||
             window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] ||
             "",
         [params]
@@ -28,7 +26,6 @@ export default function EditRolePermissionPage() {
     const roleIdStr = useMemo(
         () =>
             (params as any).roleId ||
-            (params as any).id2 ||
             window.location.pathname.match(/\/roles\/([^/]+)$/)?.[1] ||
             "",
         [params]
@@ -47,18 +44,28 @@ export default function EditRolePermissionPage() {
     const initialRole = { name: loc.state?.roleName || "", code: loc.state?.roleCode || "" };
     const roleQuery = useQuery({
         queryKey: ["companyRole", companyId, roleId],
-        enabled: (!!companyId && !!roleId && !!auth.user?.access_token && (!initialRole.name || !initialRole.code)),
+        enabled:
+            !!companyId &&
+            !!roleId &&
+            !!auth.user?.access_token &&
+            (!initialRole.name || !initialRole.code),
         queryFn: async () => {
-            const res = await fetch(new URL(`/api/companies/${companyId}/roles/${roleId}`, base).toString(), {
-                headers: getAuthHeaders(),
-            });
+            const res = await fetch(
+                new URL(`/api/companies/${companyId}/roles/${roleId}`, base).toString(),
+                { headers: getAuthHeaders() }
+            );
             if (!res.ok) throw new Error(await res.text());
             return res.json() as Promise<{ id: string | number; name: string; code?: string }>;
         },
     });
+
     const roleName = initialRole.name || roleQuery.data?.name || "";
     const roleCode = initialRole.code || roleQuery.data?.code || "";
     const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
+
+    // ✅ Check nếu là role mặc định (Admin / Member)
+    const isDefaultRole =
+        roleCode?.toLowerCase() === "admin" || roleCode?.toLowerCase() === "member";
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
@@ -112,14 +119,17 @@ export default function EditRolePermissionPage() {
     }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, companyId, roleId]);
 
     const toggle = (pid: number) => {
+        if (isDefaultRole) return; // ❌ Không cho toggle
         setSelected(prev => {
             const next = new Set(prev);
-            if (next.has(pid)) next.delete(pid); else next.add(pid);
+            if (next.has(pid)) next.delete(pid);
+            else next.add(pid);
             return next;
         });
     };
 
     async function save() {
+        if (isDefaultRole) return; // ❌ Không cho save
         if (!companyId || !roleId) return;
         setSaving(true);
         setMsg(null);
@@ -150,7 +160,9 @@ export default function EditRolePermissionPage() {
         return (
             <div className="container">
                 <p>{t("NotLoggedIn")}</p>
-                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>{t("Login")}</button>
+                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>
+                    {t("Login")}
+                </button>
             </div>
         );
     }
@@ -168,21 +180,36 @@ export default function EditRolePermissionPage() {
                                             {t("EditRolePermissions")}
                                             <span className="badge bg-light text-body ms-2">{roleDisplay}</span>
                                         </h5>
+                                        {isDefaultRole && (
+                                            <div className="text-danger small mt-1">
+                                                {t("DefaultRoleCannotBeEdited") ||
+                                                    "This is a default role and cannot be modified."}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-2">
-                                            <Link to={`/companies/${companyId}/roles`} className="btn btn-secondary">
-                                                <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                            <Link
+                                                to={`/companies/${companyId}/roles`}
+                                                className="btn btn-secondary"
+                                            >
+                                                <i className="ri-arrow-go-back-line me-1"></i>
+                                                {t("Back")}
                                             </Link>
-                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
-                                                <i className="ri-save-3-line me-1"></i>{saving ? t("Saving") : t("Save")}
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={save}
+                                                disabled={saving || loading || isDefaultRole}
+                                            >
+                                                <i className="ri-save-3-line me-1"></i>
+                                                {saving ? t("Saving") : t("Save")}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
                             <div className="card-body pt-0">
-                                {/* Messages */}
                                 {msg && (
                                     <div className="row mb-3">
                                         <div className="col">
@@ -191,60 +218,35 @@ export default function EditRolePermissionPage() {
                                     </div>
                                 )}
 
-                            {/* Row: Role ID | Role Name */}
-                            <div className="row mt-3">
-                                <div className="col-12 col-lg-8 col-xl-6">
-                                    <div className="table-responsive table-card mb-1 mt-0">
-                                        <table className="table align-middle table-nowrap">
-                                            <thead className="table-light text-muted text-uppercase">
-                                            <tr>
-                                                <th style={{ width: 160 }}>Role ID</th>
-                                                <th>Role Name</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            <tr>
-                                                <td className="font-monospace">{roleId || "—"}</td>
-                                                <td>
-                                                    {roleName ? (
-                                                        <>
-                                                            <div className="fw-semibold">{roleName}</div>
-                                                            {roleCode && <div className="text-muted small">({roleCode})</div>}
-                                                        </>
-                                                    ) : "—"}
-                                                </td>
-                                            </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                            </div>
                                 <div className="table-responsive table-card mb-1 mt-0">
                                     <table className="table align-middle table-nowrap">
                                         <thead className="table-light text-muted text-uppercase">
                                         <tr>
-                                            <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
-                                            <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
+                                            <th>{t("Permission Name")}</th>
+                                            <th className="text-center">{t("Tick")}</th>
                                         </tr>
                                         </thead>
                                         <tbody>
-                                        {!loading && permissions.map(p => (
-                                            <tr key={p.id}>
-                                                <td>
-                                                    <div className="fw-semibold">{p.name}</div>
-                                                    {p.code && <div className="text-muted small">{p.code}</div>}
-                                                </td>
-                                                <td className="text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="form-check-input"
-                                                        checked={selected.has(p.id)}
-                                                        onChange={() => toggle(p.id)}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {!loading &&
+                                            permissions.map(p => (
+                                                <tr key={p.id}>
+                                                    <td>
+                                                        <div className="fw-semibold">{p.name}</div>
+                                                        {p.code && (
+                                                            <div className="text-muted small">{p.code}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="form-check-input"
+                                                            checked={selected.has(p.id)}
+                                                            onChange={() => toggle(p.id)}
+                                                            disabled={isDefaultRole}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
