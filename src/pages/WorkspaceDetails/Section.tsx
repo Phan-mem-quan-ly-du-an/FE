@@ -15,25 +15,22 @@ import {
 } from 'reactstrap';
 import classnames from 'classnames';
 import { useQuery } from '@tanstack/react-query';
-import { getProjectById } from '../../apiCaller/projects';
-import { getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
-import { useLocation } from 'react-router-dom';
-import { useActiveCompany } from '../../contexts/ActiveCompanyContext';
+import { getWorkspaceById } from '../../apiCaller/workspaceDetails';
 import { useTranslation } from 'react-i18next';
 
 import OverviewTab from './OverviewTab';
-import SprintTab from './SprintTab';
+import ProjectTab from './ProjectTab';
+import MemberTab from './MemberTab';
+import RoleTab from './RoleTab';
 
 const Section = () => {
     const { t } = useTranslation();
-    const { projectId } = useParams<{ projectId: string }>();
-    const location = useLocation() as { state?: { companyId?: string } };
-    const { activeCompany } = useActiveCompany();
+    const { workspaceId } = useParams<{ workspaceId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
-    
+
     // Get tab from URL or default to '1'
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') || '1');
-    
+
     const toggleTab = (tab: string) => {
         setActiveTab(tab);
         setSearchParams({ tab });
@@ -47,38 +44,29 @@ const Section = () => {
         }
     }, [searchParams]);
 
-    const { data: project, isLoading, error } = useQuery({
-        queryKey: ['project', projectId],
-        queryFn: () => getProjectById(projectId!),
-        enabled: !!projectId,
+    const { data: workspace, isLoading, error } = useQuery({
+        queryKey: ['workspace', workspaceId],
+        queryFn: () => getWorkspaceById(workspaceId!),
+        enabled: !!workspaceId,
     });
-
-    const { data: workspace } = useQuery<Workspace>({
-        queryKey: ['workspace-of-project', project?.workspaceId],
-        queryFn: () => getWorkspaceById(project!.workspaceId),
-        enabled: !!project?.workspaceId,
-        staleTime: 60_000,
-    });
-
-    const companyId = workspace?.companyId || location.state?.companyId || activeCompany?.id;
 
     if (isLoading) {
         return (
             <div className="d-flex justify-content-center align-items-center py-5">
                 <Spinner color="primary" />
-                <span className="ms-2">{t('LoadingProject')}</span>
+                <span className="ms-2">Loading workspace...</span>
             </div>
         );
     }
 
-    if (error || !project) {
+    if (error || !workspace) {
         return (
             <div className="alert alert-danger text-center mt-4">
                 <i className="ri-error-warning-line me-2"></i>
-                {t('FailedToLoadProjectDetails')}
+                Failed to load workspace details
                 <div className="mt-2">
                     <Link to="/companies" className="btn btn-outline-danger btn-sm">
-                        {t('BackToProjects')}
+                        Back to Companies
                     </Link>
                 </div>
             </div>
@@ -97,26 +85,23 @@ const Section = () => {
                                     <div className="col-md-auto">
                                         <div className="avatar-md">
                                             <div
-                                                className="avatar-title rounded-circle"
-                                                style={{
-                                                    backgroundColor: project.color || '#3b82f6',
-                                                }}
+                                                className="avatar-title rounded-circle bg-primary-subtle"
                                             >
-                                                <i className="ri-folder-2-line text-white fs-3"></i>
+                                                <i className="ri-folder-2-line text-primary fs-3"></i>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="col-md">
-                                        <h3 className="fw-bold mb-1">{project.name}</h3>
+                                        <h3 className="fw-bold mb-1">{workspace.name}</h3>
                                         <p className="text-muted mb-2">
-                                            {project.description || t('NoDescriptionAvailable')}
+                                            {workspace.description || t('NoDescriptionAvailable')}
                                         </p>
                                         <div className="hstack gap-3 flex-wrap">
                                             <div>
                                                 <i className="ri-calendar-line align-bottom me-1"></i>
                                                 {t('Created')}:{' '}
                                                 <span className="fw-medium">
-                                                    {new Date(project.createdAt).toLocaleDateString()}
+                                                    {new Date(workspace.createdAt).toLocaleDateString()}
                                                 </span>
                                             </div>
                                             <div className="vr"></div>
@@ -124,33 +109,21 @@ const Section = () => {
                                                 <i className="ri-refresh-line align-bottom me-1"></i>
                                                 {t('Updated')}:{' '}
                                                 <span className="fw-medium">
-                                                    {new Date(project.updatedAt).toLocaleDateString()}
+                                                    {new Date(workspace.updatedAt).toLocaleDateString()}
                                                 </span>
                                             </div>
-                                            {project.archivedAt && (
+                                            {workspace.archivedAt && (
                                                 <>
                                                     <div className="vr"></div>
                                                     <div>
                                                         <i className="ri-archive-line align-bottom me-1"></i>
                                                         {t('Archived')}:{' '}
                                                         <span className="fw-medium">
-                                                            {new Date(project.archivedAt).toLocaleDateString()}
+                                                            {new Date(workspace.archivedAt).toLocaleDateString()}
                                                         </span>
                                                     </div>
                                                 </>
                                             )}
-                                            <div className="vr"></div>
-                                            <div>
-                                                <span
-                                                    className={`badge rounded-pill ${
-                                                        project.status === 'active'
-                                                            ? 'bg-success'
-                                                            : 'bg-secondary'
-                                                    } fs-12`}
-                                                >
-                                                    {t(project.status)}
-                                                </span>
-                                            </div>
                                         </div>
                                     </div>
                                     <div className="col-md-auto">
@@ -158,9 +131,9 @@ const Section = () => {
                                             color="secondary"
                                             outline
                                             tag={Link}
-                                            to={companyId ? `/companies/${companyId}/projects` : '/companies'}
+                                            to={`/companies/${workspace.companyId}/workspaces`}
                                         >
-                                            <i className="ri-arrow-left-line me-1"></i> {t('BackToList')}
+                                            <i className="ri-arrow-left-line me-1"></i> Back to Workspaces
                                         </Button>
                                     </div>
                                 </Row>
@@ -173,7 +146,7 @@ const Section = () => {
                                             onClick={() => toggleTab('1')}
                                             href="#"
                                         >
-                                            {t('Overview')}
+                                            Overview
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -182,7 +155,7 @@ const Section = () => {
                                             onClick={() => toggleTab('2')}
                                             href="#"
                                         >
-                                            {t('Sprint')}
+                                            Projects
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -191,7 +164,7 @@ const Section = () => {
                                             onClick={() => toggleTab('3')}
                                             href="#"
                                         >
-                                            {t('Activities')}
+                                            Members
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -200,7 +173,7 @@ const Section = () => {
                                             onClick={() => toggleTab('4')}
                                             href="#"
                                         >
-                                            {t('Team')}
+                                            Roles
                                         </NavLink>
                                     </NavItem>
                                 </Nav>
@@ -218,19 +191,13 @@ const Section = () => {
                             <OverviewTab />
                         </TabPane>
                         <TabPane tabId="2">
-                            <SprintTab />
+                            <ProjectTab />
                         </TabPane>
                         <TabPane tabId="3">
-                            <div className="py-4 text-center">
-                                <i className="ri-time-line fs-1 text-muted"></i>
-                                <p className="text-muted mt-2">Activities coming soon...</p>
-                            </div>
+                            <MemberTab />
                         </TabPane>
                         <TabPane tabId="4">
-                            <div className="py-4 text-center">
-                                <i className="ri-team-line fs-1 text-muted"></i>
-                                <p className="text-muted mt-2">Team management coming soon...</p>
-                            </div>
+                            <RoleTab />
                         </TabPane>
                     </TabContent>
                 </Col>
