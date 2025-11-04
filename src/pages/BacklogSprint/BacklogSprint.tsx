@@ -9,6 +9,7 @@ import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
 import { getProjectMembers } from '../../apiCaller/projectMembers';
+import { getBoardByProjectId } from '../../apiCaller/boards'; // Import để load board columns
 import '../../assets/scss/pages/BacklogSprint.scss';
 
 interface Task {
@@ -78,16 +79,13 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
   const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' } | null>(null);
   const [expandedSprints, setExpandedSprints] = useState<{ [sprintId: number]: boolean }>({});
 
-  // Status columns from database (correct IDs)
-  const statusColumns: StatusColumn[] = [
-    { id: 1, name: 'TO DO', color: '#840417ff' },
-    { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
-    { id: 3, name: 'DONE', color: '#10b981' }
-  ];
+  // Status columns loaded from API (dynamic)
+  const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([]);
 
   useEffect(() => {
     loadData();
     loadProjectMembers();
+    loadStatusColumns(); // Load dynamic status columns
   }, [projectId]);
 
   // Helper function to enrich task statusColumn with color
@@ -128,6 +126,33 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         { userId: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
         { userId: 'user-2', displayName: 'Jane Smith', email: 'jane@example.com' },
         { userId: 'user-3', displayName: 'Bob Johnson', email: 'bob@example.com' }
+      ]);
+    }
+  };
+
+  const loadStatusColumns = async () => {
+    try {
+      console.log('🔄 Loading status columns for project:', projectId);
+      const boardData = await getBoardByProjectId(projectId);
+      console.log('✅ Board data loaded:', boardData);
+      
+      // Extract columns from board
+      const columns: StatusColumn[] = boardData.columns.map(col => ({
+        id: col.id,
+        name: col.name,
+        color: col.color
+      }));
+      
+      setStatusColumns(columns);
+      console.log('✅ Status columns loaded:', columns);
+    } catch (error) {
+      console.error('❌ Error loading status columns:', error);
+      // Fallback: Use default 3 columns if board doesn't exist yet
+      console.log('⚠️ Using fallback default status columns');
+      setStatusColumns([
+        { id: 1, name: 'To Do', color: '#6B7280' },
+        { id: 2, name: 'In Progress', color: '#3B82F6' },
+        { id: 3, name: 'Done', color: '#10B981' }
       ]);
     }
   };

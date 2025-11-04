@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 
 import OverviewTab from './OverviewTab';
 import SprintTab from './SprintTab';
+import KanbanBoard from '../Board/KanbanBoard';
 
 const Section = () => {
     const { t } = useTranslation();
@@ -177,7 +178,7 @@ const Section = () => {
                                             onClick={() => toggleTab('3')}
                                             href="#"
                                         >
-                                            {t('Activities')}
+                                            Board
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -207,10 +208,7 @@ const Section = () => {
                             <SprintTab />
                         </TabPane>
                         <TabPane tabId="3">
-                            <div className="py-4 text-center">
-                                <i className="ri-time-line fs-1 text-muted"></i>
-                                <p className="text-muted mt-2">Activities coming soon...</p>
-                            </div>
+                            <KanbanBoard />
                         </TabPane>
                         <TabPane tabId="4">
                             <div className="py-4 text-center">
