@@ -71,3 +71,10 @@ export const getAllWorkspacesByCompanyId = async (companyId: string): Promise<Wo
     const response = await getWorkspacesByCompanyIdParams(params);
     return response.content;
 };
+
+export const getWorkspaceById = async (workspaceId: string): Promise<Workspace> => {
+    const apiCaller = new ApiCaller();
+    const url = `/workspaces/${workspaceId}`;
+    const response = await apiCaller.setUrl(url).get();
+    return response.data as Workspace;
+};
