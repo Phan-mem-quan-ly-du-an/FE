@@ -26,62 +26,56 @@ export default function AssignRoleModal({
     const queryClient = useQueryClient();
     const { t } = useTranslation();
 
-    // Get roles for the company
-    const {data: roles = []} = useQuery({
+    const { data: roles = [] } = useQuery({
         queryKey: ['companyRoles', companyId],
         queryFn: () => getCompanyRoles(companyId, true),
         enabled: !!companyId && show,
     });
 
     const assignRoleMutation = useMutation({
-        mutationFn: ({companyId, memberId, roleId}: { companyId: string; memberId: string; roleId: number }) =>
+        mutationFn: ({ companyId, memberId, roleId }: { companyId: string; memberId: string; roleId: number }) =>
             assignMemberRole(companyId, memberId, roleId),
         onSuccess: () => {
-            queryClient.invalidateQueries({queryKey: ['companyMembers', companyId]});
+            queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
         },
     });
 
-    // Formik validation
     const validation = useFormik({
         enableReinitialize: true,
         initialValues: {
             roleId: member?.roleId?.toString() || '',
         },
         validationSchema: Yup.object({
-            roleId: Yup.string().required(t('PleaseSelectRole'))
+            roleId: Yup.string().required(t('PleaseSelectRole')),
         }),
         onSubmit: (values) => {
             if (!member) return;
-            
-            // Cannot assign role to Owner
+
             if (member.owner) {
                 onError?.(t('CannotAssignRoleToOwner'));
                 return;
             }
 
-            if (!values.roleId) {
-                onError?.(t('PleaseSelectRole'));
-                return;
-            }
-
-            assignRoleMutation.mutate({
-                companyId,
-                memberId: member.userId,
-                roleId: parseInt(values.roleId)
-            }, {
-                onSuccess: () => {
-                    onSuccess?.(t('RoleAssignedSuccessfully'));
-                    validation.resetForm();
-                    onClose();
+            assignRoleMutation.mutate(
+                {
+                    companyId,
+                    memberId: member.userId,
+                    roleId: parseInt(values.roleId),
                 },
-                onError: (error: any) => {
-                    onError?.(error?.message || t('FailedToAssignRole'));
+                {
+                    onSuccess: () => {
+                        onSuccess?.(t('RoleAssignedSuccessfully'));
+                        validation.resetForm();
+                        onClose();
+                    },
+                    onError: (error: any) => {
+                        onError?.(error?.message || t('FailedToAssignRole'));
+                    },
                 }
-            });
+            );
         },
     });
 
-    // Reset form when member changes
     useEffect(() => {
         if (member) {
             validation.setFieldValue('roleId', member.roleId?.toString() || '');
@@ -91,17 +85,23 @@ export default function AssignRoleModal({
     if (!member) return null;
 
     const isOwner = !!member.owner;
+    const currentRole = !isOwner && member.roleId
+        ? roles.find((r: Role) => r.id === member.roleId)
+        : null;
 
     return (
         <Modal id="assignRoleModal" isOpen={show} toggle={onClose} centered>
             <ModalHeader className="bg-light p-3" toggle={onClose}>
                 {t('AssignRole')}
             </ModalHeader>
-            <Form className="tablelist-form" onSubmit={(e: any) => {
-                e.preventDefault();
-                validation.handleSubmit();
-                return false;
-            }}>
+            <Form
+                className="tablelist-form"
+                onSubmit={(e: any) => {
+                    e.preventDefault();
+                    validation.handleSubmit();
+                    return false;
+                }}
+            >
                 <ModalBody>
                     {isOwner && (
                         <div className="alert alert-warning">
@@ -112,14 +112,26 @@ export default function AssignRoleModal({
                     <div className="table-responsive">
                         <table className="table table-bordered align-middle">
                             <tbody>
-                                <tr>
-                                    <th style={{ width: 180 }}>{t('MemberUserId')}</th>
-                                    <td className="font-monospace">{member.userId}</td>
-                                </tr>
-                                <tr>
-                                    <th>{t('CurrentRole')}</th>
-                                    <td>{member.owner ? t('Owner') : (member.roleId ?? "—")}</td>
-                                </tr>
+                            <tr>
+                                <th style={{ width: 180 }}>{t('MemberUserId')}</th>
+                                <td className="font-monospace">{member.userId}</td>
+                            </tr>
+                            <tr>
+                                <th>{t('CurrentRole')}</th>
+                                <td>
+                                    {member.owner ? (
+                                        <span className="badge bg-success-subtle text-success text-uppercase">
+                                                {t('Owner')}
+                                            </span>
+                                    ) : currentRole ? (
+                                        <span className="badge bg-dark-subtle text-dark text-uppercase">
+                                                {currentRole.name || currentRole.code}
+                                            </span>
+                                    ) : (
+                                        <span className="text-muted">—</span>
+                                    )}
+                                </td>
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -136,10 +148,8 @@ export default function AssignRoleModal({
                             disabled={isOwner}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
-                            value={validation.values.roleId || ""}
-                            invalid={
-                                validation.touched.roleId && validation.errors.roleId ? true : false
-                            }
+                            value={validation.values.roleId || ''}
+                            invalid={!!(validation.touched.roleId && validation.errors.roleId)}
                         >
                             <option value="">{t('SelectRole')}</option>
                             {roles.map((role: Role) => (
@@ -158,17 +168,14 @@ export default function AssignRoleModal({
                         {t('SelectRoleAndSaveMessage')}
                     </div>
                 </ModalBody>
+
                 <div className="modal-footer">
                     <div className="hstack gap-2 justify-content-end">
-                        <Button
-                            type="button"
-                            className="btn btn-light"
-                            onClick={onClose}
-                        >
+                        <Button type="button" className="btn btn-light" onClick={onClose}>
                             {t('Close')}
                         </Button>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             className="btn btn-primary"
                             disabled={assignRoleMutation.isPending || isOwner}
                         >

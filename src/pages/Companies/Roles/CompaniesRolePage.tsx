@@ -1,24 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom'; // Thêm useNavigate
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCompanyRoles, deleteRole, createCompanyRole, updateCompanyRole, Role } from "../../../apiCaller/companyRoles";
-import { Card, CardBody, CardHeader, Col, Container, Row } from "reactstrap";
+import { Card, CardBody, CardHeader, Col, Container, Row, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import CreateRoleModal from "./CreateRoleModal";
 import EditRoleModal from "./EditRoleModal";
 import ConfirmDeleteRoleModal from "./ConfirmDeleteRoleModal";
-import { useAuth } from "react-oidc-context"; // Thêm import useAuth
-import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
-
+import { useAuth } from "react-oidc-context";
 
 export default function CompaniesRolePage() {
     const auth = useAuth();
     const { t } = useTranslation();
     const { companyId } = useParams<{ companyId: string }>();
     const queryClient = useQueryClient();
-    const navigate = useNavigate(); // Khởi tạo navigate
+    const navigate = useNavigate();
 
     const resolvedCompanyId = companyId || "";
 
@@ -29,7 +27,6 @@ export default function CompaniesRolePage() {
     const [editing, setEditing] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Role | null>(null);
-    const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
     const rolesQuery = useQuery<Role[]>({
         queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
@@ -56,138 +53,117 @@ export default function CompaniesRolePage() {
     const deleteRoleMutation = useMutation({
         mutationFn: async (roleId: number) => deleteRole(resolvedCompanyId, roleId),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+            await queryClient.invalidateQueries({
+                queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
+            });
         },
         onError: async (error: any) => {
             setMsg(t("DeleteFailed", { status: "", text: error?.message || "" }));
         },
     });
 
-    async function handleDeleteRole(r: Role) {
-        if (!r?.id) return;
-        setConfirmDelete(r); // Mở modal xác nhận thay vì confirm trực tiếp
-    }
+    const handleDeleteRole = (r: Role) => {
+        if (r?.id) setConfirmDelete(r);
+    };
 
-    // Hàm xử lý khi double-click vào một dòng role
     const handleRowDoubleClick = (roleData: Role) => {
         const roleId = roleData.id;
         if (roleId && resolvedCompanyId) {
-            // Chuyển hướng đến trang permission của role đó
             navigate(`/companies/${resolvedCompanyId}/roles/${roleId}/permission`);
         } else {
-            console.error("Cannot navigate: Role ID or Company ID is missing.");
+            console.error("Cannot navigate: missing Role ID or Company ID.");
         }
     };
 
-
-    // Hàm để bật/tắt dropdown
-    const toggleDropdown = (roleId: number) => {
-        if (openDropdownId === roleId) {
-            setOpenDropdownId(null); // Đóng lại nếu đang mở
-        } else {
-            setOpenDropdownId(roleId); // Mở cái mới
-        }
-    };
-    const columns = useMemo(() => [
-        {
-            header: '#',
-            id: 'serial',
-            enableColumnFilter: false,
-            cell: ({ row }: any) => {
-                const pagination = row?.table?.getState?.().pagination;
-                const pageIndex = pagination?.pageIndex ?? 0;
-                const pageSize = pagination?.pageSize ?? 10;
-                const serial = pageIndex * pageSize + row.index + 1;
-                return <span className="text-muted">{serial}</span>;
+    const columns = useMemo(
+        () => [
+            {
+                header: '#',
+                id: 'serial',
+                enableColumnFilter: false,
+                cell: ({ row }: any) => {
+                    const pagination = row?.table?.getState?.().pagination;
+                    const pageIndex = pagination?.pageIndex ?? 0;
+                    const pageSize = pagination?.pageSize ?? 10;
+                    const serial = pageIndex * pageSize + row.index + 1;
+                    return <span className="text-muted">{serial}</span>;
+                },
             },
-        },
-        {
-            header: 'Role ID',
-            accessorKey: 'id',
-            enableColumnFilter: false,
-            cell: (info: any) => <span className="font-monospace">{info.getValue()}</span>,
-        },
-        {
-            header: 'Name',
-            accessorKey: 'name',
-            enableColumnFilter: false,
-            cell: ({ row }: any) => {
-                const role: Role = row.original;
-                return (
-                    // Bọc nội dung cell bằng một div và thêm onDoubleClick
-                    <div
-                        onDoubleClick={() => handleRowDoubleClick(role)}
-                        style={{ cursor: 'pointer', width: '100%', height: '100%' }}
-                        title={t('DoubleClickToViewPermissions') || ""}
-                    >
-                        <div className="fw-semibold">{role.name || '—'}</div>
-                        {role.code && <div className="text-muted small">{role.code}</div>}
-                    </div>
-                );
+            {
+                header: t("Name"),
+                accessorKey: 'name',
+                enableColumnFilter: false,
+                cell: ({ row }: any) => {
+                    const role: Role = row.original;
+                    return (
+                        <Link
+                            to={`/companies/${resolvedCompanyId}/roles/${role.id}/permission`}
+                            state={{ roleName: role.name, roleCode: role.code }}
+                            className="d-block text-decoration-none text-reset"
+                            title={t('DoubleClickToViewPermissions') || ""}
+                        >
+                            <div className="fw-semibold text-primary-hover">
+                                {role.name || '—'}
+                            </div>
+                            {role.code && <div className="text-muted small">{role.code}</div>}
+                        </Link>
+                    );
+                },
             },
-        },
-        {
-            header: 'Description',
-            accessorKey: 'description',
-            enableColumnFilter: false,
-            cell: ({ getValue }: any) => getValue() || '—',
-        },
-        {
-    header: 'Action',
-    id: 'action',
-    enableColumnFilter: false,
-    cell: ({ row }: any) => {
-      const r: Role = row.original;
-      const isDeleting = deleteRoleMutation.isPending;
-      
-      return (
-        // --- THAY THẾ BẰNG ĐOẠN NÀY ---
-        <Dropdown 
-          isOpen={openDropdownId === r.id} 
-          toggle={() => toggleDropdown(r.id)}
-        >
-          <DropdownToggle 
-            tag="button" 
-            className="btn btn-ghost-secondary btn-icon btn-sm" 
-            title={t('MoreOptions') as string}
-          >
-            {/* Đây là icon "ba chấm dọc" */}
-            <i className="ri-more-2-fill fs-16"></i> 
-          </DropdownToggle>
+            {
+                header: t("Description"),
+                accessorKey: 'description',
+                enableColumnFilter: false,
+                cell: ({ getValue }: any) => getValue() || '—',
+            },
+            {
+                header: t("Action"),
+                id: 'action',
+                enableColumnFilter: false,
+                cell: ({ row }: any) => {
+                    const r: Role = row.original;
+                    const isDeleting = deleteRoleMutation.isPending;
 
-          <DropdownMenu>
-            {/* Nút Edit */}
-            <DropdownItem onClick={() => { setEditingRole(r); setShowEdit(true); }}>
-              <i className="ri-edit-2-line me-2"></i> {t('Edit')}
-            </DropdownItem>
-            
-            {/* Nút Permission (vẫn dùng Link) */}
-            <DropdownItem 
-              tag={Link} 
-              to={`/companies/${resolvedCompanyId}/roles/${r.id}/permission`}
-              state={{ roleName: r.name, roleCode: r.code }}
-            >
-              <i className="ri-shield-user-line me-2"></i> {t('Permission')}
-            </DropdownItem>
+                    return (
+                        <UncontrolledDropdown>
+                            <DropdownToggle
+                                tag="button"
+                                className="btn btn-ghost-secondary btn-icon btn-sm"
+                                title={t('MoreOptions') as string}
+                            >
+                                <i className="ri-more-2-fill fs-16"></i>
+                            </DropdownToggle>
 
-            {/* Thêm một đường gạch ngang để phân tách */}
-            <DropdownItem divider /> 
+                            <DropdownMenu
+                                end
+                                strategy="fixed"
+                                container="body"
+                                className="shadow-lg"
+                            >
+                                <DropdownItem onClick={() => { setEditingRole(r); setShowEdit(true); }}>
+                                    <i className="ri-edit-2-line me-2"></i> {t('Edit')}
+                                </DropdownItem>
 
-            {/* Nút Delete */}
-            <DropdownItem 
-              onClick={() => handleDeleteRole(r)} 
-              disabled={isDeleting} 
-              className="text-danger"
-            >
-              <i className="ri-delete-bin-5-line me-2"></i> {t('Delete')}
-            </DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
-        // --- KẾT THÚC PHẦN THAY THẾ ---
-      );
-    },
-  },
-     ], [t, resolvedCompanyId, deleteRoleMutation.isPending, openDropdownId, handleRowDoubleClick, navigate]);
+                                {/* ✅ Bỏ nút Permission */}
+
+                                <DropdownItem divider />
+
+                                <DropdownItem
+                                    onClick={() => handleDeleteRole(r)}
+                                    disabled={isDeleting}
+                                    className="text-danger"
+                                >
+                                    <i className="ri-delete-bin-5-line me-2"></i> {t('Delete')}
+                                </DropdownItem>
+                            </DropdownMenu>
+                        </UncontrolledDropdown>
+                    );
+                },
+            },
+        ],
+        [t, resolvedCompanyId, deleteRoleMutation.isPending]
+    );
+
 
     const data = (rolesQuery.data ?? []) as Role[];
 
@@ -196,7 +172,9 @@ export default function CompaniesRolePage() {
         return (
             <div className="container">
                 <p>{t("NotLoggedIn")}</p>
-                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>{t("Login")}</button>
+                <button className="btn btn-primary" onClick={() => auth.signinRedirect?.()}>
+                    {t("Login")}
+                </button>
             </div>
         );
     }
@@ -231,6 +209,7 @@ export default function CompaniesRolePage() {
                                     </div>
                                 </div>
                             </CardHeader>
+
                             <CardBody className="pt-0">
                                 {rolesQuery.isLoading ? (
                                     <div className="text-center py-5">{t('Loading')}</div>
@@ -254,6 +233,7 @@ export default function CompaniesRolePage() {
                         </Card>
                     </Col>
                 </Row>
+
                 <CreateRoleModal
                     show={showCreate}
                     onClose={() => setShowCreate(false)}
@@ -265,7 +245,9 @@ export default function CompaniesRolePage() {
                         try {
                             await createCompanyRole(resolvedCompanyId, values);
                             setShowCreate(false);
-                            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+                            await queryClient.invalidateQueries({
+                                queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
+                            });
                         } catch (e: any) {
                             setMsg(e?.message || t('ErrorSaving'));
                         } finally {
@@ -273,14 +255,18 @@ export default function CompaniesRolePage() {
                         }
                     }}
                 />
+
                 <EditRoleModal
                     show={showEdit}
-                    onClose={() => { setShowEdit(false); setEditingRole(null); }} // Reset editingRole khi đóng
+                    onClose={() => { setShowEdit(false); setEditingRole(null); }}
                     isSubmitting={editing}
-                    initial={editingRole ?
-                        { code: editingRole.code || "", name: editingRole.name || "", description: editingRole.description || "" } :
-                        { code: "" }
-                    }
+                    initial={editingRole
+                        ? {
+                            code: editingRole.code || "",
+                            name: editingRole.name || "",
+                            description: editingRole.description || "",
+                        }
+                        : { code: "" }}
                     onSubmit={async (values) => {
                         if (!resolvedCompanyId || !editingRole) return;
                         setEditing(true);
@@ -289,7 +275,9 @@ export default function CompaniesRolePage() {
                             await updateCompanyRole(resolvedCompanyId, editingRole.id, values);
                             setShowEdit(false);
                             setEditingRole(null);
-                            await queryClient.invalidateQueries({ queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }] });
+                            await queryClient.invalidateQueries({
+                                queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
+                            });
                         } catch (e: any) {
                             setMsg(e?.message || t('ErrorSaving'));
                         } finally {
@@ -297,10 +285,15 @@ export default function CompaniesRolePage() {
                         }
                     }}
                 />
+
                 <ConfirmDeleteRoleModal
                     show={!!confirmDelete}
                     onClose={() => setConfirmDelete(null)}
-                    roleName={confirmDelete ? (confirmDelete.code || confirmDelete.name || String(confirmDelete.id)) : ''}
+                    roleName={
+                        confirmDelete
+                            ? confirmDelete.code || confirmDelete.name || String(confirmDelete.id)
+                            : ''
+                    }
                     isDeleting={deleteRoleMutation.isPending}
                     onConfirm={async () => {
                         if (!confirmDelete) return;

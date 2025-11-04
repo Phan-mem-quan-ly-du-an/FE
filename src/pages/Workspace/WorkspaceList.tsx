@@ -96,7 +96,7 @@ const WorkspaceList = () => {
                 accessorKey: "name",
                 enableColumnFilter: false,
                 cell: (cell: any) => (
-                    <Link to={`/companies/${companyId}/workspaces/${cell.row.original.id}`} className="fw-medium link-primary">
+                    <Link to={`/workspaces/${cell.row.original.id}`} className="fw-medium link-primary">
                                 {cell.getValue()}
                     </Link>
                 ),
@@ -120,7 +120,7 @@ const WorkspaceList = () => {
                     return (
                         <ul className="list-inline hstack gap-2 mb-0">
                             <li className="list-inline-item" title={t('t-workspace-view-details-tooltip')}>
-                                <Link to={`/companies/${companyId}/workspaces/${cell.row.original.id}`} className="text-primary d-inline-block">
+                                <Link to={`/workspaces/${cell.row.original.id}`} className="text-primary d-inline-block">
                                     <i className="ri-eye-fill fs-16"></i>
                                 </Link>
                             </li>

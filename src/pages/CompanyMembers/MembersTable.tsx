@@ -1,10 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react'; // Thêm useState và useCallback
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CompanyMember } from '../../apiCaller/companyMembers';
 import TableContainer from '../../Components/Common/TableContainer';
-// Thêm các component Dropdown
-import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap'; 
+import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 
 interface MembersTableProps {
     members: CompanyMember[];
@@ -16,11 +14,13 @@ interface MembersTableProps {
     deleteMemberMutation: {
         isPending: boolean;
     };
+    roles: { id: number; name?: string | null }[];
 }
 
 export default function MembersTable({
     members,
     companyId,
+    roles,
     deletingUserId,
     onDelete,
     onTransferOwnership,
@@ -37,7 +37,6 @@ export default function MembersTable({
         setOpenDropdownId(prevId => (prevId === userId ? null : userId));
     }, []);
 
-    // Cấu hình cột của bảng
     const columns = useMemo(
         () => [
             {
@@ -56,21 +55,22 @@ export default function MembersTable({
                 ),
             },
             {
-                header: t("RoleID"),
+                header: t("Role"),
                 accessorKey: "roleId",
                 enableColumnFilter: false,
                 cell: (cell: any) => {
                     const member = cell.row.original;
-                    return member.owner ? ( // Giả định trường là 'owner' dựa trên code
+                    const role = roles?.find(r => r.id === member.roleId);
+                    const roleName = role ? role.name : t('No Role');
+
+                    return (member.owner) ?
                         <span className="badge text-uppercase bg-success-subtle text-success">{t('Owner')}</span>
-                    ) : (
-                        member.roleId ?? '—'
-                    );
+                        : <span className="badge text-uppercase bg-dark-subtle text-black">{roleName}</span>;
                 },
             },
             {
                 header: t("Owner") + "?",
-                accessorKey: "owner", // Giả định trường là 'owner'
+                accessorKey: "owner",
                 enableColumnFilter: false,
                 cell: (cell: any) => cell.getValue() ? 'Yes' : 'No',
             },
