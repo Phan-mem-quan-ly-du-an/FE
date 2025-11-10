@@ -8,7 +8,7 @@ import EditSprintModal from './EditSprintModal';
 import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
-import { getProjectMembers } from '../../apiCaller/projectMembers';
+import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import { getBoardByProjectId } from '../../apiCaller/boards'; // Import để load board columns
 import '../../assets/scss/pages/BacklogSprint.scss';
 
@@ -35,12 +35,6 @@ interface StatusColumn {
   id: number;
   name: string;
   color: string;
-}
-
-interface ProjectMember {
-  userId: string;
-  displayName: string;
-  email: string;
 }
 
 interface Sprint {
@@ -112,7 +106,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     try {
       console.log('🔄 Loading project members for project:', projectId);
       const members = await getProjectMembers(projectId);
-      console.log('✅ Project members loaded:', members);
+      console.log('✅ Project members loaded with email:', members);
+      
       setProjectMembers([
         { userId: 'unassigned', displayName: 'Unassigned', email: '' },
         ...members
@@ -179,12 +174,24 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
       // Debug: Check first task's statusColumn
       if (tasksList.length > 0) {
         console.log('🔍 Sample task statusColumn:', tasksList[0].statusColumn);
+        console.log('🔍 Sample task assigneeId:', (tasksList[0] as any).assigneeId);
+        console.log('🔍 Sample task assignedTo:', tasksList[0].assignedTo);
       }
 
       tasksList.forEach((task: Task) => {
-        // Enrich task with color from statusColumns
-        const enrichedTask = enrichTaskWithColor(task);
+        // Normalize backend shape: some responses use `assigneeId` (backend) while UI expects `assignedTo`
+        // Keep existing assignedTo if present, otherwise fall back to assigneeId.
+        const anyTask: any = task as any;
+        const normalized: Task = {
+          ...task,
+          assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined
+        };
         
+        console.log(`🔄 Task #${task.id}: assigneeId=${anyTask.assigneeId}, assignedTo=${task.assignedTo}, normalized=${normalized.assignedTo}`);
+
+        // Enrich task with color from statusColumns
+        const enrichedTask = enrichTaskWithColor(normalized);
+
         if (!enrichedTask.sprintId) {
           backlog.push(enrichedTask);
         } else {
@@ -286,14 +293,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     });
 
     try {
-      // Send complete task object with updated assignedTo
+      // Send complete task object with updated assigneeId (đúng tên field của backend)
       const updatedTask = {
         id: task.id,
         title: task.title,
         description: task.description,
         projectId: task.projectId,
         sprintId: task.sprintId,
-        assignedTo: userId === 'unassigned' ? undefined : userId,
+        assigneeId: userId === 'unassigned' ? null : userId, // ĐỔI assignedTo -> assigneeId
         priority: task.priority,
         dueDate: task.dueDate,
         estimatedHours: task.estimatedHours,
@@ -589,10 +596,16 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
   const renderTask = (task: Task, index: number) => {
     // Task already enriched with color, just use it with fallback
     const currentStatus: StatusColumn = task.statusColumn 
-      ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
-      : statusColumns[0];
+      ? { 
+          id: task.statusColumn.id,
+          name: task.statusColumn.name, 
+          color: task.statusColumn.color || (statusColumns.length > 0 ? statusColumns[0].color : '#6B7280')
+        }
+      : (statusColumns.length > 0 ? statusColumns[0] : { id: 0, name: 'No Status', color: '#6B7280' });
     
     const currentAssignee = projectMembers.find(m => m.userId === task.assignedTo) || projectMembers[0];
+    console.log(`🎯 Render Task #${task.id}: assignedTo=${task.assignedTo}, found member=`, currentAssignee);
+    console.log(`🎯 All projectMembers:`, projectMembers);
 
     return (
       <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
@@ -703,22 +716,25 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     }}
                   >
                     <User size={10} className="me-1" />
-                    {currentAssignee.displayName}
+                    {currentAssignee?.displayName || 'Unassigned'}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    {projectMembers.map(member => (
-                      <Dropdown.Item
-                        key={member.userId}
-                        onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
-                        active={currentAssignee.userId === member.userId}
-                      >
-                        <User size={12} className="me-2" />
-                        {member.displayName}
-                        {member.email && (
-                          <small className="text-muted ms-2">({member.email})</small>
-                        )}
+                    {projectMembers.length === 1 ? (
+                      <Dropdown.Item disabled className="text-muted">
+                        <small>Loading members...</small>
                       </Dropdown.Item>
-                    ))}
+                    ) : (
+                      projectMembers.map(member => (
+                        <Dropdown.Item
+                          key={member.userId}
+                          onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
+                          active={currentAssignee?.userId === member.userId}
+                        >
+                          <User size={12} className="me-2" />
+                          {member.email || member.displayName}
+                        </Dropdown.Item>
+                      ))
+                    )}
                   </Dropdown.Menu>
                 </Dropdown>
               </div>

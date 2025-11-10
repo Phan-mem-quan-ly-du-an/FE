@@ -12,6 +12,10 @@ import {
   Form,
   Spinner,
   Alert,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
 } from "reactstrap";
 import {
   DragDropContext,
@@ -19,7 +23,7 @@ import {
   Draggable,
   DropResult,
 } from "react-beautiful-dnd";
-import { Check, Eye, Edit } from "lucide-react";
+import { Check, Eye, Edit, User } from "lucide-react";
 import {
   getBoardByProjectId,
   createBoard,
@@ -28,11 +32,13 @@ import {
   deleteColumn,
   moveTask,
   createTask,
+  updateTask,
   BoardResponse,
   BoardColumnResponse,
   TaskResponse,
 } from "../../apiCaller/boards";
 import { sprintAPI } from "../../apiCaller/backlogSprint";
+import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import "../../assets/scss/pages/KanbanBoard.scss";
@@ -69,6 +75,30 @@ const KanbanBoard: React.FC = () => {
     tags: "",
   });
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  // Project members for assignee dropdown
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([
+    { userId: 'unassigned', displayName: 'Unassigned', email: '' }
+  ]);
+  const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
+
+  // ============= LOAD PROJECT MEMBERS =============
+  const loadProjectMembers = async () => {
+    if (!projectId) return;
+    
+    try {
+      console.log('🔄 Loading project members for Board:', projectId);
+      const members = await getProjectMembers(projectId);
+      console.log('✅ Project members loaded:', members);
+      
+      setProjectMembers([
+        { userId: 'unassigned', displayName: 'Unassigned', email: '' },
+        ...members
+      ]);
+    } catch (error) {
+      console.error('❌ Error loading project members:', error);
+    }
+  };
 
   // ============= LOAD BOARD =============
   const loadBoard = async () => {
@@ -136,6 +166,7 @@ const KanbanBoard: React.FC = () => {
 
   useEffect(() => {
     loadBoard();
+    loadProjectMembers();
   }, [projectId]);
 
   // ============= HANDLE DRAG & DROP =============
@@ -215,6 +246,48 @@ const KanbanBoard: React.FC = () => {
       alert(err?.response?.data?.message || "Không thể di chuyển task");
       // Revert về trạng thái cũ bằng cách reload
       await loadBoard();
+    }
+  };
+
+  // ============= HANDLE ASSIGNEE CHANGE =============
+  const handleAssigneeChange = async (
+    task: TaskResponse,
+    userId: string,
+    displayName: string,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // Prevent card click
+    const previousAssignee = task.assigneeId;
+
+    // Close dropdown immediately
+    setOpenAssigneeDropdown(null);
+
+    // Optimistic update - update board state immediately
+    if (board) {
+      const updatedColumns = board.columns.map((col) => ({
+        ...col,
+        tasks: col.tasks.map((t) =>
+          t.id === task.id
+            ? { ...t, assigneeId: userId === "unassigned" ? null : userId }
+            : t
+        ),
+      }));
+      setBoard({ ...board, columns: updatedColumns });
+    }
+
+    try {
+      // Call API to update task with assigneeId
+      await updateTask(projectId!, task.id, {
+        ...task,
+        assigneeId: userId === "unassigned" ? null : userId,
+      });
+      toast.success(`Assigned to ${displayName}`, { autoClose: 2000 });
+    } catch (error: any) {
+      console.error("Error updating assignee:", error);
+      toast.error("Failed to update assignee");
+
+      // Revert on error - reload board
+      loadBoard();
     }
   };
 
@@ -638,6 +711,10 @@ const KanbanBoard: React.FC = () => {
                                   <TaskCard
                                     task={task}
                                     isDragging={snapshot.isDragging}
+                                    projectMembers={projectMembers}
+                                    openAssigneeDropdown={openAssigneeDropdown}
+                                    setOpenAssigneeDropdown={setOpenAssigneeDropdown}
+                                    onAssigneeChange={handleAssigneeChange}
                                   />
                                 </div>
                               )}
@@ -878,9 +955,25 @@ const KanbanBoard: React.FC = () => {
 interface TaskCardProps {
   task: TaskResponse;
   isDragging: boolean;
+  projectMembers: ProjectMember[];
+  openAssigneeDropdown: number | null;
+  setOpenAssigneeDropdown: (taskId: number | null) => void;
+  onAssigneeChange: (
+    task: TaskResponse,
+    userId: string,
+    displayName: string,
+    e: React.MouseEvent
+  ) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
+const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  isDragging,
+  projectMembers,
+  openAssigneeDropdown,
+  setOpenAssigneeDropdown,
+  onAssigneeChange,
+}) => {
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
       case "URGENT":
@@ -895,6 +988,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
         return "secondary";
     }
   };
+
+  // Find current assignee
+  const currentAssignee = projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0];
 
   return (
     <Card
@@ -939,25 +1035,55 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
             )}
           </div>
 
-          {task.assigneeId && (
-            <div
-              className="avatar-xs"
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                backgroundColor: "#3b82f6",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
+          {/* Assignee Dropdown */}
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown
+              isOpen={openAssigneeDropdown === task.id}
+              toggle={() => setOpenAssigneeDropdown(openAssigneeDropdown === task.id ? null : task.id)}
             >
-              {task.assigneeId.charAt(0).toUpperCase()}
-            </div>
-          )}
+              <DropdownToggle
+                tag="div"
+                style={{
+                  cursor: "pointer",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  backgroundColor: task.assigneeId ? "#3b82f6" : "#6B7280",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+                title={currentAssignee?.displayName || "Unassigned"}
+              >
+                {task.assigneeId ? (
+                  currentAssignee?.email?.charAt(0).toUpperCase() || "?"
+                ) : (
+                  <User size={16} />
+                )}
+              </DropdownToggle>
+              <DropdownMenu end>
+                {projectMembers.length === 1 ? (
+                  <DropdownItem disabled className="text-muted">
+                    <small>Loading members...</small>
+                  </DropdownItem>
+                ) : (
+                  projectMembers.map((member) => (
+                    <DropdownItem
+                      key={member.userId}
+                      onClick={(e) => onAssigneeChange(task, member.userId, member.displayName, e)}
+                      active={currentAssignee?.userId === member.userId}
+                    >
+                      <User size={14} className="me-2" />
+                      {member.email || member.displayName}
+                    </DropdownItem>
+                  ))
+                )}
+              </DropdownMenu>
+            </Dropdown>
+          </div>
         </div>
 
         {/* Due Date */}

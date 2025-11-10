@@ -14,7 +14,7 @@ export interface TaskResponse {
   priority?: string;
   dueDate?: string;
   estimatedHours?: number;
-  assigneeId?: string;
+  assigneeId?: string | null; // Allow null for unassigned
   sprintId?: string;
   tags?: string;
   orderIndex: number;
@@ -195,4 +195,17 @@ export const createTask = async (
     orderIndex: 0,
   });
   return response.data.data; // API trả về { message, data }
+};
+
+/**
+ * API: Update task
+ * PUT /api/projects/{projectId}/tasks/{taskId}
+ */
+export const updateTask = async (
+  projectId: string,
+  taskId: number,
+  task: Partial<TaskResponse>
+): Promise<TaskResponse> => {
+  const response = await axiosClient.put(`/projects/${projectId}/tasks/${taskId}`, task);
+  return response.data.data || response.data;
 };
