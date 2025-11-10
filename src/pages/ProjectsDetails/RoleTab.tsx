@@ -108,11 +108,19 @@ const RoleTab: React.FC = () => {
                             <DropdownItem onClick={() => handleEdit(role)}>
                                 <i className="ri-edit-2-line me-2"></i> {t('Edit')}
                             </DropdownItem>
-                            <DropdownItem onClick={() => {
-                                if (projectId) {
-                                    navigate(`/projects/${projectId}/roles/${role.id}/permissions`);
-                                }
-                            }}>
+                            <DropdownItem
+                                onClick={(companyId) => {
+                                    if (projectId) {
+                                        navigate(`/companies/${companyId}/projects/${projectId}/roles/${role.id}/permissions`, {
+                                            state: {
+                                                companyId,  // THÊM dòng này
+                                                roleName: role.name,
+                                                roleCode: role.code,
+                                            },
+                                        });
+                                    }
+                                }}
+                            >
                                 <i className="ri-shield-user-line me-2"></i> {t('Permissions')}
                             </DropdownItem>
                             <DropdownItem divider />

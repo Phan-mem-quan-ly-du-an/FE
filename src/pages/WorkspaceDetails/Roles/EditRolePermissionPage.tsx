@@ -161,7 +161,7 @@ export default function EditWorkspaceRolePermissionPage() {
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-2">
-                                            <Link to={`/workspaces/${workspaceId}/roles`} className="btn btn-secondary">
+                                            <Link to={`/workspaces/${workspaceId}?tab=4`} className="btn btn-secondary">
                                                 <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
                                             </Link>
                                             <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
