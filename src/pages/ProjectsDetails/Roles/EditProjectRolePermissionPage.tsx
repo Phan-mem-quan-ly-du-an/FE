@@ -18,7 +18,7 @@ export default function EditProjectRolePermissionPage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const params = useParams();
-    const loc = useLocation() as { state?: { companyId?: string; roleName?: string; roleCode?: string } };
+    const loc = useLocation() as { state?: { companyId?: string; roleName?: string; roleCode?: string; backTo?: string } };
 
     const projectId = useMemo(
         () => (params as any).projectId || window.location.pathname.match(/\/projects\/([^/]+)/)?.[1] || "",
@@ -96,6 +96,9 @@ export default function EditProjectRolePermissionPage() {
     const roleCode = initialRole.code || roleQuery.data?.code || "";
     const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
 
+// Disable editing only for admin default role
+const isDefaultRole = roleCode?.toLowerCase() === "admin";
+
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
         return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
@@ -151,6 +154,7 @@ export default function EditProjectRolePermissionPage() {
     }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, projectId, roleId]);
 
     const toggle = (pid: number) => {
+        if (isDefaultRole) return;
         setSelected(prev => {
             const next = new Set(prev);
             if (next.has(pid)) next.delete(pid); else next.add(pid);
@@ -159,6 +163,7 @@ export default function EditProjectRolePermissionPage() {
     };
 
     async function save() {
+        if (isDefaultRole) return;
         if (!projectId || !roleId) return;
         setSaving(true);
         setMsg(null);
@@ -207,25 +212,28 @@ export default function EditProjectRolePermissionPage() {
                                             {t("EditRolePermissions")}
                                             <span className="badge bg-light text-body ms-2">{roleDisplay}</span>
                                         </h5>
+                                        {isDefaultRole && (
+                                            <div className="text-danger small mt-1">
+                                                {t("DefaultRoleCannotBeEdited") || "This is a default role and cannot be modified."}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-2">
-                                            {companyId && projectId ? (
-                                                <Link
-                                                    to={`/companies/${companyId}/projects/${projectId}?tab=5`}
-                                                    className="btn btn-secondary"
-                                                >
+                                            {loc.state?.backTo ? (
+                                                <Link to={loc.state.backTo} className="btn btn-secondary">
+                                                    <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                                </Link>
+                                            ) : companyId && projectId ? (
+                                                <Link to={`/companies/${companyId}/projects/${projectId}?tab=5`} className="btn btn-secondary">
                                                     <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
                                                 </Link>
                                             ) : (
-                                                <button
-                                                    className="btn btn-secondary"
-                                                    onClick={() => navigate(-1)}
-                                                >
+                                                <button className="btn btn-secondary" onClick={() => navigate(-1)}>
                                                     <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
                                                 </button>
                                             )}
-                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading || isDefaultRole}>
                                                 <i className="ri-save-3-line me-1"></i>{saving ? t("Saving") : t("Save")}
                                             </button>
                                         </div>
@@ -290,6 +298,7 @@ export default function EditProjectRolePermissionPage() {
                                                         className="form-check-input"
                                                         checked={selected.has(p.id)}
                                                         onChange={() => toggle(p.id)}
+                                                        disabled={isDefaultRole}
                                                     />
                                                 </td>
                                             </tr>

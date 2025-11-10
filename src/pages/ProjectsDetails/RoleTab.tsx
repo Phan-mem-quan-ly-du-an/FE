@@ -109,13 +109,13 @@ const RoleTab: React.FC = () => {
                                 <i className="ri-edit-2-line me-2"></i> {t('Edit')}
                             </DropdownItem>
                             <DropdownItem
-                                onClick={(companyId) => {
+                                onClick={() => {
                                     if (projectId) {
-                                        navigate(`/companies/${companyId}/projects/${projectId}/roles/${role.id}/permissions`, {
+                                        navigate(`/projects/${projectId}/roles/${role.id}/permissions`, {
                                             state: {
-                                                companyId,  // THÊM dòng này
                                                 roleName: role.name,
                                                 roleCode: role.code,
+                                                backTo: `/companies/${(window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] || '')}/projects/${projectId}?tab=5`
                                             },
                                         });
                                     }
@@ -206,7 +206,13 @@ const RoleTab: React.FC = () => {
                                                     </DropdownItem>
                                                     <DropdownItem onClick={() => {
                                                         if (projectId) {
-                                                            navigate(`/projects/${projectId}/roles/${role.id}/permissions`);
+                                                            navigate(`/projects/${projectId}/roles/${role.id}/permissions`, {
+                                                                state: {
+                                                                    roleName: role.name,
+                                                                    roleCode: role.code,
+                                                                    backTo: `/companies/${(window.location.pathname.match(/\/companies\/([^/]+)/)?.[1] || '')}/projects/${projectId}?tab=5`
+                                                                }
+                                                            });
                                                         }
                                                     }}>
                                                         <i className="ri-shield-user-line me-2"></i> {t('Permissions')}
