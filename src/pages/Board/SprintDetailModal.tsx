@@ -1,6 +1,6 @@
-import React from 'react';
-import { Modal, Button, Badge, Row, Col } from 'reactstrap';
-import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import React from "react";
+import { Modal, Button, Badge, Row, Col } from "reactstrap";
+import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
 interface Sprint {
   id: number;
@@ -8,7 +8,7 @@ interface Sprint {
   startDate?: string;
   endDate?: string;
   description?: string;
-  status: 'planned' | 'active' | 'completed' | 'cancelled' | 'paused';
+  status: "planned" | "active" | "completed" | "cancelled" | "paused";
 }
 
 interface SprintDetailModalProps {
@@ -24,27 +24,37 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
   toggle,
   sprint,
   totalTasks,
-  completedTasks
+  completedTasks,
 }) => {
   if (!sprint) return null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'success';
-      case 'completed': return 'primary';
-      case 'planned': return 'warning';
-      case 'cancelled': return 'danger';
-      case 'paused': return 'secondary';
-      default: return 'secondary';
+      case "active":
+        return "success";
+      case "completed":
+        return "primary";
+      case "planned":
+        return "warning";
+      case "cancelled":
+        return "danger";
+      case "paused":
+        return "secondary";
+      default:
+        return "secondary";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active': return <CheckCircle size={16} />;
-      case 'completed': return <CheckCircle size={16} />;
-      case 'planned': return <Clock size={16} />;
-      default: return <AlertCircle size={16} />;
+      case "active":
+        return <CheckCircle size={16} />;
+      case "completed":
+        return <CheckCircle size={16} />;
+      case "planned":
+        return <Clock size={16} />;
+      default:
+        return <AlertCircle size={16} />;
     }
   };
 
@@ -93,7 +103,10 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
         <div className="mb-4">
           <div className="d-flex align-items-center justify-content-between mb-2">
             <h4 className="mb-0">{sprint.name}</h4>
-            <Badge color={getStatusColor(sprint.status)} className="d-flex align-items-center gap-1">
+            <Badge
+              color={getStatusColor(sprint.status)}
+              className="d-flex align-items-center gap-1"
+            >
               {getStatusIcon(sprint.status)}
               {sprint.status.toUpperCase()}
             </Badge>
@@ -113,11 +126,11 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               </div>
               {sprint.startDate ? (
                 <p className="mb-0 ms-4">
-                  {new Date(sprint.startDate).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                  {new Date(sprint.startDate).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
                   })}
                 </p>
               ) : (
@@ -133,11 +146,11 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               </div>
               {sprint.endDate ? (
                 <p className="mb-0 ms-4">
-                  {new Date(sprint.endDate).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                  {new Date(sprint.endDate).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
                   })}
                 </p>
               ) : (
@@ -157,23 +170,34 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
                   <strong>Duration</strong>
                 </div>
                 <p className="mb-0 ms-4 fs-5">
-                  {duration} {duration === 1 ? 'day' : 'days'}
+                  {duration} {duration === 1 ? "day" : "days"}
                 </p>
               </div>
             </Col>
-            {sprint.status === 'active' && daysRemaining !== null && (
+            {sprint.status === "active" && daysRemaining !== null && (
               <Col md={6}>
                 <div className="border rounded p-3 bg-light">
                   <div className="d-flex align-items-center gap-2 mb-2">
-                    <AlertCircle size={18} className={daysRemaining < 0 ? 'text-danger' : 'text-warning'} />
+                    <AlertCircle
+                      size={18}
+                      className={
+                        daysRemaining < 0 ? "text-danger" : "text-warning"
+                      }
+                    />
                     <strong>Days Remaining</strong>
                   </div>
-                  <p className={`mb-0 ms-4 fs-5 ${daysRemaining < 0 ? 'text-danger' : ''}`}>
-                    {daysRemaining < 0 ? (
-                      `Overdue by ${Math.abs(daysRemaining)} ${Math.abs(daysRemaining) === 1 ? 'day' : 'days'}`
-                    ) : (
-                      `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}`
-                    )}
+                  <p
+                    className={`mb-0 ms-4 fs-5 ${
+                      daysRemaining < 0 ? "text-danger" : ""
+                    }`}
+                  >
+                    {daysRemaining < 0
+                      ? `Overdue by ${Math.abs(daysRemaining)} ${
+                          Math.abs(daysRemaining) === 1 ? "day" : "days"
+                        }`
+                      : `${daysRemaining} ${
+                          daysRemaining === 1 ? "day" : "days"
+                        }`}
                   </p>
                 </div>
               </Col>
@@ -195,7 +219,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               </div>
             </div>
           </div>
-          <div className="progress" style={{ height: '20px' }}>
+          <div className="progress" style={{ height: "20px" }}>
             <div
               className="progress-bar bg-success progress-bar-striped progress-bar-animated"
               role="progressbar"
@@ -225,7 +249,9 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
           </Col>
           <Col md={4}>
             <div className="text-center border rounded p-3">
-              <div className="fs-2 fw-bold text-warning">{totalTasks - completedTasks}</div>
+              <div className="fs-2 fw-bold text-warning">
+                {totalTasks - completedTasks}
+              </div>
               <div className="text-muted small">Remaining</div>
             </div>
           </Col>

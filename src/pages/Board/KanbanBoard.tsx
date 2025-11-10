@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   Container,
   Row,
@@ -12,9 +12,14 @@ import {
   Form,
   Spinner,
   Alert,
-} from 'reactstrap';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Check, Eye, Edit } from 'lucide-react';
+} from "reactstrap";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "react-beautiful-dnd";
+import { Check, Eye, Edit } from "lucide-react";
 import {
   getBoardByProjectId,
   createBoard,
@@ -26,20 +31,11 @@ import {
   BoardResponse,
   BoardColumnResponse,
   TaskResponse,
-} from '../../apiCaller/boards';
-import { sprintAPI } from '../../apiCaller/backlogSprint';
-import SprintDetailModal from './SprintDetailModal';
-import EditSprintModal from '../BacklogSprint/EditSprintModal';
-import './KanbanBoard.scss';
-
-/**
- * Trang Kanban Board - Giao diện chuẩn Jira
- * Features:
- * - Hiển thị board với columns động
- * - Kéo thả tasks giữa các columns
- * - Tạo/sửa/xóa columns
- * - Hiển thị tasks với priority, assignee, due date
- */
+} from "../../apiCaller/boards";
+import { sprintAPI } from "../../apiCaller/backlogSprint";
+import SprintDetailModal from "./SprintDetailModal";
+import EditSprintModal from "../BacklogSprint/EditSprintModal";
+import "../../assets/scss/pages/KanbanBoard.scss";
 
 const KanbanBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -48,13 +44,13 @@ const KanbanBoard: React.FC = () => {
   // ============= STATE =============
   const [board, setBoard] = useState<BoardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [isCompletingSprint, setIsCompletingSprint] = useState(false);
 
   // Modal states
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
-  const [newColumnName, setNewColumnName] = useState('');
-  const [newColumnColor, setNewColumnColor] = useState('#6B7280');
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnColor, setNewColumnColor] = useState("#6B7280");
 
   // Sprint modals
   const [showSprintDetailModal, setShowSprintDetailModal] = useState(false);
@@ -65,12 +61,12 @@ const KanbanBoard: React.FC = () => {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<number | null>(null);
   const [newTaskForm, setNewTaskForm] = useState({
-    title: '',
-    description: '',
-    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
-    estimatedHours: '',
-    dueDate: '',
-    tags: ''
+    title: "",
+    description: "",
+    priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+    estimatedHours: "",
+    dueDate: "",
+    tags: "",
   });
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
@@ -80,42 +76,58 @@ const KanbanBoard: React.FC = () => {
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
       const data = await getBoardByProjectId(projectId);
-      console.log('📊 Board loaded:', data);
-      console.log('📊 Active Sprint:', data.activeSprintId, data.activeSprintName);
-      console.log('📊 Total tasks:', data.columns.reduce((sum, col) => sum + col.tasks.length, 0));
-      data.columns.forEach(col => {
-        console.log(`   Column "${col.name}": ${col.tasks.length} tasks`, col.tasks.map(t => t.id));
+      console.log("📊 Board loaded:", data);
+      console.log(
+        "📊 Active Sprint:",
+        data.activeSprintId,
+        data.activeSprintName
+      );
+      console.log(
+        "📊 Total tasks:",
+        data.columns.reduce((sum, col) => sum + col.tasks.length, 0)
+      );
+      data.columns.forEach((col) => {
+        console.log(
+          `   Column "${col.name}": ${col.tasks.length} tasks`,
+          col.tasks.map((t) => t.id)
+        );
       });
       setBoard(data);
     } catch (err: any) {
       // Nếu chưa có board, tự động tạo board mặc định
       if (err?.response?.status === 404) {
         try {
-          console.log('Board not found, creating default board with 3 default columns...');
-          
+          console.log(
+            "Board not found, creating default board with 3 default columns..."
+          );
+
           const newBoard = await createBoard({
             projectId: projectId,
-            name: 'Default Board',
+            name: projectId,
             isDefault: true,
           });
-          
-          console.log('Board created successfully with default columns:', newBoard);
-          
-          // Backend đã tự động tạo 3 columns mặc định (To Do, In Progress, Done)
-          // Frontend chỉ cần load lại board
+
+          console.log(
+            "Board created successfully with default columns:",
+            newBoard
+          );
+
           const data = await getBoardByProjectId(projectId);
           setBoard(data);
         } catch (createErr: any) {
-          const errorMsg = createErr?.response?.data?.message || createErr?.message || 'Không thể tạo board mặc định';
+          const errorMsg =
+            createErr?.response?.data?.message ||
+            createErr?.message ||
+            "Không thể tạo board mặc định";
           setError(errorMsg);
-          console.error('Create default board error:', createErr);
-          console.error('Error response:', createErr?.response?.data);
+          console.error("Create default board error:", createErr);
+          console.error("Error response:", createErr?.response?.data);
         }
       } else {
-        setError(err?.response?.data?.message || 'Không thể load board');
-        console.error('Load board error:', err);
+        setError(err?.response?.data?.message || "Không thể load board");
+        console.error("Load board error:", err);
       }
     } finally {
       setLoading(false);
@@ -131,38 +143,77 @@ const KanbanBoard: React.FC = () => {
     const { source, destination, draggableId } = result;
 
     // Không có destination hoặc không di chuyển
-    if (!destination || (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    )) {
+    if (
+      !destination ||
+      (source.droppableId === destination.droppableId &&
+        source.index === destination.index)
+    ) {
       return;
     }
 
-    console.log('🎯 Drag end:', { source, destination, draggableId });
+    console.log("🎯 Drag end:", { source, destination, draggableId });
 
     // Parse IDs - Remove prefix if exists
-    const taskId = parseInt(draggableId.replace('task-', ''));
+    const taskId = parseInt(draggableId.replace("task-", ""));
     const sourceColumnId = parseInt(source.droppableId);
     const destColumnId = parseInt(destination.droppableId);
 
-    console.log('📦 Parsed IDs:', { taskId, sourceColumnId, destColumnId });
+    console.log("📦 Parsed IDs:", { taskId, sourceColumnId, destColumnId });
+
+    if (!board) return;
+
+    // 🎯 OPTIMISTIC UPDATE - Cập nhật UI ngay lập tức
+    const updatedColumns = board.columns.map((col) => {
+      // Tìm task cần di chuyển
+      const sourceColumn = board.columns.find((c) => c.id === sourceColumnId);
+      const taskToMove = sourceColumn?.tasks.find((t) => t.id === taskId);
+
+      if (!taskToMove) return col;
+
+      if (col.id === sourceColumnId) {
+        // Xóa task khỏi source column
+        return {
+          ...col,
+          tasks: col.tasks.filter((t) => t.id !== taskId),
+        };
+      } else if (col.id === destColumnId) {
+        // Thêm task vào destination column tại đúng vị trí
+        const newTasks = [...col.tasks];
+        newTasks.splice(destination.index, 0, {
+          ...taskToMove,
+          statusColumn: {
+            id: destColumnId,
+            name: col.name,
+            color: col.color,
+          },
+        });
+        return {
+          ...col,
+          tasks: newTasks,
+        };
+      }
+
+      return col;
+    });
+
+    // Update state ngay lập tức
+    setBoard({
+      ...board,
+      columns: updatedColumns,
+    });
 
     try {
-      // Gọi API để move task
-      console.log('📤 Calling moveTask API...');
+      // Gọi API để sync với backend
+      console.log("� Calling moveTask API...");
       await moveTask(projectId!, taskId, destColumnId, destination.index);
-      
-      console.log(`✅ API Success - Moved task ${taskId} from column ${sourceColumnId} to ${destColumnId}`);
-      
-      // Reload board để lấy dữ liệu mới
-      console.log('🔄 Reloading board...');
-      await loadBoard();
-      console.log('✅ Board reloaded');
+      console.log(
+        `✅ API Success - Moved task ${taskId} from column ${sourceColumnId} to ${destColumnId}`
+      );
     } catch (err: any) {
-      console.error('❌ Error moving task:', err);
-      console.error('❌ Error details:', err?.response?.data);
-      alert(err?.response?.data?.message || 'Không thể di chuyển task');
-      // Reload board để revert về trạng thái cũ
+      console.error("❌ Error moving task:", err);
+      console.error("❌ Error details:", err?.response?.data);
+      alert(err?.response?.data?.message || "Không thể di chuyển task");
+      // Revert về trạng thái cũ bằng cách reload
       await loadBoard();
     }
   };
@@ -179,17 +230,21 @@ const KanbanBoard: React.FC = () => {
       });
 
       setShowAddColumnModal(false);
-      setNewColumnName('');
-      setNewColumnColor('#6B7280');
+      setNewColumnName("");
+      setNewColumnColor("#6B7280");
       loadBoard(); // Reload board
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Không thể tạo column');
+      alert(err?.response?.data?.message || "Không thể tạo column");
     }
   };
 
   // ============= HANDLE DELETE COLUMN =============
   const handleDeleteColumn = async (columnId: number, columnName: string) => {
-    if (!window.confirm(`Xóa column "${columnName}"?\nCác tasks trong column sẽ chuyển về Unassigned.`)) {
+    if (
+      !window.confirm(
+        `Xóa column "${columnName}"?\nCác tasks trong column sẽ chuyển về Unassigned.`
+      )
+    ) {
       return;
     }
 
@@ -197,7 +252,7 @@ const KanbanBoard: React.FC = () => {
       await deleteColumn(columnId);
       loadBoard(); // Reload board
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Không thể xóa column');
+      alert(err?.response?.data?.message || "Không thể xóa column");
     }
   };
 
@@ -205,19 +260,19 @@ const KanbanBoard: React.FC = () => {
   const handleOpenAddTask = (columnId: number) => {
     setSelectedColumnId(columnId);
     setNewTaskForm({
-      title: '',
-      description: '',
-      priority: 'MEDIUM',
-      estimatedHours: '',
-      dueDate: '',
-      tags: ''
+      title: "",
+      description: "",
+      priority: "MEDIUM",
+      estimatedHours: "",
+      dueDate: "",
+      tags: "",
     });
     setShowAddTaskModal(true);
   };
 
   const handleAddTask = async () => {
     if (!projectId || !selectedColumnId || !newTaskForm.title.trim()) {
-      toast.error('Task title is required');
+      toast.error("Task title is required");
       return;
     }
 
@@ -228,25 +283,27 @@ const KanbanBoard: React.FC = () => {
         description: newTaskForm.description,
         statusColumnId: selectedColumnId,
         priority: newTaskForm.priority,
-        estimatedHours: newTaskForm.estimatedHours ? parseInt(newTaskForm.estimatedHours) : undefined,
+        estimatedHours: newTaskForm.estimatedHours
+          ? parseInt(newTaskForm.estimatedHours)
+          : undefined,
         dueDate: newTaskForm.dueDate || undefined,
         tags: newTaskForm.tags || undefined,
       });
 
-      toast.success('Task created successfully');
+      toast.success("Task created successfully");
       setShowAddTaskModal(false);
       setNewTaskForm({
-        title: '',
-        description: '',
-        priority: 'MEDIUM',
-        estimatedHours: '',
-        dueDate: '',
-        tags: ''
+        title: "",
+        description: "",
+        priority: "MEDIUM",
+        estimatedHours: "",
+        dueDate: "",
+        tags: "",
       });
       setSelectedColumnId(null);
       loadBoard(); // Reload board
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to create task');
+      toast.error(err?.response?.data?.message || "Failed to create task");
     } finally {
       setIsCreatingTask(false);
     }
@@ -260,19 +317,19 @@ const KanbanBoard: React.FC = () => {
       setIsCompletingSprint(true);
 
       // Get all tasks from board
-      const allTasks = board.columns.flatMap(col => col.tasks);
-      
+      const allTasks = board.columns.flatMap((col) => col.tasks);
+
       // Check incomplete tasks (not in DONE/COMPLETED column)
-      const incompleteTasks = allTasks.filter(task => {
-        const statusName = task.statusColumn?.name?.toUpperCase() || '';
-        return statusName !== 'DONE' && statusName !== 'COMPLETED';
+      const incompleteTasks = allTasks.filter((task) => {
+        const statusName = task.statusColumn?.name?.toUpperCase() || "";
+        return statusName !== "DONE" && statusName !== "COMPLETED";
       });
 
       if (incompleteTasks.length > 0) {
         const proceed = window.confirm(
           `This sprint has ${incompleteTasks.length} incomplete task(s). ` +
-          `These tasks will be moved back to the backlog. ` +
-          `Do you want to complete this sprint?`
+            `These tasks will be moved back to the backlog. ` +
+            `Do you want to complete this sprint?`
         );
         if (!proceed) {
           setIsCompletingSprint(false);
@@ -281,17 +338,21 @@ const KanbanBoard: React.FC = () => {
       }
 
       // Complete sprint
-      await sprintAPI.update(projectId!, board.activeSprintId, { status: 'completed' });
-      
-      toast.success('Sprint completed successfully!', { autoClose: 2000 });
-      
+      await sprintAPI.update(projectId!, board.activeSprintId, {
+        status: "completed",
+      });
+
+      toast.success("Sprint completed successfully!", { autoClose: 2000 });
+
       // Reload board (will show warning if no new active sprint)
       setTimeout(() => {
         loadBoard();
       }, 1000);
     } catch (error: any) {
-      console.error('Error completing sprint:', error);
-      toast.error(error?.response?.data?.message || 'Failed to complete sprint');
+      console.error("Error completing sprint:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to complete sprint"
+      );
     } finally {
       setIsCompletingSprint(false);
     }
@@ -300,42 +361,42 @@ const KanbanBoard: React.FC = () => {
   // ============= HANDLE SPRINT DETAIL =============
   const handleGoToSprintDetail = async () => {
     if (!board?.activeSprintId) return;
-    
+
     try {
       // Fetch sprint details from API
       const sprints = await sprintAPI.listByProject(projectId!);
-      const sprint = sprints.find(s => s.id === board.activeSprintId);
-      
+      const sprint = sprints.find((s) => s.id === board.activeSprintId);
+
       if (sprint) {
         setCurrentSprint(sprint);
         setShowSprintDetailModal(true);
       } else {
-        toast.error('Sprint not found');
+        toast.error("Sprint not found");
       }
     } catch (error) {
-      console.error('Error loading sprint:', error);
-      toast.error('Failed to load sprint details');
+      console.error("Error loading sprint:", error);
+      toast.error("Failed to load sprint details");
     }
   };
 
   // ============= HANDLE EDIT SPRINT =============
   const handleEditSprint = async () => {
     if (!board?.activeSprintId) return;
-    
+
     try {
       // Fetch sprint details from API
       const sprints = await sprintAPI.listByProject(projectId!);
-      const sprint = sprints.find(s => s.id === board.activeSprintId);
-      
+      const sprint = sprints.find((s) => s.id === board.activeSprintId);
+
       if (sprint) {
         setCurrentSprint(sprint);
         setShowEditSprintModal(true);
       } else {
-        toast.error('Sprint not found');
+        toast.error("Sprint not found");
       }
     } catch (error) {
-      console.error('Error loading sprint:', error);
-      toast.error('Failed to load sprint details');
+      console.error("Error loading sprint:", error);
+      toast.error("Failed to load sprint details");
     }
   };
 
@@ -378,7 +439,7 @@ const KanbanBoard: React.FC = () => {
   // Warning nếu không có active sprint
   if (!board.activeSprintId) {
     return (
-      <div className="page-content" style={{ paddingTop: '1rem' }}>
+      <div className="page-content" style={{ paddingTop: "1rem" }}>
         <Container fluid>
           <Alert color="warning" className="mb-3">
             <h5 className="alert-heading">
@@ -386,8 +447,9 @@ const KanbanBoard: React.FC = () => {
               No Active Sprint
             </h5>
             <p className="mb-0">
-              Board chỉ hiển thị tasks của sprint đang active. 
-              Vui lòng vào <strong>Sprint</strong> tab và set một sprint thành <strong>"Active"</strong> để xem tasks trong Board.
+              Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
+              <strong>Sprint</strong> tab và set một sprint thành{" "}
+              <strong>"Active"</strong> để xem tasks trong Board.
             </p>
           </Alert>
         </Container>
@@ -396,7 +458,7 @@ const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: '1rem' }}>
+    <div className="page-content" style={{ paddingTop: "1rem" }}>
       <Container fluid>
         {/* HEADER - Compact */}
         <Row className="mb-2">
@@ -405,7 +467,9 @@ const KanbanBoard: React.FC = () => {
               <div>
                 <h5 className="mb-1">{board.name}</h5>
                 <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted small">{board.description || 'Kanban Board'}</span>
+                  <span className="text-muted small">
+                    {board.description || ""}
+                  </span>
                   {board.activeSprintId ? (
                     <Badge color="success" className="ms-2">
                       <i className="ri-play-circle-line me-1"></i>
@@ -419,7 +483,7 @@ const KanbanBoard: React.FC = () => {
                   )}
                 </div>
               </div>
-              
+
               {/* ACTION BUTTONS */}
               <div className="d-flex gap-2">
                 {board.activeSprintId && (
@@ -434,7 +498,7 @@ const KanbanBoard: React.FC = () => {
                       <Eye size={14} className="me-1" />
                       Sprint Detail
                     </Button>
-                    
+
                     {/* Edit Sprint Button */}
                     <Button
                       color="warning"
@@ -445,7 +509,7 @@ const KanbanBoard: React.FC = () => {
                       <Edit size={14} className="me-1" />
                       Edit Sprint
                     </Button>
-                    
+
                     {/* Complete Sprint Button */}
                     <Button
                       color="success"
@@ -468,7 +532,7 @@ const KanbanBoard: React.FC = () => {
                     </Button>
                   </>
                 )}
-                
+
                 {/* Add Column Button */}
                 <Button
                   color="primary"
@@ -484,42 +548,42 @@ const KanbanBoard: React.FC = () => {
         </Row>
 
         {/* KANBAN BOARD - Horizontal Scroll */}
-        <DragDropContext 
+        <DragDropContext
           onDragEnd={handleDragEnd}
-          key={board.columns.map(c => c.id).join('-')}
+          key={board.columns.map((c) => c.id).join("-")}
         >
-          <div 
+          <div
             style={{
-              display: 'flex',
-              gap: '16px',
-              overflowX: 'auto',
-              paddingBottom: '16px',
+              display: "flex",
+              gap: "16px",
+              overflowX: "auto",
+              paddingBottom: "16px",
               // Custom scrollbar
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#888 #f1f1f1',
+              scrollbarWidth: "thin",
+              scrollbarColor: "#888 #f1f1f1",
             }}
             className="kanban-board-container"
           >
             {board.columns.map((column) => (
-              <div 
+              <div
                 key={`column-${column.id}`}
                 style={{
-                  minWidth: '320px',
-                  maxWidth: '320px',
-                  flexShrink: 0
+                  minWidth: "320px",
+                  maxWidth: "320px",
+                  flexShrink: 0,
                 }}
               >
                 <Card className="h-100">
                   {/* COLUMN HEADER */}
                   <div
                     className="card-header d-flex justify-content-between align-items-center"
-                    style={{ backgroundColor: column.color, color: '#fff' }}
+                    style={{ backgroundColor: column.color, color: "#fff" }}
                   >
                     <div>
-                      <h5 className="mb-0" style={{ color: '#fff' }}>
+                      <h5 className="mb-0" style={{ color: "#fff" }}>
                         {column.name}
                       </h5>
-                      <small style={{ color: '#f0f0f0' }}>
+                      <small style={{ color: "#f0f0f0" }}>
                         {column.tasks.length} tasks
                       </small>
                     </div>
@@ -541,10 +605,12 @@ const KanbanBoard: React.FC = () => {
                         {...provided.droppableProps}
                         className="card-body"
                         style={{
-                          minHeight: '500px',
-                          maxHeight: '70vh',
-                          overflowY: 'auto',
-                          backgroundColor: snapshot.isDraggingOver ? '#f8f9fa' : '#fff',
+                          minHeight: "500px",
+                          maxHeight: "70vh",
+                          overflowY: "auto",
+                          backgroundColor: snapshot.isDraggingOver
+                            ? "#f8f9fa"
+                            : "#fff",
                         }}
                       >
                         {/* TASKS */}
@@ -566,17 +632,20 @@ const KanbanBoard: React.FC = () => {
                                   {...provided.dragHandleProps}
                                   style={{
                                     ...provided.draggableProps.style,
-                                    marginBottom: '12px',
+                                    marginBottom: "12px",
                                   }}
                                 >
-                                  <TaskCard task={task} isDragging={snapshot.isDragging} />
+                                  <TaskCard
+                                    task={task}
+                                    isDragging={snapshot.isDragging}
+                                  />
                                 </div>
                               )}
                             </Draggable>
                           ))
                         )}
                         {provided.placeholder}
-                        
+
                         {/* ADD TASK BUTTON */}
                         <Button
                           color="light"
@@ -597,7 +666,10 @@ const KanbanBoard: React.FC = () => {
         </DragDropContext>
 
         {/* MODAL ADD COLUMN */}
-        <Modal isOpen={showAddColumnModal} toggle={() => setShowAddColumnModal(false)}>
+        <Modal
+          isOpen={showAddColumnModal}
+          toggle={() => setShowAddColumnModal(false)}
+        >
           <div className="modal-header">
             <h5 className="modal-title">Thêm Column Mới</h5>
             <button
@@ -640,7 +712,11 @@ const KanbanBoard: React.FC = () => {
         </Modal>
 
         {/* Modal for creating task */}
-        <Modal isOpen={showAddTaskModal} toggle={() => setShowAddTaskModal(false)} size="lg">
+        <Modal
+          isOpen={showAddTaskModal}
+          toggle={() => setShowAddTaskModal(false)}
+          size="lg"
+        >
           <div className="modal-header">
             <h5 className="modal-title">Create New Task</h5>
             <button
@@ -657,7 +733,9 @@ const KanbanBoard: React.FC = () => {
                   type="text"
                   className="form-control"
                   value={newTaskForm.title}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  onChange={(e) =>
+                    setNewTaskForm({ ...newTaskForm, title: e.target.value })
+                  }
                   placeholder="e.g., Implement user authentication"
                   autoFocus
                 />
@@ -669,7 +747,12 @@ const KanbanBoard: React.FC = () => {
                   className="form-control"
                   rows={4}
                   value={newTaskForm.description}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewTaskForm({
+                      ...newTaskForm,
+                      description: e.target.value,
+                    })
+                  }
                   placeholder="Describe the task in detail..."
                 ></textarea>
               </div>
@@ -681,10 +764,16 @@ const KanbanBoard: React.FC = () => {
                     <select
                       className="form-select"
                       value={newTaskForm.priority}
-                      onChange={(e) => setNewTaskForm({ 
-                        ...newTaskForm, 
-                        priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-                      })}
+                      onChange={(e) =>
+                        setNewTaskForm({
+                          ...newTaskForm,
+                          priority: e.target.value as
+                            | "LOW"
+                            | "MEDIUM"
+                            | "HIGH"
+                            | "URGENT",
+                        })
+                      }
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -702,7 +791,12 @@ const KanbanBoard: React.FC = () => {
                       min="0"
                       placeholder="e.g., 8"
                       value={newTaskForm.estimatedHours}
-                      onChange={(e) => setNewTaskForm({ ...newTaskForm, estimatedHours: e.target.value })}
+                      onChange={(e) =>
+                        setNewTaskForm({
+                          ...newTaskForm,
+                          estimatedHours: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -714,7 +808,9 @@ const KanbanBoard: React.FC = () => {
                   type="date"
                   className="form-control"
                   value={newTaskForm.dueDate}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, dueDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewTaskForm({ ...newTaskForm, dueDate: e.target.value })
+                  }
                 />
               </div>
 
@@ -725,18 +821,29 @@ const KanbanBoard: React.FC = () => {
                   className="form-control"
                   placeholder="frontend, api, bug-fix (comma separated)"
                   value={newTaskForm.tags}
-                  onChange={(e) => setNewTaskForm({ ...newTaskForm, tags: e.target.value })}
+                  onChange={(e) =>
+                    setNewTaskForm({ ...newTaskForm, tags: e.target.value })
+                  }
                 />
-                <small className="text-muted">Separate multiple tags with commas</small>
+                <small className="text-muted">
+                  Separate multiple tags with commas
+                </small>
               </div>
             </Form>
           </div>
           <div className="modal-footer">
-            <Button color="secondary" onClick={() => setShowAddTaskModal(false)}>
+            <Button
+              color="secondary"
+              onClick={() => setShowAddTaskModal(false)}
+            >
               Cancel
             </Button>
-            <Button color="primary" onClick={handleAddTask} disabled={!newTaskForm.title.trim() || isCreatingTask}>
-              {isCreatingTask ? 'Creating...' : 'Create Task'}
+            <Button
+              color="primary"
+              onClick={handleAddTask}
+              disabled={!newTaskForm.title.trim() || isCreatingTask}
+            >
+              {isCreatingTask ? "Creating..." : "Create Task"}
             </Button>
           </div>
         </Modal>
@@ -749,11 +856,17 @@ const KanbanBoard: React.FC = () => {
           setShowEditSprintModal={setShowEditSprintModal}
           currentSprint={currentSprint}
           projectId={projectId!}
-          totalTasks={board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}
+          totalTasks={board.columns.reduce(
+            (sum, col) => sum + col.tasks.length,
+            0
+          )}
           completedTasks={board.columns
-            .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
-            .reduce((sum, col) => sum + col.tasks.length, 0)
-          }
+            .filter(
+              (col) =>
+                col.name.toUpperCase() === "DONE" ||
+                col.name.toUpperCase() === "COMPLETED"
+            )
+            .reduce((sum, col) => sum + col.tasks.length, 0)}
           handleEditSprintSuccess={handleEditSprintSuccess}
         />
       </Container>
@@ -770,25 +883,25 @@ interface TaskCardProps {
 const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
-      case 'URGENT':
-        return 'danger';
-      case 'HIGH':
-        return 'warning';
-      case 'MEDIUM':
-        return 'info';
-      case 'LOW':
-        return 'secondary';
+      case "URGENT":
+        return "danger";
+      case "HIGH":
+        return "warning";
+      case "MEDIUM":
+        return "info";
+      case "LOW":
+        return "secondary";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
 
   return (
     <Card
-      className={`mb-0 shadow-sm ${isDragging ? 'shadow-lg' : ''}`}
+      className={`mb-0 shadow-sm ${isDragging ? "shadow-lg" : ""}`}
       style={{
-        border: isDragging ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-        cursor: 'grab',
+        border: isDragging ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+        cursor: "grab",
       }}
     >
       <div className="card-body p-3">
@@ -800,10 +913,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
           <p
             className="card-text text-muted small mb-2"
             style={{
-              display: '-webkit-box',
+              display: "-webkit-box",
               WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {task.description}
@@ -830,16 +943,16 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
             <div
               className="avatar-xs"
               style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                backgroundColor: '#3b82f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 'bold',
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                backgroundColor: "#3b82f6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: "bold",
               }}
             >
               {task.assigneeId.charAt(0).toUpperCase()}
@@ -851,7 +964,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, isDragging }) => {
         {task.dueDate && (
           <div className="mt-2 text-muted small">
             <i className="ri-calendar-line me-1"></i>
-            {new Date(task.dueDate).toLocaleDateString('vi-VN')}
+            {new Date(task.dueDate).toLocaleDateString("vi-VN")}
           </div>
         )}
       </div>
@@ -879,7 +992,7 @@ const Modals: React.FC<{
   projectId,
   totalTasks,
   completedTasks,
-  handleEditSprintSuccess
+  handleEditSprintSuccess,
 }) => (
   <>
     {/* Sprint Detail Modal */}

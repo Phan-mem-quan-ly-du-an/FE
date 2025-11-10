@@ -907,6 +907,16 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                           </Dropdown.Toggle>
                           <Dropdown.Menu>
                             <Dropdown.Item 
+                              onClick={() => {
+                                setEditingSprint(sprint);
+                                setEditSprintFocusDates(false);
+                                setShowEditSprint(true);
+                              }}
+                            >
+                              <i className="ri-edit-line me-2"></i>
+                              Edit Sprint
+                            </Dropdown.Item>
+                            <Dropdown.Item 
                               onClick={() => handleDeleteSprint(sprint.id)}
                               className="text-danger"
                             >
