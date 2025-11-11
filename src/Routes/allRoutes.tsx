@@ -9,6 +9,7 @@ import WorkspaceList from '../pages/Workspace/WorkspaceList';
 import ProjectDetail from "../pages/ProjectsDetails";
 import WorkspaceDetail from "../pages/WorkspaceDetails";
 import EditWorkspaceRolePermissionPage from '../pages/WorkspaceDetails/Roles/EditRolePermissionPage';
+import EditProjectRolePermissionPage from '../pages/ProjectsDetails/Roles/EditProjectRolePermissionPage';
 
 export type AuthRoute = {
     path: string;
@@ -30,6 +31,7 @@ const authProtectedRoutes: AuthRoute[] = [
     {path: '/companies/:companyId/projects/:projectId', component: <ProjectDetail/> },
     {path: '/workspaces/:workspaceId', component: <WorkspaceDetail/> },
     {path: '/workspaces/:workspaceId/roles/:roleId/permissions', component: <EditWorkspaceRolePermissionPage/>},
+    {path: '/projects/:projectId/roles/:roleId/permissions', component: <EditProjectRolePermissionPage/>},
 ];
 
 const publicRoutes = [];

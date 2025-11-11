@@ -23,6 +23,8 @@ import { useTranslation } from 'react-i18next';
 
 import OverviewTab from './OverviewTab';
 import SprintTab from './SprintTab';
+import RoleTab from './RoleTab';
+import TeamTab from './TeamTab';
 
 const Section = () => {
     const { t } = useTranslation();
@@ -203,6 +205,15 @@ const Section = () => {
                                             {t('Team')}
                                         </NavLink>
                                     </NavItem>
+                                    <NavItem>
+                                        <NavLink
+                                            className={classnames({ active: activeTab === '5' }, 'fw-semibold')}
+                                            onClick={() => toggleTab('5')}
+                                            href="#"
+                                        >
+                                            {t('Roles')}
+                                        </NavLink>
+                                    </NavItem>
                                 </Nav>
                             </CardBody>
                         </div>
@@ -227,10 +238,10 @@ const Section = () => {
                             </div>
                         </TabPane>
                         <TabPane tabId="4">
-                            <div className="py-4 text-center">
-                                <i className="ri-team-line fs-1 text-muted"></i>
-                                <p className="text-muted mt-2">Team management coming soon...</p>
-                            </div>
+                            <TeamTab />
+                        </TabPane>
+                        <TabPane tabId="5">
+                            <RoleTab />
                         </TabPane>
                     </TabContent>
                 </Col>

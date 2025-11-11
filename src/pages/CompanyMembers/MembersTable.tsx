@@ -29,7 +29,7 @@ export default function MembersTable({
 }: MembersTableProps) {
     const { t } = useTranslation();
 
-    // State mới để quản lý dropdown
+    // State mới để quản lý dropdownFF
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
     // Hàm để bật/tắt dropdown cho từng dòng
@@ -143,7 +143,7 @@ export default function MembersTable({
     },
 ],
         // Cập nhật mảng phụ thuộc
-        [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, onAssignRole, t, openDropdownId, toggleDropdown]
+                [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, onAssignRole, t, openDropdownId, toggleDropdown, roles]
     );
 
     return (

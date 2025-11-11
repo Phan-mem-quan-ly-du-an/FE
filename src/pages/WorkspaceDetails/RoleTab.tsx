@@ -10,7 +10,7 @@ const RoleTab: React.FC = () => {
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    
+
     const [showCreate, setShowCreate] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
     const [editingRole, setEditingRole] = useState<WorkspaceRole | null>(null);
@@ -91,12 +91,12 @@ const RoleTab: React.FC = () => {
             cell: ({ row }: any) => {
                 const role: WorkspaceRole = row.original;
                 return (
-                    <Dropdown 
-                        isOpen={openDropdownId === role.id} 
+                    <Dropdown
+                        isOpen={openDropdownId === role.id}
                         toggle={() => toggleDropdown(role.id)}
                     >
-                        <DropdownToggle 
-                            tag="button" 
+                        <DropdownToggle
+                            tag="button"
                             className="btn btn-ghost-secondary btn-icon btn-sm"
                             title="More options"
                         >
@@ -108,7 +108,13 @@ const RoleTab: React.FC = () => {
                             </DropdownItem>
                             <DropdownItem onClick={() => {
                                 if (workspaceId) {
-                                    navigate(`/workspaces/${workspaceId}/roles/${role.id}/permissions`);
+                                    navigate(`/workspaces/${workspaceId}/roles/${role.id}/permissions`, {
+                                        state: {
+                                            roleName: role.name,
+                                            roleCode: role.code,
+                                            backTo: `/workspaces/${workspaceId}?tab=4`
+                                        }
+                                    });
                                 }
                             }}>
                                 <i className="ri-shield-user-line me-2"></i> Permissions
@@ -164,52 +170,58 @@ const RoleTab: React.FC = () => {
                     ) : (
                         <Table className="table-nowrap align-middle mb-0">
                             <thead className="table-light">
-                                <tr>
-                                    {columns.map(column => (
-                                        <th key={column.header}>{column.header}</th>
-                                    ))}
-                                </tr>
+                            <tr>
+                                {columns.map(column => (
+                                    <th key={column.header}>{column.header}</th>
+                                ))}
+                            </tr>
                             </thead>
                             <tbody>
-                                {roles.map((role, index) => (
-                                    <tr key={role.id}>
-                                        <td className="text-muted">{index + 1}</td>
-                                        <td>
-                                            <div className="fw-semibold">{role.name || '—'}</div>
-                                            {role.code && <div className="text-muted small">{role.code}</div>}
-                                        </td>
-                                        <td className="text-muted">{role.description || '—'}</td>
-                                        <td>
-                                            <Dropdown 
-                                                isOpen={openDropdownId === role.id} 
-                                                toggle={() => toggleDropdown(role.id)}
+                            {roles.map((role, index) => (
+                                <tr key={role.id}>
+                                    <td className="text-muted">{index + 1}</td>
+                                    <td>
+                                        <div className="fw-semibold">{role.name || '—'}</div>
+                                        {role.code && <div className="text-muted small">{role.code}</div>}
+                                    </td>
+                                    <td className="text-muted">{role.description || '—'}</td>
+                                    <td>
+                                        <Dropdown
+                                            isOpen={openDropdownId === role.id}
+                                            toggle={() => toggleDropdown(role.id)}
+                                        >
+                                            <DropdownToggle
+                                                tag="button"
+                                                className="btn btn-ghost-secondary btn-icon btn-sm"
                                             >
-                                                <DropdownToggle 
-                                                    tag="button" 
-                                                    className="btn btn-ghost-secondary btn-icon btn-sm"
-                                                >
-                                                    <i className="ri-more-2-fill fs-16"></i>
-                                                </DropdownToggle>
-                                                <DropdownMenu>
-                                                    <DropdownItem onClick={() => handleEdit(role)}>
-                                                        <i className="ri-edit-2-line me-2"></i> Edit
-                                                    </DropdownItem>
-                                                    <DropdownItem onClick={() => {
-                                                        if (workspaceId) {
-                                                            navigate(`/workspaces/${workspaceId}/roles/${role.id}/permissions`);
-                                                        }
-                                                    }}>
-                                                        <i className="ri-shield-user-line me-2"></i> Permissions
-                                                    </DropdownItem>
-                                                    <DropdownItem divider />
-                                                    <DropdownItem onClick={() => handleDelete(role)} className="text-danger">
-                                                        <i className="ri-delete-bin-5-line me-2"></i> Delete
-                                                    </DropdownItem>
-                                                </DropdownMenu>
-                                            </Dropdown>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                <i className="ri-more-2-fill fs-16"></i>
+                                            </DropdownToggle>
+                                            <DropdownMenu>
+                                                <DropdownItem onClick={() => handleEdit(role)}>
+                                                    <i className="ri-edit-2-line me-2"></i> Edit
+                                                </DropdownItem>
+                                                <DropdownItem onClick={() => {
+                                                    if (workspaceId) {
+                                                        navigate(`/workspaces/${workspaceId}/roles/${role.id}/permissions`, {
+                                                            state: {
+                                                                roleName: role.name,
+                                                                roleCode: role.code,
+                                                                backTo: `/workspaces/${workspaceId}?tab=4`
+                                                            }
+                                                        });
+                                                    }
+                                                }}>
+                                                    <i className="ri-shield-user-line me-2"></i> Permissions
+                                                </DropdownItem>
+                                                <DropdownItem divider />
+                                                <DropdownItem onClick={() => handleDelete(role)} className="text-danger">
+                                                    <i className="ri-delete-bin-5-line me-2"></i> Delete
+                                                </DropdownItem>
+                                            </DropdownMenu>
+                                        </Dropdown>
+                                    </td>
+                                </tr>
+                            ))}
                             </tbody>
                         </Table>
                     )}

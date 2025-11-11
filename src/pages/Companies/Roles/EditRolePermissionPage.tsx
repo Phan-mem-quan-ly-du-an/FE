@@ -63,9 +63,8 @@ export default function EditRolePermissionPage() {
     const roleCode = initialRole.code || roleQuery.data?.code || "";
     const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
 
-    // ✅ Check nếu là role mặc định (Admin / Member)
-    const isDefaultRole =
-        roleCode?.toLowerCase() === "admin" || roleCode?.toLowerCase() === "member";
+    // ✅ Check nếu là role mặc định: chỉ Admin
+    const isDefaultRole = roleCode?.toLowerCase() === "admin";
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
