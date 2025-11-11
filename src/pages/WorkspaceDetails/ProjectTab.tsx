@@ -303,6 +303,8 @@ const ProjectTab: React.FC = () => {
                 onCreated={() => {
                     queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
                 }}
+                defaultWorkspaceId={workspaceId}
+                companyIdOverride={workspace?.companyId || companyId}
             />
             <Card>
                 <CardHeader>
