@@ -82,6 +82,11 @@ const KanbanBoard: React.FC = () => {
   ]);
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
+  // Filter states
+  const [filterAssignee, setFilterAssignee] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   // ============= LOAD PROJECT MEMBERS =============
   const loadProjectMembers = async () => {
     if (!projectId) return;
@@ -168,6 +173,29 @@ const KanbanBoard: React.FC = () => {
     loadBoard();
     loadProjectMembers();
   }, [projectId]);
+
+  // ============= FILTER TASKS =============
+  const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
+    return tasks.filter((task) => {
+      // Filter by assignee
+      if (filterAssignee !== "all") {
+        if (filterAssignee === "unassigned") {
+          if (task.assigneeId) return false;
+        } else {
+          if (task.assigneeId !== filterAssignee) return false;
+        }
+      }
+
+      // Filter by priority
+      if (filterPriority !== "all") {
+        if (task.priority?.toUpperCase() !== filterPriority.toUpperCase()) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  };
 
   // ============= HANDLE DRAG & DROP =============
   const handleDragEnd = async (result: DropResult) => {
@@ -606,6 +634,119 @@ const KanbanBoard: React.FC = () => {
                   </>
                 )}
 
+                {/* Filter Button with Dropdown */}
+                <Dropdown isOpen={isFilterOpen} toggle={() => setIsFilterOpen(!isFilterOpen)}>
+                  <DropdownToggle caret color="light" size="sm">
+                    <i className="ri-filter-line me-1"></i>
+                    Filter
+                    {(filterAssignee !== "all" || filterPriority !== "all") && (
+                      <Badge color="primary" className="ms-1" pill>
+                        {(filterAssignee !== "all" ? 1 : 0) + (filterPriority !== "all" ? 1 : 0)}
+                      </Badge>
+                    )}
+                  </DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '280px' }}>
+                    <div className="px-3 py-2">
+                      <h6 className="mb-2">
+                        <i className="ri-user-line me-1"></i>
+                        Assignee
+                      </h6>
+                      <div className="d-flex flex-wrap gap-1 mb-3">
+                        <Button
+                          color={filterAssignee === "all" ? "primary" : "light"}
+                          size="sm"
+                          onClick={() => setFilterAssignee("all")}
+                        >
+                          All
+                        </Button>
+                        <Button
+                          color={filterAssignee === "unassigned" ? "primary" : "light"}
+                          size="sm"
+                          onClick={() => setFilterAssignee("unassigned")}
+                        >
+                          Unassigned
+                        </Button>
+                      </div>
+                      <div className="d-flex flex-column gap-1 mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {projectMembers.filter(m => m.userId !== 'unassigned').map((member) => (
+                          <Button
+                            key={member.userId}
+                            color={filterAssignee === member.userId ? "primary" : "light"}
+                            size="sm"
+                            onClick={() => setFilterAssignee(member.userId)}
+                            className="text-start"
+                          >
+                            {member.email || member.displayName}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <DropdownItem divider />
+
+                      <h6 className="mb-2 mt-2">
+                        <i className="ri-price-tag-3-line me-1"></i>
+                        Priority
+                      </h6>
+                      <div className="d-flex flex-wrap gap-1">
+                        <Button
+                          color={filterPriority === "all" ? "primary" : "light"}
+                          size="sm"
+                          onClick={() => setFilterPriority("all")}
+                        >
+                          All
+                        </Button>
+                        <Button
+                          color={filterPriority === "URGENT" ? "danger" : "light"}
+                          size="sm"
+                          onClick={() => setFilterPriority("URGENT")}
+                        >
+                          URGENT
+                        </Button>
+                        <Button
+                          color={filterPriority === "HIGH" ? "warning" : "light"}
+                          size="sm"
+                          onClick={() => setFilterPriority("HIGH")}
+                        >
+                          HIGH
+                        </Button>
+                        <Button
+                          color={filterPriority === "MEDIUM" ? "info" : "light"}
+                          size="sm"
+                          onClick={() => setFilterPriority("MEDIUM")}
+                        >
+                          MEDIUM
+                        </Button>
+                        <Button
+                          color={filterPriority === "LOW" ? "secondary" : "light"}
+                          size="sm"
+                          onClick={() => setFilterPriority("LOW")}
+                        >
+                          LOW
+                        </Button>
+                      </div>
+
+                      {(filterAssignee !== "all" || filterPriority !== "all") && (
+                        <>
+                          <DropdownItem divider />
+                          <Button
+                            color="danger"
+                            size="sm"
+                            outline
+                            className="w-100"
+                            onClick={() => {
+                              setFilterAssignee("all");
+                              setFilterPriority("all");
+                            }}
+                          >
+                            <i className="ri-close-line me-1"></i>
+                            Clear All Filters
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </DropdownMenu>
+                </Dropdown>
+
                 {/* Add Column Button */}
                 <Button
                   color="primary"
@@ -687,40 +828,43 @@ const KanbanBoard: React.FC = () => {
                         }}
                       >
                         {/* TASKS */}
-                        {column.tasks.length === 0 ? (
-                          <p className="text-muted text-center mt-4">
-                            Chưa có task nào
-                          </p>
-                        ) : (
-                          column.tasks.map((task, index) => (
-                            <Draggable
-                              key={`task-${task.id}`}
-                              draggableId={`task-${task.id}`}
-                              index={index}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  style={{
-                                    ...provided.draggableProps.style,
-                                    marginBottom: "12px",
-                                  }}
-                                >
-                                  <TaskCard
-                                    task={task}
-                                    isDragging={snapshot.isDragging}
-                                    projectMembers={projectMembers}
-                                    openAssigneeDropdown={openAssigneeDropdown}
-                                    setOpenAssigneeDropdown={setOpenAssigneeDropdown}
-                                    onAssigneeChange={handleAssigneeChange}
-                                  />
-                                </div>
-                              )}
-                            </Draggable>
-                          ))
-                        )}
+                        {(() => {
+                          const filteredTasks = filterTasks(column.tasks);
+                          return filteredTasks.length === 0 ? (
+                            <p className="text-muted text-center mt-4">
+                              {column.tasks.length === 0 ? "Chưa có task nào" : "Không có task phù hợp với bộ lọc"}
+                            </p>
+                          ) : (
+                            filteredTasks.map((task, index) => (
+                              <Draggable
+                                key={`task-${task.id}`}
+                                draggableId={`task-${task.id}`}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={{
+                                      ...provided.draggableProps.style,
+                                      marginBottom: "12px",
+                                    }}
+                                  >
+                                    <TaskCard
+                                      task={task}
+                                      isDragging={snapshot.isDragging}
+                                      projectMembers={projectMembers}
+                                      openAssigneeDropdown={openAssigneeDropdown}
+                                      setOpenAssigneeDropdown={setOpenAssigneeDropdown}
+                                      onAssigneeChange={handleAssigneeChange}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))
+                          );
+                        })()}
                         {provided.placeholder}
 
                         {/* ADD TASK BUTTON */}
