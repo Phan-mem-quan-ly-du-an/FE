@@ -399,9 +399,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         }
       }
 
-      // Now update backend
+      // Now update backend - Send only necessary fields to avoid conflicts
       await taskAPI.update(projectId, taskId, {
-        ...task,
         sprintId: destSprintId,
         orderIndex: destination.index
       });
