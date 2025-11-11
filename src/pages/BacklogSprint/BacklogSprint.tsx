@@ -19,7 +19,7 @@ interface Task {
   projectId: string;
   sprintId?: number | null;
   assignedTo?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string;
   estimatedHours?: number;
   tags?: string;
@@ -573,7 +573,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'URGENT': return 'danger';
       case 'HIGH': return 'warning';
       case 'MEDIUM': return 'info';
       case 'LOW': return 'secondary';

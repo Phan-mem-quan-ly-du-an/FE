@@ -21,7 +21,7 @@ interface Task {
   projectId: string;
   sprintId?: number | null;
   assignedTo?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string;
   estimatedHours?: number;
   tags?: string;

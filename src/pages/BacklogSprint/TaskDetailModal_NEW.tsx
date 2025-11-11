@@ -11,7 +11,7 @@ interface Task {
   projectId: string;
   sprintId?: number | null;
   assignedTo?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string;
   estimatedHours?: number;
   tags?: string;
@@ -163,7 +163,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const getPriorityBadgeColor = (priority: string) => {
     switch (priority) {
-      case 'URGENT': return 'danger';
       case 'HIGH': return 'warning';
       case 'MEDIUM': return 'info';
       case 'LOW': return 'secondary';
@@ -256,7 +255,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
                 </Form.Select>
               </div>
 

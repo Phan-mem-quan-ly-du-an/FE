@@ -69,7 +69,7 @@ const KanbanBoard: React.FC = () => {
   const [newTaskForm, setNewTaskForm] = useState({
     title: "",
     description: "",
-    priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+    priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH",
     estimatedHours: "",
     dueDate: "",
     tags: "",
@@ -696,13 +696,6 @@ const KanbanBoard: React.FC = () => {
                           All
                         </Button>
                         <Button
-                          color={filterPriority === "URGENT" ? "danger" : "light"}
-                          size="sm"
-                          onClick={() => setFilterPriority("URGENT")}
-                        >
-                          URGENT
-                        </Button>
-                        <Button
                           color={filterPriority === "HIGH" ? "warning" : "light"}
                           size="sm"
                           onClick={() => setFilterPriority("HIGH")}
@@ -991,15 +984,13 @@ const KanbanBoard: React.FC = () => {
                           priority: e.target.value as
                             | "LOW"
                             | "MEDIUM"
-                            | "HIGH"
-                            | "URGENT",
+                            | "HIGH",
                         })
                       }
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
                       <option value="HIGH">High</option>
-                      <option value="URGENT">Urgent</option>
                     </select>
                   </div>
                 </div>
@@ -1120,8 +1111,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
-      case "URGENT":
-        return "danger";
       case "HIGH":
         return "warning";
       case "MEDIUM":

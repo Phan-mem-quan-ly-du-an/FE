@@ -21,7 +21,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
     estimatedHours: '',
     dueDate: '',
     tags: ''
@@ -123,7 +123,6 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
                 </Form.Select>
               </Form.Group>
             </div>
