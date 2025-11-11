@@ -1,13 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Table, Spinner, Badge, Card, CardBody, CardHeader, Button } from 'reactstrap';
-import { useQuery } from '@tanstack/react-query';
+import {
+    Table,
+    Spinner,
+    Badge,
+    Card,
+    CardBody,
+    CardHeader,
+    Button,
+    Col
+} from 'reactstrap';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ToastContainer, toast } from 'react-toastify';
 import { getProjectsByWorkspaceId, Project } from '../../apiCaller/workspaceDetails';
 import { getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
+import { deleteProject } from '../../apiCaller/projects';
+import slack from '../../assets/images/brands/slack.png';
+import dribbble from '../../assets/images/brands/dribbble.png';
+import mailChimp from '../../assets/images/brands/mail_chimp.png';
+import dropbox from '../../assets/images/brands/dropbox.png';
+import FeatherIcon from 'feather-icons-react';
+import DeleteModal from '../ProjectList/DeleteModal';
+import EditProjectModal from '../ProjectList/EditProjectModal';
+import CreateProjectModal from '../ProjectList/CreateProjectModal';
 
 const ProjectTab: React.FC = () => {
     const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
-    
+    const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
+    const [deleteModal, setDeleteModal] = useState<boolean>(false);
+    const [editModal, setEditModal] = useState<boolean>(false);
+    const [createModal, setCreateModal] = useState<boolean>(false);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const queryClient = useQueryClient();
+
     const {
         data: projects = [],
         isLoading,
@@ -24,6 +49,44 @@ const ProjectTab: React.FC = () => {
         enabled: !!workspaceId,
         staleTime: 60_000,
     });
+
+    const imageMap = [slack, dribbble, mailChimp, dropbox];
+
+    const getProjectImage = (index: number) => imageMap[index % imageMap.length];
+    const getProjectColor = (project: Project) => project.color || '#3b82f6';
+
+    const deleteProjectMutation = useMutation({
+        mutationFn: (projectId: string) => deleteProject(projectId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
+            setDeleteModal(false);
+            toast.success('Project deleted successfully');
+        },
+        onError: (err: unknown) => {
+            console.error('Error deleting project:', err);
+            toast.error('Failed to delete project');
+        }
+    });
+
+    const onClickDelete = (project: Project) => {
+        setSelectedProject(project);
+        setDeleteModal(true);
+    };
+
+    const onClickEdit = (project: Project) => {
+        setSelectedProject(project);
+        setEditModal(true);
+    };
+
+    const handleCreateProject = () => {
+        setCreateModal(true);
+    };
+
+    const handleDeleteProject = () => {
+        if (selectedProject) {
+            deleteProjectMutation.mutate(selectedProject.id);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -58,67 +121,220 @@ const ProjectTab: React.FC = () => {
         );
     }
 
+    const renderCardView = () => (
+        <div className="row">
+            {projects.map((project, index) => (
+                <Col xxl={3} sm={6} key={project.id} className="project-card">
+                    <Card className="card-height-100">
+                        <CardBody>
+                            <div className="d-flex flex-column h-100">
+                                <div className="d-flex">
+                                    <div className="flex-grow-1"></div>
+                                    <div className="flex-shrink-0">
+                                        <div className="d-flex gap-1 align-items-center">
+                                            <Link
+                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                state={{ companyId: workspace?.companyId || companyId }}
+                                                className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15"
+                                            >
+                                                <FeatherIcon icon="more-horizontal" className="icon-sm"/>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="d-flex mb-2">
+                                    <div className="flex-shrink-0 me-3">
+                                        <div className="avatar-sm">
+                                            <span
+                                                className="avatar-title rounded p-2"
+                                                style={{ backgroundColor: getProjectColor(project) }}
+                                            >
+                                              <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-grow-1">
+                                        <div className="d-flex align-items-center mb-1">
+                                            <h5 className="mb-0 fs-15 me-2">
+                                                <Link
+                                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                    state={{ companyId: workspace?.companyId || companyId }}
+                                                    className="text-dark"
+                                                >
+                                                    {project.name}
+                                                </Link>
+                                            </h5>
+                                            {project.archivedAt ? (
+                                                <Badge color="secondary" className="badge-soft-secondary">Archived</Badge>
+                                            ) : (
+                                                <Badge color="success" className="badge-soft-success">Active</Badge>
+                                            )}
+                                        </div>
+                                        <p className="text-muted text-truncate-two-lines mb-3">
+                                            {project.description || 'No description'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardBody>
+                        <div className="card-footer bg-transparent border-top-dashed py-2">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-grow-1"></div>
+                                <div className="flex-shrink-0">
+                                    <div className="text-muted">
+                                        <i className="ri-calendar-event-fill me-1 align-bottom"></i>
+                                        {new Date(project.createdAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </Col>
+            ))}
+        </div>
+    );
+
+    const renderListView = () => (
+        <div className="table-responsive">
+            <Table className="table-nowrap align-middle mb-0">
+                <thead className="table-light">
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Created At</th>
+                    <th scope="col">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {projects.map((project, index) => (
+                    <tr key={project.id}>
+                        <td>
+                            <div className="d-flex align-items-center">
+                                <div className="avatar-sm me-2">
+                                        <span
+                                            className="avatar-title rounded p-1"
+                                            style={{ backgroundColor: getProjectColor(project) }}
+                                        >
+                                            <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
+                                        </span>
+                                </div>
+                                <Link
+                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                    state={{ companyId: workspace?.companyId || companyId }}
+                                    className="fw-semibold link-primary"
+                                >
+                                    {project.name}
+                                </Link>
+                            </div>
+                        </td>
+                        <td className="text-muted">
+                            {project.description || 'No description'}
+                        </td>
+                        <td>
+                            {project.archivedAt ? (
+                                <Badge color="secondary">Archived</Badge>
+                            ) : (
+                                <Badge color="success">Active</Badge>
+                            )}
+                        </td>
+                        <td>{new Date(project.createdAt).toLocaleDateString()}</td>
+                        <td>
+                            <div className="hstack gap-3 flex-wrap">
+                                <Link
+                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                    state={{ companyId: workspace?.companyId || companyId }}
+                                    className="link-success fs-15"
+                                    title="View"
+                                >
+                                    <i className="ri-eye-line"></i>
+                                </Link>
+                                <Link
+                                    to="#"
+                                    className="link-primary fs-15"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onClickEdit(project);
+                                    }}
+                                    title="Edit"
+                                >
+                                    <i className="ri-pencil-line"></i>
+                                </Link>
+                                <Link
+                                    to="#"
+                                    className="link-danger fs-15"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onClickDelete(project);
+                                    }}
+                                    title="Delete"
+                                >
+                                    <i className="ri-delete-bin-line"></i>
+                                </Link>
+                            </div>
+                        </td>
+                    </tr>
+                ))}
+                </tbody>
+            </Table>
+        </div>
+    );
+
     return (
         <div className="px-4 py-4">
+            <ToastContainer closeButton={false} />
+            <DeleteModal
+                show={deleteModal}
+                onDeleteClick={handleDeleteProject}
+                onCloseClick={() => setDeleteModal(false)}
+                isLoading={deleteProjectMutation.isPending}
+            />
+            <EditProjectModal
+                open={editModal}
+                onClose={() => setEditModal(false)}
+                onUpdated={() => {
+                    queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
+                }}
+                project={selectedProject}
+            />
+            <CreateProjectModal
+                open={createModal}
+                onClose={() => setCreateModal(false)}
+                onCreated={() => {
+                    queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
+                }}
+            />
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
                         <h5 className="mb-0">Projects</h5>
-                        <Button color="success" size="sm">
-                            <i className="ri-add-line me-1"></i> Create Project
-                        </Button>
+                        <div className="d-flex gap-2">
+                            <div className="btn-group" role="group">
+                                <Button
+                                    color={viewMode === 'card' ? 'primary' : 'light'}
+                                    onClick={() => setViewMode('card')}
+                                    className="btn-icon"
+                                    size="sm"
+                                >
+                                    <i className="ri-grid-fill"></i>
+                                </Button>
+                                <Button
+                                    color={viewMode === 'list' ? 'primary' : 'light'}
+                                    onClick={() => setViewMode('list')}
+                                    className="btn-icon"
+                                    size="sm"
+                                >
+                                    <i className="ri-list-check"></i>
+                                </Button>
+                            </div>
+                            <Button color="success" size="sm" onClick={handleCreateProject}>
+                                <i className="ri-add-line me-1"></i> Create Project
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardBody>
-                    <div className="table-responsive">
-                        <Table className="table-nowrap align-middle mb-0">
-                            <thead className="table-light">
-                                <tr>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Description</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Created At</th>
-                                    <th scope="col">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {projects.map((project) => (
-                                    <tr key={project.id}>
-                                        <td>
-                                            <Link 
-                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                state={{ companyId: workspace?.companyId || companyId }}
-                                                className="fw-semibold link-primary"
-                                            >
-                                                {project.name}
-                                            </Link>
-                                        </td>
-                                        <td className="text-muted">
-                                            {project.description || 'No description'}
-                                        </td>
-                                        <td>
-                                            {project.archivedAt ? (
-                                                <Badge color="secondary">Archived</Badge>
-                                            ) : (
-                                                <Badge color="success">Active</Badge>
-                                            )}
-                                        </td>
-                                        <td>{new Date(project.createdAt).toLocaleDateString()}</td>
-                                        <td>
-                                            <Link 
-                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                state={{ companyId: workspace?.companyId || companyId }}
-                                                className="text-primary"
-                                                title="View details"
-                                            >
-                                                <i className="ri-eye-fill fs-16"></i>
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </div>
+                    {viewMode === 'card' ? renderCardView() : renderListView()}
                 </CardBody>
             </Card>
         </div>
