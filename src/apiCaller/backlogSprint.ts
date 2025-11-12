@@ -92,7 +92,6 @@ export const taskAPI = {
         const data: any = response.data;
         return (data.data || data) as Task;
     },
-
     archive: async (projectId: string, taskId: number): Promise<Task> => {
         const response = await new ApiCaller()
             .setUrl(`/projects/${projectId}/tasks/${taskId}/archive`)
@@ -117,3 +116,7 @@ export const taskAPI = {
         return (data.data || data) as TaskListResponse;
     }
 };
+
+
+
+
