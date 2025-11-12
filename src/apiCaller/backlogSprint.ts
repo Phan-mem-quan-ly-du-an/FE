@@ -64,33 +64,56 @@ export const sprintAPI = {
   }
 };
 
-// Task API
 export const taskAPI = {
-  listByProject: async (projectId: string, page = 0, size = 1000): Promise<TaskListResponse> => {
-    const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks?page=${page}&size=${size}`).get();
-    const data: any = response.data;
-    return (data.data || data) as TaskListResponse;
-  },
+    listByProject: async (projectId: string, page = 0, size = 1000): Promise<TaskListResponse> => {
+        const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks?page=${page}&size=${size}`).get();
+        const data: any = response.data;
+        return (data.data || data) as TaskListResponse;
+    },
 
-  create: async (projectId: string, data: any): Promise<Task> => {
-    const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks`).post({ data });
-    const responseData: any = response.data;
-    return (responseData.data || responseData) as Task;
-  },
+    create: async (projectId: string, data: any): Promise<Task> => {
+        const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks`).post({ data });
+        const responseData: any = response.data;
+        return (responseData.data || responseData) as Task;
+    },
 
-  update: async (projectId: string, taskId: number, data: any): Promise<Task> => {
-    const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).put({ data });
-    const responseData: any = response.data;
-    return (responseData.data || responseData) as Task;
-  },
+    update: async (projectId: string, taskId: number, data: any): Promise<Task> => {
+        const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).put({ data });
+        const responseData: any = response.data;
+        return (responseData.data || responseData) as Task;
+    },
 
-  delete: async (projectId: string, taskId: number): Promise<void> => {
-    await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).delete();
-  },
+    delete: async (projectId: string, taskId: number): Promise<void> => {
+        await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).delete();
+    },
 
-  get: async (projectId: string, taskId: number): Promise<Task> => {
-    const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).get();
-    const data: any = response.data;
-    return (data.data || data) as Task;
-  }
+    get: async (projectId: string, taskId: number): Promise<Task> => {
+        const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).get();
+        const data: any = response.data;
+        return (data.data || data) as Task;
+    },
+
+    archive: async (projectId: string, taskId: number): Promise<Task> => {
+        const response = await new ApiCaller()
+            .setUrl(`/projects/${projectId}/tasks/${taskId}/archive`)
+            .patch({ data: {} });
+        const responseData: any = response.data;
+        return (responseData.data || responseData) as Task;
+    },
+
+    restore: async (projectId: string, taskId: number): Promise<Task> => {
+        const response = await new ApiCaller()
+            .setUrl(`/projects/${projectId}/tasks/${taskId}/restore`)
+            .patch({ data: {} });
+        const responseData: any = response.data;
+        return (responseData.data || responseData) as Task;
+    },
+
+    listArchived: async (projectId: string, page = 0, size = 1000): Promise<TaskListResponse> => {
+        const response = await new ApiCaller()
+            .setUrl(`/projects/${projectId}/tasks/archived?page=${page}&size=${size}`)
+            .get();
+        const data: any = response.data;
+        return (data.data || data) as TaskListResponse;
+    }
 };
