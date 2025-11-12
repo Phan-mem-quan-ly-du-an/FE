@@ -109,11 +109,50 @@ const ProjectTab: React.FC = () => {
     if (projects.length === 0) {
         return (
             <div className="px-4 py-4">
+                <ToastContainer closeButton={false} />
+                <DeleteModal
+                    show={deleteModal}
+                    onDeleteClick={handleDeleteProject}
+                    onCloseClick={() => setDeleteModal(false)}
+                    isLoading={deleteProjectMutation.isPending}
+                />
+                <EditProjectModal
+                    open={editModal}
+                    onClose={() => setEditModal(false)}
+                    onUpdated={() => {
+                        queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
+                    }}
+                    project={selectedProject}
+                />
+                <CreateProjectModal
+                    open={createModal}
+                    onClose={() => setCreateModal(false)}
+                    onCreated={() => {
+                        queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
+                    }}
+                    defaultWorkspaceId={workspaceId}
+                    companyIdOverride={workspace?.companyId || companyId}
+                />
                 <Card>
+                    <CardHeader>
+                        <div className="d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0">Projects</h5>
+                            <div className="d-flex gap-2">
+                                <Button color="success" size="sm" onClick={handleCreateProject}>
+                                    <i className="ri-add-line me-1"></i> Add Project
+                                </Button>
+                            </div>
+                        </div>
+                    </CardHeader>
                     <CardBody>
                         <div className="text-center py-5">
                             <i className="ri-folder-open-line fs-1 text-muted"></i>
                             <p className="text-muted mt-2">No projects in this workspace yet.</p>
+                            <div className="mt-3">
+                                <Button color="success" onClick={handleCreateProject}>
+                                    <i className="ri-add-line me-1"></i> Add Project
+                                </Button>
+                            </div>
                         </div>
                     </CardBody>
                 </Card>
@@ -330,7 +369,7 @@ const ProjectTab: React.FC = () => {
                                 </Button>
                             </div>
                             <Button color="success" size="sm" onClick={handleCreateProject}>
-                                <i className="ri-add-line me-1"></i> Create Project
+                                <i className="ri-add-line me-1"></i> Add Project
                             </Button>
                         </div>
                     </div>
