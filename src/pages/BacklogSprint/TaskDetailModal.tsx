@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs, Tab } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import '../../assets/scss/pages/TaskDetailModal.scss';
 
 interface Task {
@@ -28,12 +29,6 @@ interface StatusColumn {
   id: number;
   name: string;
   color?: string;
-}
-
-interface ProjectMember {
-  userId: string;
-  displayName: string;
-  email: string;
 }
 
 interface TaskDetailModalProps {
@@ -63,16 +58,39 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     { id: 4, name: 'DONE', color: '#10b981' }
   ]);
 
-  const [projectMembers] = useState<ProjectMember[]>([
-    { userId: 'unassigned', displayName: 'Unassigned', email: '' },
-    // Mock members - Replace with actual API call
-    { userId: 'user1', displayName: 'John Doe', email: 'john@example.com' },
-    { userId: 'user2', displayName: 'Jane Smith', email: 'jane@example.com' },
-    { userId: 'user3', displayName: 'Bob Johnson', email: 'bob@example.com' }
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([
+    { userId: 'unassigned', displayName: 'Unassigned', email: '' }
   ]);
 
+  // Load project members
   useEffect(() => {
-    setFormData(task);
+    const loadMembers = async () => {
+      if (!projectId) return;
+      
+      try {
+        const members = await getProjectMembers(projectId);
+        setProjectMembers([
+          { userId: 'unassigned', displayName: 'Unassigned', email: '' },
+          ...members
+        ]);
+      } catch (error) {
+        console.error('Error loading project members:', error);
+      }
+    };
+
+    if (show) {
+      loadMembers();
+    }
+  }, [projectId, show]);
+
+  useEffect(() => {
+    // Normalize task data (backend returns assigneeId, frontend uses assignedTo)
+    const anyTask: any = task as any;
+    const normalizedTask: Task = {
+      ...task,
+      assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined
+    };
+    setFormData(normalizedTask);
   }, [task]);
 
   const handleStatusChange = async (statusColumnId: number, statusName: string) => {
@@ -93,22 +111,13 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  const handleAssigneeChange = async (userId: string, displayName: string) => {
-    try {
-      const updatedTask = {
-        ...formData,
-        assignedTo: userId === 'unassigned' ? undefined : userId
-      };
-      setFormData(updatedTask);
-      
-      await taskAPI.update(projectId, task.id, updatedTask);
-      toast.success(`Task assigned to ${displayName}`);
-      onUpdate();
-    } catch (error: any) {
-      console.error('Error updating assignee:', error);
-      toast.error('Failed to update assignee');
-      setFormData(task); // Revert on error
-    }
+  const handleAssigneeChange = (userId: string, displayName: string) => {
+    // Only update local state, don't save to API yet
+    // User must click Save button to persist changes
+    setFormData({
+      ...formData,
+      assignedTo: userId === 'unassigned' ? undefined : userId
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,7 +130,24 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     try {
       setLoading(true);
-      await taskAPI.update(projectId, task.id, formData);
+      
+      // Convert assignedTo to assigneeId for backend
+      const apiPayload = {
+        id: formData.id,
+        title: formData.title,
+        description: formData.description,
+        projectId: formData.projectId,
+        sprintId: formData.sprintId,
+        assigneeId: formData.assignedTo || null, // Backend expects assigneeId
+        priority: formData.priority,
+        dueDate: formData.dueDate,
+        estimatedHours: formData.estimatedHours,
+        tags: formData.tags,
+        orderIndex: formData.orderIndex,
+        statusColumn: formData.statusColumn
+      };
+      
+      await taskAPI.update(projectId, task.id, apiPayload);
       toast.success('Task updated successfully');
       onUpdate();
       onHide();
