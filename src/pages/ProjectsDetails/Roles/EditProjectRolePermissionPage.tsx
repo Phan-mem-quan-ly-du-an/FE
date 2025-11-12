@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import {getProjectsByWorkspaceId, getWorkspaceById, Project, Workspace} from "../../../apiCaller/workspaceDetails";
 
-// Permission interface
 export type Permission = {
     id: number;
     scope: "company" | "workspace" | "project";
@@ -16,13 +16,60 @@ export type Permission = {
 export default function EditProjectRolePermissionPage() {
     const auth = useAuth();
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const params = useParams();
+    const loc = useLocation() as { state?: { companyId?: string; roleName?: string; roleCode?: string; backTo?: string } };
 
     const projectId = useMemo(
-        () => (params as any).projectId || window.location.pathname.match(/\/projects\/([^/]+)/)?.[1] || "", [params]
+        () => (params as any).projectId || window.location.pathname.match(/\/projects\/([^/]+)/)?.[1] || "",
+        [params]
     );
+
+    const workspaceId = useMemo(
+        () => (params as any).workspaceId || window.location.pathname.match(/\/workspaces\/([^/]+)/)?.[1] || "",
+        [params]
+    );
+
+    const { data: projects } = useQuery<Project[]>({
+        queryKey: ['workspace-projects', workspaceId],
+        queryFn: () => getProjectsByWorkspaceId(workspaceId!),
+        enabled: !!workspaceId,
+    });
+
+    const { data: workspace } = useQuery<Workspace>({
+        queryKey: ['workspace', workspaceId],
+        queryFn: () => getWorkspaceById(workspaceId!),
+        enabled: !!workspaceId,
+        staleTime: 60_000,
+    });
+
+    // Lấy companyId từ nhiều nguồn
+    const companyId = useMemo(() => {
+        // 1. Từ location state (được pass khi navigate)
+        if (loc.state?.companyId) return loc.state.companyId;
+
+        // 2. Từ workspace data
+        if (workspace?.companyId) return workspace.companyId;
+
+        // 3. Từ params
+        if ((params as any).companyId) return (params as any).companyId;
+
+        // 4. Từ URL pathname
+        const match = window.location.pathname.match(/\/companies\/([^/]+)/);
+        if (match?.[1]) return match[1];
+
+        return "";
+    }, [loc.state?.companyId, workspace?.companyId, params]);
+
+    // Tìm current project từ array projects
+    const currentProject = useMemo(() => {
+        if (!projects || !projectId) return null;
+        return projects.find(p => String(p.id) === String(projectId));
+    }, [projects, projectId]);
+
     const roleIdStr = useMemo(
-        () => (params as any).roleId || window.location.pathname.match(/\/roles\/([^/]+)\/permissions/)?.[1] || "", [params]
+        () => (params as any).roleId || window.location.pathname.match(/\/roles\/([^/]+)\/permissions/)?.[1] || "",
+        [params]
     );
     const roleId = Number(roleIdStr);
     const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
@@ -33,7 +80,6 @@ export default function EditProjectRolePermissionPage() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
 
-    const loc = useLocation() as { state?: { roleName?: string; roleCode?: string } };
     const initialRole = { name: loc.state?.roleName || "", code: loc.state?.roleCode || "" };
     const roleQuery = useQuery({
         queryKey: ["projectRole", projectId, roleId],
@@ -49,6 +95,9 @@ export default function EditProjectRolePermissionPage() {
     const roleName = initialRole.name || roleQuery.data?.name || "";
     const roleCode = initialRole.code || roleQuery.data?.code || "";
     const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
+
+// Disable editing only for admin default role
+const isDefaultRole = roleCode?.toLowerCase() === "admin";
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
@@ -105,6 +154,7 @@ export default function EditProjectRolePermissionPage() {
     }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, projectId, roleId]);
 
     const toggle = (pid: number) => {
+        if (isDefaultRole) return;
         setSelected(prev => {
             const next = new Set(prev);
             if (next.has(pid)) next.delete(pid); else next.add(pid);
@@ -113,6 +163,7 @@ export default function EditProjectRolePermissionPage() {
     };
 
     async function save() {
+        if (isDefaultRole) return;
         if (!projectId || !roleId) return;
         setSaving(true);
         setMsg(null);
@@ -161,13 +212,28 @@ export default function EditProjectRolePermissionPage() {
                                             {t("EditRolePermissions")}
                                             <span className="badge bg-light text-body ms-2">{roleDisplay}</span>
                                         </h5>
+                                        {isDefaultRole && (
+                                            <div className="text-danger small mt-1">
+                                                {t("DefaultRoleCannotBeEdited") || "This is a default role and cannot be modified."}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-2">
-                                            <Link to={`/projects/${projectId}`} className="btn btn-secondary">
-                                                <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
-                                            </Link>
-                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                                            {loc.state?.backTo ? (
+                                                <Link to={loc.state.backTo} className="btn btn-secondary">
+                                                    <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                                </Link>
+                                            ) : companyId && projectId ? (
+                                                <Link to={`/companies/${companyId}/projects/${projectId}?tab=5`} className="btn btn-secondary">
+                                                    <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                                </Link>
+                                            ) : (
+                                                <button className="btn btn-secondary" onClick={() => navigate(-1)}>
+                                                    <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
+                                                </button>
+                                            )}
+                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading || isDefaultRole}>
                                                 <i className="ri-save-3-line me-1"></i>{saving ? t("Saving") : t("Save")}
                                             </button>
                                         </div>
@@ -189,23 +255,23 @@ export default function EditProjectRolePermissionPage() {
                                         <div className="table-responsive table-card mb-1 mt-0">
                                             <table className="table align-middle table-nowrap">
                                                 <thead className="table-light text-muted text-uppercase">
-                                                    <tr>
-                                                        <th style={{ width: 160 }}>Role ID</th>
-                                                        <th>Role Name</th>
-                                                    </tr>
+                                                <tr>
+                                                    <th style={{ width: 160 }}>Role ID</th>
+                                                    <th>Role Name</th>
+                                                </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr>
-                                                        <td className="font-monospace">{roleId || "—"}</td>
-                                                        <td>
-                                                            {roleName ? (
-                                                                <>
-                                                                    <div className="fw-semibold">{roleName}</div>
-                                                                    {roleCode && <div className="text-muted small">({roleCode})</div>}
-                                                                </>
-                                                            ) : "—"}
-                                                        </td>
-                                                    </tr>
+                                                <tr>
+                                                    <td className="font-monospace">{roleId || "—"}</td>
+                                                    <td>
+                                                        {roleName ? (
+                                                            <>
+                                                                <div className="fw-semibold">{roleName}</div>
+                                                                {roleCode && <div className="text-muted small">({roleCode})</div>}
+                                                            </>
+                                                        ) : "—"}
+                                                    </td>
+                                                </tr>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -214,28 +280,29 @@ export default function EditProjectRolePermissionPage() {
                                 <div className="table-responsive table-card mb-1 mt-0">
                                     <table className="table align-middle table-nowrap">
                                         <thead className="table-light text-muted text-uppercase">
-                                            <tr>
-                                                <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
-                                                <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
-                                            </tr>
+                                        <tr>
+                                            <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
+                                            <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
+                                        </tr>
                                         </thead>
                                         <tbody>
-                                            {!loading && permissions.map(p => (
-                                                <tr key={p.id}>
-                                                    <td>
-                                                        <div className="fw-semibold">{p.name}</div>
-                                                        {p.code && <div className="text-muted small">{p.code}</div>}
-                                                    </td>
-                                                    <td className="text-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="form-check-input"
-                                                            checked={selected.has(p.id)}
-                                                            onChange={() => toggle(p.id)}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                        {!loading && permissions.map(p => (
+                                            <tr key={p.id}>
+                                                <td>
+                                                    <div className="fw-semibold">{p.name}</div>
+                                                    {p.code && <div className="text-muted small">{p.code}</div>}
+                                                </td>
+                                                <td className="text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="form-check-input"
+                                                        checked={selected.has(p.id)}
+                                                        onChange={() => toggle(p.id)}
+                                                        disabled={isDefaultRole}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
                                         </tbody>
                                     </table>
                                 </div>
