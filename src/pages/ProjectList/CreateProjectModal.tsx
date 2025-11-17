@@ -15,21 +15,27 @@ function friendlyNetworkMessage(msg?: string, t?: (key: string) => string) {
 }
 
 export default function CreateProjectModal({
-                                               open, onClose, onCreated
+                                               open,
+                                               onClose,
+                                               onCreated,
+                                               defaultWorkspaceId,
+                                               companyIdOverride
                                            }: {
     open: boolean;
     onClose: () => void;
     onCreated: () => void;
+    defaultWorkspaceId?: string;
+    companyIdOverride?: string;
 }) {
     const { t } = useTranslation();
-    const { companyId } = useParams<{ companyId: string }>();
+    const { companyId: companyIdFromParams } = useParams<{ companyId: string }>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [color, setColor] = useState('#3b82f6');
     const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
     const [msg, setMsg] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-
+    const companyId = companyIdOverride || companyIdFromParams;
     // Fetch workspaces
     const { data: workspaces = [], isLoading: loadingWorkspaces, error: workspacesError } = useQuery<Workspace[]>({
         queryKey: ['workspaces', companyId],
@@ -55,10 +61,10 @@ export default function CreateProjectModal({
         setName('');
         setDescription('');
         setColor('#3b82f6');
-        setSelectedWorkspaceId('');
+        setSelectedWorkspaceId(defaultWorkspaceId || '');
         setMsg(null);
         setSaving(false);
-    }, [open]);
+    }, [open, defaultWorkspaceId]);
 
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -116,24 +122,45 @@ export default function CreateProjectModal({
                         <Label className="form-label">
                             {t('Workspace')} <span className="text-danger">*</span>
                         </Label>
-                        <Input
-                            type="select"
-                            value={selectedWorkspaceId}
-                            onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-                            required
-                            disabled={saving || loadingWorkspaces}
-                        >
-                            <option value="">{t('SelectWorkspacePlaceholder')}</option>
-                            {workspaces.map((workspace) => (
-                                <option key={workspace.id} value={workspace.id}>
-                                    {workspace.name}
-                                </option>
-                            ))}
-                        </Input>
-                        {loadingWorkspaces && <div className="form-text">{t('LoadingWorkspaces')}</div>}
-                        {workspacesError && <div className="form-text text-danger">{t('ErrorLoadingWorkspaces')}</div>}
-                        {!loadingWorkspaces && workspaces.length === 0 && (
-                            <div className="form-text text-warning">{t('NoWorkspacesFound')}</div>
+                        {defaultWorkspaceId ? (
+                            <Input
+                                type="text"
+                                value={
+                                    workspaces.find(w => w.id === defaultWorkspaceId)?.name || defaultWorkspaceId
+                                }
+                                disabled
+                                readOnly
+                            />
+                        ) : (
+                            <>
+                                <Input
+                                    type="select"
+                                    value={selectedWorkspaceId}
+                                    onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                                    required
+                                    disabled={saving || loadingWorkspaces}
+                                >
+                                    <option value="">{t('SelectWorkspacePlaceholder')}</option>
+                                    {workspaces.map((workspace) => (
+                                        <option key={workspace.id} value={workspace.id}>
+                                            {workspace.name}
+                                        </option>
+                                    ))}
+                                </Input>
+                                {loadingWorkspaces && <div className="form-text">{t('LoadingWorkspaces')}</div>}
+                                {workspacesError && (
+                                    <div className="form-text text-danger">
+                                        {t('ErrorLoadingWorkspaces')}
+                                        <div className="small">Error: {String(workspacesError)}</div>
+                                    </div>
+                                )}
+                                {!loadingWorkspaces && !workspacesError && workspaces.length === 0 && (
+                                    <div className="form-text text-warning">
+                                        {t('NoWorkspacesFound')}
+                                        <div className="small">CompanyId: {companyId || 'undefined'}</div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
