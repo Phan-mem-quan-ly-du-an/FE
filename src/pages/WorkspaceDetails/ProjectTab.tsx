@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
     Table,
     Spinner,
@@ -11,10 +11,11 @@ import {
     Col
 } from 'reactstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ToastContainer, toast } from 'react-toastify';
-import { getProjectsByWorkspaceId, Project } from '../../apiCaller/workspaceDetails';
-import { getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
+import { getProjectsByWorkspaceId, Project, getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
 import { deleteProject } from '../../apiCaller/projects';
+import { isForbiddenError } from '../../helpers/permissions';
 import slack from '../../assets/images/brands/slack.png';
 import dribbble from '../../assets/images/brands/dribbble.png';
 import mailChimp from '../../assets/images/brands/mail_chimp.png';
@@ -26,14 +27,14 @@ import CreateProjectModal from '../ProjectList/CreateProjectModal';
 
 const ProjectTab: React.FC = () => {
     const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
+    const { t } = useTranslation();
     const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [editModal, setEditModal] = useState<boolean>(false);
     const [createModal, setCreateModal] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
-
+    
     const {
         data: projects = [],
         isLoading,
@@ -61,11 +62,15 @@ const ProjectTab: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
             setDeleteModal(false);
-            toast.success('Project deleted successfully');
+            toast.success(t('ProjectDeletedSuccessfully') || 'Project deleted successfully');
         },
         onError: (err: unknown) => {
             console.error('Error deleting project:', err);
-            toast.error('Failed to delete project');
+            if (isForbiddenError(err)) {
+                toast.error(t('ProjectPermissions.DeleteProjectDenied') || 'Bạn không có quyền xóa dự án này.');
+            } else {
+                toast.error(t('FailedToDeleteProject') || 'Failed to delete project');
+            }
         }
     });
 
@@ -93,16 +98,17 @@ const ProjectTab: React.FC = () => {
         return (
             <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
                 <Spinner color="primary" />
-                <span className="ms-2">Loading projects...</span>
+                <span className="ms-2">{t('LoadingProjects') || 'Loading projects...'}</span>
             </div>
         );
     }
 
     if (error) {
+        const forbidden = isForbiddenError(error);
         return (
-            <div className="alert alert-danger text-center">
+            <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2"></i>
-                Failed to load projects
+                {forbidden ? (t('WorkspacePermissions.ViewProjectsDenied') || 'Bạn không có quyền xem dự án của workspace này.') : (t('FailedToLoadProjects') || 'Failed to load projects')}
             </div>
         );
     }
@@ -131,16 +137,14 @@ const ProjectTab: React.FC = () => {
                     onCreated={() => {
                         queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
                     }}
-                    defaultWorkspaceId={workspaceId}
-                    companyIdOverride={workspace?.companyId || companyId}
                 />
                 <Card>
                     <CardHeader>
                         <div className="d-flex justify-content-between align-items-center">
-                            <h5 className="mb-0">Projects</h5>
+                            <h5 className="mb-0">{t('Projects') || 'Projects'}</h5>
                             <div className="d-flex gap-2">
                                 <Button color="success" size="sm" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> Add Project
+                                    <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
                                 </Button>
                             </div>
                         </div>
@@ -148,10 +152,10 @@ const ProjectTab: React.FC = () => {
                     <CardBody>
                         <div className="text-center py-5">
                             <i className="ri-folder-open-line fs-1 text-muted"></i>
-                            <p className="text-muted mt-2">No projects in this workspace yet.</p>
+                            <p className="text-muted mt-2">{t('NoProjectsInWorkspace') || 'No projects in this workspace yet.'}</p>
                             <div className="mt-3">
                                 <Button color="success" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> Add Project
+                                    <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
                                 </Button>
                             </div>
                         </div>
@@ -165,24 +169,20 @@ const ProjectTab: React.FC = () => {
         <div className="row">
             {projects.map((project, index) => (
                 <Col xxl={3} sm={6} key={project.id} className="project-card">
-                    <Card
-                        className="card-height-100"
-                        onClick={() => navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`)}
-                        style={{ cursor: 'pointer' }}
-                    >
+                    <Card className="card-height-100">
                         <CardBody>
                             <div className="d-flex flex-column h-100">
                                 <div className="d-flex">
                                     <div className="flex-grow-1"></div>
                                     <div className="flex-shrink-0">
                                         <div className="d-flex gap-1 align-items-center">
-                                            <a
-                                                href={`#/projects/${project.id}`}
+                                            <Link
+                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                state={{ companyId: workspace?.companyId || companyId }}
                                                 className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15"
-                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`); }}
                                             >
                                                 <FeatherIcon icon="more-horizontal" className="icon-sm"/>
-                                            </a>
+                                            </Link>
                                         </div>
                                     </div>
                                 </div>
@@ -200,16 +200,22 @@ const ProjectTab: React.FC = () => {
                                     <div className="flex-grow-1">
                                         <div className="d-flex align-items-center mb-1">
                                             <h5 className="mb-0 fs-15 me-2">
-                                                <span className="text-dark">{project.name}</span>
+                                                <Link
+                                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                    state={{ companyId: workspace?.companyId || companyId }}
+                                                    className="text-dark"
+                                                >
+                                                    {project.name}
+                                                </Link>
                                             </h5>
                                             {project.archivedAt ? (
-                                                <Badge color="secondary" className="badge-soft-secondary">Archived</Badge>
+                                                <Badge color="secondary" className="badge-soft-secondary">{t('Archived') || 'Archived'}</Badge>
                                             ) : (
-                                                <Badge color="success" className="badge-soft-success">Active</Badge>
+                                                <Badge color="success" className="badge-soft-success">{t('Active') || 'Active'}</Badge>
                                             )}
                                         </div>
                                         <p className="text-muted text-truncate-two-lines mb-3">
-                                            {project.description || 'No description'}
+                                            {project.description || t('NoDescription') || 'No description'}
                                         </p>
                                     </div>
                                 </div>
@@ -229,29 +235,25 @@ const ProjectTab: React.FC = () => {
                     </Card>
                 </Col>
             ))}
-        </div>
+                    </div>
     );
 
     const renderListView = () => (
-        <div className="table-responsive">
-            <Table className="table-nowrap align-middle mb-0">
-                <thead className="table-light">
-                <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Description</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Created At</th>
-                    <th scope="col">Actions</th>
-                </tr>
-                </thead>
-                <tbody>
+                    <div className="table-responsive">
+                        <Table className="table-nowrap align-middle mb-0">
+                            <thead className="table-light">
+                                <tr>
+                    <th scope="col">{t('Name') || 'Name'}</th>
+                    <th scope="col">{t('Description') || 'Description'}</th>
+                    <th scope="col">{t('Status') || 'Status'}</th>
+                    <th scope="col">{t('CreatedAt') || 'Created At'}</th>
+                    <th scope="col">{t('Actions') || 'Actions'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                 {projects.map((project, index) => (
-                    <tr
-                        key={project.id}
-                        onClick={() => navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`)}
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <td>
+                                    <tr key={project.id}>
+                                        <td>
                             <div className="d-flex align-items-center">
                                 <div className="avatar-sm me-2">
                                         <span
@@ -261,53 +263,65 @@ const ProjectTab: React.FC = () => {
                                             <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
                                         </span>
                                 </div>
-                                <span className="fw-semibold link-primary">{project.name}</span>
+                                            <Link 
+                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                state={{ companyId: workspace?.companyId || companyId }}
+                                                className="fw-semibold link-primary"
+                                            >
+                                                {project.name}
+                                            </Link>
                             </div>
-                        </td>
-                        <td className="text-muted">
-                            {project.description || 'No description'}
-                        </td>
-                        <td>
-                            {project.archivedAt ? (
-                                <Badge color="secondary">Archived</Badge>
-                            ) : (
-                                <Badge color="success">Active</Badge>
-                            )}
-                        </td>
-                        <td>{new Date(project.createdAt).toLocaleDateString()}</td>
-                        <td>
-                                <div className="hstack gap-3 flex-wrap">
-                                <a
-                                    href="#"
+                                        </td>
+                                        <td className="text-muted">
+                            {project.description || t('NoDescription') || 'No description'}
+                                        </td>
+                                        <td>
+                                            {project.archivedAt ? (
+                                <Badge color="secondary">{t('Archived') || 'Archived'}</Badge>
+                                            ) : (
+                                <Badge color="success">{t('Active') || 'Active'}</Badge>
+                                            )}
+                                        </td>
+                                        <td>{new Date(project.createdAt).toLocaleDateString()}</td>
+                                        <td>
+                            <div className="hstack gap-3 flex-wrap">
+                                            <Link 
+                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                                state={{ companyId: workspace?.companyId || companyId }}
                                     className="link-success fs-15"
-                                    title="View"
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`); }}
+                                    title={t('View') || 'View'}
                                 >
                                     <i className="ri-eye-line"></i>
-                                </a>
-                                <a
-                                    href="#"
+                                </Link>
+                                <Link
+                                    to="#"
                                     className="link-primary fs-15"
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); onClickEdit(project); }}
-                                    title="Edit"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onClickEdit(project);
+                                    }}
+                                    title={t('Edit') || 'Edit'}
                                 >
                                     <i className="ri-pencil-line"></i>
-                                </a>
-                                <a
-                                    href="#"
+                                </Link>
+                                <Link
+                                    to="#"
                                     className="link-danger fs-15"
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); onClickDelete(project); }}
-                                    title="Delete"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onClickDelete(project);
+                                    }}
+                                    title={t('Delete') || 'Delete'}
                                 >
                                     <i className="ri-delete-bin-line"></i>
-                                </a>
+                                            </Link>
                             </div>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </Table>
-        </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </div>
     );
 
     return (
@@ -333,13 +347,11 @@ const ProjectTab: React.FC = () => {
                 onCreated={() => {
                     queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
                 }}
-                defaultWorkspaceId={workspaceId}
-                companyIdOverride={workspace?.companyId || companyId}
             />
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">Projects</h5>
+                        <h5 className="mb-0">{t('Projects') || 'Projects'}</h5>
                         <div className="d-flex gap-2">
                             <div className="btn-group" role="group">
                                 <Button
@@ -360,7 +372,7 @@ const ProjectTab: React.FC = () => {
                                 </Button>
                             </div>
                             <Button color="success" size="sm" onClick={handleCreateProject}>
-                                <i className="ri-add-line me-1"></i> Add Project
+                                <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
                             </Button>
                         </div>
                     </div>

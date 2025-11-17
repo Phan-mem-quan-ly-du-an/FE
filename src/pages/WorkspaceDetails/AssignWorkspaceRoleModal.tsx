@@ -3,8 +3,10 @@ import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { WorkspaceMember, assignWorkspaceMemberRole } from '../../apiCaller/workspaceDetails';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface AssignWorkspaceRoleModalProps {
     show: boolean;
@@ -24,8 +26,9 @@ export default function AssignWorkspaceRoleModal({
     onError,
 }: AssignWorkspaceRoleModalProps) {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
 
-    const { data: roles = [] } = useQuery<WorkspaceRole[]>({
+    const { data: roles = [], error: rolesError, isLoading: rolesLoading } = useQuery<WorkspaceRole[]>({
         queryKey: ['workspace-roles', workspaceId],
         queryFn: () => getWorkspaceRoles(workspaceId),
         enabled: !!workspaceId && show,
@@ -60,13 +63,17 @@ export default function AssignWorkspaceRoleModal({
             assignRoleMutation.mutate(
                 { workspaceId, memberId: member.userId, roleId: parseInt(values.roleId) },
                 {
-                    onSuccess: () => {
-                        onSuccess?.('Cập nhật role thành công');
+                        onSuccess: () => {
+                            onSuccess?.(t('RoleAssignedSuccessfully') || 'Cập nhật role thành công');
                         validation.resetForm();
                         onClose();
                     },
                     onError: (error: any) => {
-                        onError?.(error?.message || 'Cập nhật role thất bại');
+                            if (isForbiddenError(error)) {
+                                onError?.(t('WorkspacePermissions.AssignMemberRoleDenied') || 'Bạn không có quyền gán role cho thành viên.');
+                                return;
+                            }
+                            onError?.(error?.message || t('FailedToAssignRole') || 'Cập nhật role thất bại');
                     },
                 }
             );
@@ -101,6 +108,14 @@ export default function AssignWorkspaceRoleModal({
                         </div>
                     )}
 
+                    {rolesError && (
+                        <div className={`alert ${isForbiddenError(rolesError) ? 'alert-warning' : 'alert-danger'}`}>
+                            {isForbiddenError(rolesError)
+                                ? (t('WorkspacePermissions.ViewRolesDenied') || 'Bạn không có quyền xem danh sách role của workspace.')
+                                : 'Không thể tải danh sách role.'}
+                        </div>
+                    )}
+
                     <div className="table-responsive">
                         <table className="table table-bordered align-middle">
                             <tbody>
@@ -123,7 +138,7 @@ export default function AssignWorkspaceRoleModal({
                             id="role-field"
                             type="select"
                             className="form-select"
-                            disabled={isOwner}
+                            disabled={isOwner || rolesLoading || !!rolesError}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.roleId || ''}
