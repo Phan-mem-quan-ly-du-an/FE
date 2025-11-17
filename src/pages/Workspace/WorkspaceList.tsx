@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from "react-i18next";
 import {
@@ -26,6 +26,8 @@ import ConfirmDeleteWorkspaceModal from "./ConfirmDeleteWorkspaceModal";
 
 const WorkspaceList = () => {
     const { companyId } = useParams();
+
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { t } = useTranslation();
 
@@ -96,9 +98,7 @@ const WorkspaceList = () => {
                 accessorKey: "name",
                 enableColumnFilter: false,
                 cell: (cell: any) => (
-                    <Link to={`/workspaces/${cell.row.original.id}`} className="fw-medium link-primary">
-                                {cell.getValue()}
-                    </Link>
+                                                <span className="fw-medium link-primary">{cell.getValue()}</span>
                 ),
             },
             {
@@ -116,27 +116,31 @@ const WorkspaceList = () => {
             },
             {
                 header: t('t-workspace-action-col'),
-                cell: (cell: any) => {
+                            cell: (cell: any) => {
                     return (
                         <ul className="list-inline hstack gap-2 mb-0">
                             <li className="list-inline-item" title={t('t-workspace-view-details-tooltip')}>
-                                <Link to={`/workspaces/${cell.row.original.id}`} className="text-primary d-inline-block">
-                                    <i className="ri-eye-fill fs-16"></i>
-                                </Link>
+                                            <a
+                                                href="#"
+                                                className="text-primary d-inline-block"
+                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/workspaces/${cell.row.original.id}`); }}
+                                            >
+                                                <i className="ri-eye-fill fs-16"></i>
+                                            </a>
                             </li>
                             <li className="list-inline-item" title={t('t-workspace-edit-tooltip')}>
-                                <Link className="edit-item-btn" to="#" onClick={() => handleEditClick(cell.row.original)}>
+                                <a className="edit-item-btn" href="#" onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleEditClick(cell.row.original); }}>
                                     <i className="ri-pencil-fill align-bottom text-muted"></i>
-                                </Link>
+                                </a>
                             </li>
                             <li className="list-inline-item" title={t('t-workspace-delete-tooltip')}>
-                                <Link
+                                <a
                                     className="remove-item-btn"
-                                    to="#"
-                                    onClick={() => handleDeleteClick(cell.row.original)}
+                                    href="#"
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteClick(cell.row.original); }}
                                 >
                                     <i className="ri-delete-bin-fill align-bottom text-muted"></i>
-                                </Link>
+                                </a>
                             </li>
                         </ul>
                     );
@@ -203,6 +207,7 @@ const WorkspaceList = () => {
                                                     pageCount={paginationData.totalPages}
                                                     currentPage={page}
                                                     onPageChange={setPage}
+                                                    onRowClick={(row: any) => navigate(`/workspaces/${row.original.id}`)}
                                                 />
                                             ) : (
                                                 <div className="text-center py-4">

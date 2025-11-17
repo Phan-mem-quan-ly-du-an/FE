@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     Table,
     Spinner,
@@ -32,6 +32,7 @@ const ProjectTab: React.FC = () => {
     const [createModal, setCreateModal] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     const {
         data: projects = [],
@@ -164,20 +165,24 @@ const ProjectTab: React.FC = () => {
         <div className="row">
             {projects.map((project, index) => (
                 <Col xxl={3} sm={6} key={project.id} className="project-card">
-                    <Card className="card-height-100">
+                    <Card
+                        className="card-height-100"
+                        onClick={() => navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`)}
+                        style={{ cursor: 'pointer' }}
+                    >
                         <CardBody>
                             <div className="d-flex flex-column h-100">
                                 <div className="d-flex">
                                     <div className="flex-grow-1"></div>
                                     <div className="flex-shrink-0">
                                         <div className="d-flex gap-1 align-items-center">
-                                            <Link
-                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                state={{ companyId: workspace?.companyId || companyId }}
+                                            <a
+                                                href={`#/projects/${project.id}`}
                                                 className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15"
+                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`); }}
                                             >
                                                 <FeatherIcon icon="more-horizontal" className="icon-sm"/>
-                                            </Link>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -195,13 +200,7 @@ const ProjectTab: React.FC = () => {
                                     <div className="flex-grow-1">
                                         <div className="d-flex align-items-center mb-1">
                                             <h5 className="mb-0 fs-15 me-2">
-                                                <Link
-                                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                    state={{ companyId: workspace?.companyId || companyId }}
-                                                    className="text-dark"
-                                                >
-                                                    {project.name}
-                                                </Link>
+                                                <span className="text-dark">{project.name}</span>
                                             </h5>
                                             {project.archivedAt ? (
                                                 <Badge color="secondary" className="badge-soft-secondary">Archived</Badge>
@@ -247,7 +246,11 @@ const ProjectTab: React.FC = () => {
                 </thead>
                 <tbody>
                 {projects.map((project, index) => (
-                    <tr key={project.id}>
+                    <tr
+                        key={project.id}
+                        onClick={() => navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`)}
+                        style={{ cursor: 'pointer' }}
+                    >
                         <td>
                             <div className="d-flex align-items-center">
                                 <div className="avatar-sm me-2">
@@ -258,13 +261,7 @@ const ProjectTab: React.FC = () => {
                                             <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
                                         </span>
                                 </div>
-                                <Link
-                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                    state={{ companyId: workspace?.companyId || companyId }}
-                                    className="fw-semibold link-primary"
-                                >
-                                    {project.name}
-                                </Link>
+                                <span className="fw-semibold link-primary">{project.name}</span>
                             </div>
                         </td>
                         <td className="text-muted">
@@ -279,37 +276,31 @@ const ProjectTab: React.FC = () => {
                         </td>
                         <td>{new Date(project.createdAt).toLocaleDateString()}</td>
                         <td>
-                            <div className="hstack gap-3 flex-wrap">
-                                <Link
-                                    to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                    state={{ companyId: workspace?.companyId || companyId }}
+                                <div className="hstack gap-3 flex-wrap">
+                                <a
+                                    href="#"
                                     className="link-success fs-15"
                                     title="View"
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`); }}
                                 >
                                     <i className="ri-eye-line"></i>
-                                </Link>
-                                <Link
-                                    to="#"
+                                </a>
+                                <a
+                                    href="#"
                                     className="link-primary fs-15"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onClickEdit(project);
-                                    }}
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); onClickEdit(project); }}
                                     title="Edit"
                                 >
                                     <i className="ri-pencil-line"></i>
-                                </Link>
-                                <Link
-                                    to="#"
+                                </a>
+                                <a
+                                    href="#"
                                     className="link-danger fs-15"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onClickDelete(project);
-                                    }}
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); e.preventDefault(); onClickDelete(project); }}
                                     title="Delete"
                                 >
                                     <i className="ri-delete-bin-line"></i>
-                                </Link>
+                                </a>
                             </div>
                         </td>
                     </tr>
