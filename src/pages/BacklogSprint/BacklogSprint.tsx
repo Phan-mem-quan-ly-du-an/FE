@@ -408,8 +408,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 }
             }
 
+            // Only send necessary fields for sprint drag-drop (exclude statusColumn)
             await taskAPI.update(projectId, taskId, {
-                ...task,
                 sprintId: destSprintId,
                 orderIndex: destination.index
             });
