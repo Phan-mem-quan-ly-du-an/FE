@@ -41,6 +41,8 @@ const List = ({workspaceId}: ListProps = {}) => {
     const queryClient = useQueryClient();
 
     const [project, setProject] = useState<any>(null);
+    const [searchInput, setSearchInput] = useState<string>('');
+    const [appliedSearch, setAppliedSearch] = useState<string>('');
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [createModal, setCreateModal] = useState<boolean>(false);
     const [editModal, setEditModal] = useState<boolean>(false);
@@ -123,7 +125,11 @@ const List = ({workspaceId}: ListProps = {}) => {
         }
     });
 
-    const projectLists = projects.map((project: Project, index: number) =>
+    const filteredProjects = appliedSearch
+        ? projects.filter(p => p.name?.toLowerCase().includes(appliedSearch.toLowerCase()))
+        : projects;
+
+    const projectLists = filteredProjects.map((project: Project, index: number) =>
         mapProjectToComponentFormat(project, index)
     );
 
@@ -152,7 +158,11 @@ const List = ({workspaceId}: ListProps = {}) => {
             {(projectLists || []).map((item: any, index: number) => (
                 <React.Fragment key={index}>
                     <Col xxl={3} sm={6} className="project-card">
-                        <Card className="card-height-100">
+                        <Card
+                            className="card-height-100"
+                            onClick={() => navigate(`/companies/${companyId}/projects/${item.id}`)}
+                            style={{ cursor: 'pointer' }}
+                        >
                             <CardBody>
                                 <div className="d-flex flex-column h-100">
                                     <div className="d-flex">
@@ -160,23 +170,35 @@ const List = ({workspaceId}: ListProps = {}) => {
                                         <div className="flex-shrink-0">
                                             <div className="d-flex gap-1 align-items-center">
                                                 <UncontrolledDropdown direction="start">
-                                                    <DropdownToggle tag="button"
-                                                                    className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15">
-                                                        <FeatherIcon icon="more-horizontal"
-                                                                     className="icon-sm"/>
+                                                    <DropdownToggle
+                                                        tag="button"
+                                                        className="btn btn-link text-muted p-1 mt-n2 py-0 text-decoration-none fs-15"
+                                                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                                    >
+                                                        <FeatherIcon icon="more-horizontal" className="icon-sm" />
                                                     </DropdownToggle>
-                                                    <DropdownMenu className="dropdown-menu-end">
+                                                    <DropdownMenu
+                                                        className="dropdown-menu-end"
+                                                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                                    >
                                                         <DropdownItem
                                                             tag={Link}
                                                             to={`/companies/${companyId}/projects/${item.id}`}
+                                                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                                         >
                                                             <i className="ri-eye-fill align-bottom me-2 text-muted"></i> {t('View')}
                                                         </DropdownItem>
-                                                        <DropdownItem href="#" onClick={() => onClickEdit(projects[index])}>
+                                                        <DropdownItem
+                                                            href="#"
+                                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClickEdit(projects[index]); }}
+                                                        >
                                                             <i className="ri-pencil-fill align-bottom me-2 text-muted"></i> {t('Edit')}
                                                         </DropdownItem>
                                                         <div className="dropdown-divider"></div>
-                                                        <DropdownItem href="#" onClick={() => onClickData(item)}>
+                                                        <DropdownItem
+                                                            href="#"
+                                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClickData(item); }}
+                                                        >
                                                             <i className="ri-delete-bin-fill align-bottom me-2 text-muted"></i> {t('Remove')}
                                                         </DropdownItem>
                                                     </DropdownMenu>
@@ -198,9 +220,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                                         <div className="flex-grow-1">
                                             <div className="d-flex align-items-center mb-1">
                                                 <h5 className="mb-0 fs-15 me-2">
-                                                    <Link to={`/companies/${companyId}/projects/${item.id}`} className="text-dark">
-                                                        {item.label}
-                                                    </Link>
+                                                    <span className="text-dark">{item.label}</span>
                                                 </h5>
                                                 <Badge color="success" className="badge-soft-success">Active</Badge>
                                             </div>
@@ -242,7 +262,11 @@ const List = ({workspaceId}: ListProps = {}) => {
                         </thead>
                         <tbody>
                         {projectLists.map((item: any, index: number) => (
-                            <tr key={index}>
+                            <tr
+                                key={index}
+                                onClick={() => navigate(`/companies/${companyId}/projects/${item.id}`)}
+                                style={{ cursor: 'pointer' }}
+                            >
                                 <td>
                                     <div className="d-flex align-items-center">
                                         <div className="avatar-sm me-2">
@@ -253,32 +277,39 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                     <img src={item.img} alt="" className="img-fluid p-1" />
                                                 </span>
                                         </div>
-                                        <Link
-                                            to={`/companies/${companyId}/projects/${item.id}`}
-                                            className="fw-semibold link-primary"
-                                        >
-                                            {item.label}
-                                        </Link>
+                                        <span className="fw-semibold link-primary">{item.label}</span>
                                     </div>
                                 </td>
-                                <td className="text-muted">
-                                    {item.caption}
-                                </td>
+                                <td className="text-muted">{item.caption}</td>
                                 <td>
                                     <Badge color="success">Active</Badge>
                                 </td>
                                 <td>{item.date}</td>
                                 <td>
                                     <div className="hstack gap-3 flex-wrap">
-                                        <Link to={`/companies/${companyId}/projects/${item.id}`} className="link-success fs-15">
+                                        <a
+                                            href="#"
+                                            className="link-success fs-15"
+                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/companies/${companyId}/projects/${item.id}`); }}
+                                        >
                                             <i className="ri-eye-line"></i>
-                                        </Link>
-                                        <Link to="#" className="link-primary fs-15" onClick={() => onClickEdit(projects[index])}>
+                                        </a>
+
+                                        <a
+                                            href="#"
+                                            className="link-primary fs-15"
+                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClickEdit(projects[index]); }}
+                                        >
                                             <i className="ri-pencil-line"></i>
-                                        </Link>
-                                        <Link to="#" className="link-danger fs-15" onClick={() => onClickData(item)}>
+                                        </a>
+
+                                        <a
+                                            href="#"
+                                            className="link-danger fs-15"
+                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onClickData(item); }}
+                                        >
                                             <i className="ri-delete-bin-line"></i>
-                                        </Link>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -330,7 +361,18 @@ const List = ({workspaceId}: ListProps = {}) => {
                 <div className="col-sm">
                     <div className="d-flex justify-content-sm-end gap-2">
                         <div className="search-box ms-2">
-                            <Input type="text" className="form-control" placeholder={t('Search')}/>
+                            <Input
+                                type="text"
+                                className="form-control"
+                                placeholder={t('Search')}
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                    if (e.key === 'Enter') {
+                                        setAppliedSearch(searchInput.trim());
+                                    }
+                                }}
+                            />
                             <i className="ri-search-line search-icon"></i>
                         </div>
                         <div className="btn-group" role="group">
