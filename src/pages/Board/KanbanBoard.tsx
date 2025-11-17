@@ -41,6 +41,7 @@ import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
+import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
 import "../../assets/scss/pages/KanbanBoard.scss";
 
 const KanbanBoard: React.FC = () => {
@@ -86,6 +87,20 @@ const KanbanBoard: React.FC = () => {
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Task detail modal states
+  const [showTaskDetail, setShowTaskDetail] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
+
+  // ============= HELPER FUNCTIONS =============
+  // Convert TaskResponse to Task format for TaskDetailModal
+  const convertToTask = (taskResponse: TaskResponse): any => {
+    return {
+      ...taskResponse,
+      sprintId: taskResponse.sprintId ? parseInt(taskResponse.sprintId as string) : null,
+      assignedTo: taskResponse.assigneeId,
+    };
+  };
 
   // ============= LOAD PROJECT MEMBERS =============
   const loadProjectMembers = async () => {
@@ -851,6 +866,10 @@ const KanbanBoard: React.FC = () => {
                                       openAssigneeDropdown={openAssigneeDropdown}
                                       setOpenAssigneeDropdown={setOpenAssigneeDropdown}
                                       onAssigneeChange={handleAssigneeChange}
+                                      onTaskClick={(task) => {
+                                        setSelectedTask(task);
+                                        setShowTaskDetail(true);
+                                      }}
                                     />
                                   </div>
                                 )}
@@ -1081,6 +1100,20 @@ const KanbanBoard: React.FC = () => {
             .reduce((sum, col) => sum + col.tasks.length, 0)}
           handleEditSprintSuccess={handleEditSprintSuccess}
         />
+
+        {/* Task Detail Modal */}
+        {selectedTask && (
+          <TaskDetailModal
+            show={showTaskDetail}
+            onHide={() => {
+              setShowTaskDetail(false);
+              setSelectedTask(null);
+            }}
+            task={convertToTask(selectedTask)}
+            projectId={projectId!}
+            onUpdate={loadBoard}
+          />
+        )}
       </Container>
     </div>
   );
@@ -1099,6 +1132,7 @@ interface TaskCardProps {
     displayName: string,
     e: React.MouseEvent
   ) => void;
+  onTaskClick: (task: TaskResponse) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
@@ -1108,6 +1142,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   openAssigneeDropdown,
   setOpenAssigneeDropdown,
   onAssigneeChange,
+  onTaskClick,
 }) => {
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
@@ -1130,8 +1165,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       className={`mb-0 shadow-sm ${isDragging ? "shadow-lg" : ""}`}
       style={{
         border: isDragging ? "2px solid #3b82f6" : "1px solid #e5e7eb",
-        cursor: "grab",
+        cursor: "pointer",
       }}
+      onClick={() => onTaskClick(task)}
     >
       <div className="card-body p-3">
         {/* Task Title */}

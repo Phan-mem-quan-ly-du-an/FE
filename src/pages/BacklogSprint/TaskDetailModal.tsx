@@ -3,6 +3,7 @@ import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs
 import { toast } from 'react-toastify';
 import { taskAPI } from '../../apiCaller/backlogSprint';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
+import AttachmentsTab from './AttachmentsTab';
 import '../../assets/scss/pages/TaskDetailModal.scss';
 
 interface Task {
@@ -385,6 +386,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <strong>Status:</strong> {task.statusColumn?.name || 'To Do'}
               </div>
             </div>
+          </Tab>
+
+          <Tab eventKey="attachments" title="Attachments">
+            <AttachmentsTab projectId={projectId} taskId={task.id} />
           </Tab>
         </Tabs>
       </Modal.Body>
