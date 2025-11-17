@@ -6,6 +6,7 @@ import { Workspace, createWorkspace, updateWorkspace } from "../../apiCaller/wor
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { AxiosError } from 'axios';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface AddEditWorkspaceModalProps {
     isOpen: boolean;
@@ -40,8 +41,12 @@ const AddEditWorkspaceModal: React.FC<AddEditWorkspaceModalProps> = ({ isOpen, t
                 toggle();
                 onSuccess();
             } catch (error) {
-                if (error instanceof AxiosError && error.response?.status === 409) {
+                const isAxiosErr = error instanceof AxiosError;
+                if (isAxiosErr && error.response?.status === 409) {
                     toast.error(t('t-workspace-toast-duplicate-error', { name: values.name }));
+                } else if ((isAxiosErr && error.response?.status === 403) || isForbiddenError(error)) {
+                    const key = isEdit ? 'WorkspacePermissions.UpdateWorkspaceDenied' : 'WorkspacePermissions.CreateWorkspaceDenied';
+                    toast.warning(t(key) || t('t-workspace-toast-generic-error'));
                 } else {
                     toast.error(t('t-workspace-toast-generic-error'));
                 }

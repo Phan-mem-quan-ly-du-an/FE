@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { isForbiddenError } from "../../../helpers/permissions";
 
 // Permission interface
 export type Permission = {
@@ -67,7 +68,11 @@ export default function EditWorkspaceRolePermissionPage() {
                 headers: getAuthHeaders(),
             });
             if (!pRes.ok) {
-                setMsg(t("LoadPermissionsError", { status: pRes.status, text: await pRes.text() }) || "");
+                if (pRes.status === 403) {
+                    setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+                } else {
+                    setMsg(t("LoadPermissionsError", { status: pRes.status, text: await pRes.text() }) || "");
+                }
                 setLoading(false);
                 return;
             }
@@ -81,14 +86,24 @@ export default function EditWorkspaceRolePermissionPage() {
                 if (sRes.ok) {
                     const ids: number[] = await sRes.json();
                     setSelected(new Set(ids || []));
+                } else if (sRes.status === 403) {
+                    setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+                    setSelected(new Set());
                 } else {
                     setSelected(new Set());
                 }
-            } catch {
+            } catch (err) {
+                if (isForbiddenError(err)) {
+                    setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+                }
                 setSelected(new Set());
             }
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorLoadingData") || "Lỗi tải dữ liệu");
+            if (isForbiddenError(e)) {
+                setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+            } else {
+                setMsg(e?.message || t("ErrorLoadingData") || "Lỗi tải dữ liệu");
+            }
         } finally {
             setLoading(false);
         }
@@ -123,13 +138,21 @@ export default function EditWorkspaceRolePermissionPage() {
                 }
             );
             if (!res.ok) {
-                const txt = await res.text();
-                setMsg(t("SaveFailed", { status: res.status, text: txt }) || txt);
+                if (res.status === 403) {
+                    setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền gán permission cho role này.");
+                } else {
+                    const txt = await res.text();
+                    setMsg(t("SaveFailed", { status: res.status, text: txt }) || txt);
+                }
                 return;
             }
             setMsg(t("Saved") || "Đã lưu");
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorSaving") || "Lỗi lưu thông tin");
+            if (isForbiddenError(e)) {
+                setMsg(t("WorkspacePermissions.AssignRolePermissionDenied") || "Bạn không có quyền gán permission cho role này.");
+            } else {
+                setMsg(e?.message || t("ErrorSaving") || "Lỗi lưu thông tin");
+            }
         } finally {
             setSaving(false);
         }

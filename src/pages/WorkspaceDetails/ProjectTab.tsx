@@ -2,11 +2,13 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Table, Spinner, Badge, Card, CardBody, CardHeader, Button } from 'reactstrap';
 import { useQuery } from '@tanstack/react-query';
-import { getProjectsByWorkspaceId, Project } from '../../apiCaller/workspaceDetails';
-import { getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
+import { useTranslation } from 'react-i18next';
+import { getProjectsByWorkspaceId, Project, getWorkspaceById, Workspace } from '../../apiCaller/workspaceDetails';
+import { isForbiddenError } from '../../helpers/permissions';
 
 const ProjectTab: React.FC = () => {
     const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
+    const { t } = useTranslation();
     
     const {
         data: projects = [],
@@ -35,10 +37,11 @@ const ProjectTab: React.FC = () => {
     }
 
     if (error) {
+        const forbidden = isForbiddenError(error);
         return (
-            <div className="alert alert-danger text-center">
+            <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2"></i>
-                Failed to load projects
+                {forbidden ? (t('WorkspacePermissions.ViewProjectsDenied') || 'Bạn không có quyền xem dự án của workspace này.') : (t('FailedToLoadProjects') || 'Failed to load projects')}
             </div>
         );
     }
