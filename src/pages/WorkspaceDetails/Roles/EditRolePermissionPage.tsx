@@ -33,7 +33,7 @@ export default function EditWorkspaceRolePermissionPage() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
 
-    const loc = useLocation() as { state?: { roleName?: string; roleCode?: string } };
+    const loc = useLocation() as { state?: { roleName?: string; roleCode?: string; backTo?: string } };
     const initialRole = { name: loc.state?.roleName || "", code: loc.state?.roleCode || "" };
     const roleQuery = useQuery({
         queryKey: ["workspaceRole", workspaceId, roleId],
@@ -49,6 +49,9 @@ export default function EditWorkspaceRolePermissionPage() {
     const roleName = initialRole.name || roleQuery.data?.name || "";
     const roleCode = initialRole.code || roleQuery.data?.code || "";
     const roleDisplay = roleCode ? `${roleName} (${roleCode})` : roleName;
+
+    // Disable editing only for admin default role
+    const isDefaultRole = roleCode?.toLowerCase() === "admin";
 
     function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
         const accessToken = auth.user?.access_token;
@@ -102,6 +105,7 @@ export default function EditWorkspaceRolePermissionPage() {
     }, [auth.isLoading, auth.isAuthenticated, auth.user?.access_token, workspaceId, roleId]);
 
     const toggle = (pid: number) => {
+        if (isDefaultRole) return;
         setSelected(prev => {
             const next = new Set(prev);
             if (next.has(pid)) next.delete(pid); else next.add(pid);
@@ -110,6 +114,7 @@ export default function EditWorkspaceRolePermissionPage() {
     };
 
     async function save() {
+        if (isDefaultRole) return;
         if (!workspaceId || !roleId) return;
         setSaving(true);
         setMsg(null);
@@ -158,13 +163,18 @@ export default function EditWorkspaceRolePermissionPage() {
                                             {t("EditRolePermissions")}
                                             <span className="badge bg-light text-body ms-2">{roleDisplay}</span>
                                         </h5>
+                                        {isDefaultRole && (
+                                            <div className="text-danger small mt-1">
+                                                {t("DefaultRoleCannotBeEdited") || "This is a default role and cannot be modified."}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="col-sm-auto">
                                         <div className="d-flex gap-2">
-                                            <Link to={`/workspaces/${workspaceId}/roles`} className="btn btn-secondary">
+                                            <Link to={loc.state?.backTo || `/workspaces/${workspaceId}?tab=4`} className="btn btn-secondary">
                                                 <i className="ri-arrow-go-back-line me-1"></i>{t("Back")}
                                             </Link>
-                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                                            <button className="btn btn-primary" onClick={save} disabled={saving || loading || isDefaultRole}>
                                                 <i className="ri-save-3-line me-1"></i>{saving ? t("Saving") : t("Save")}
                                             </button>
                                         </div>
@@ -229,6 +239,7 @@ export default function EditWorkspaceRolePermissionPage() {
                                                             className="form-check-input"
                                                             checked={selected.has(p.id)}
                                                             onChange={() => toggle(p.id)}
+                                                            disabled={isDefaultRole}
                                                         />
                                                     </td>
                                                 </tr>

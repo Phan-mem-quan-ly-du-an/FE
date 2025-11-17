@@ -65,8 +65,10 @@ export const sprintAPI = {
 };
 
 export const taskAPI = {
-    listByProject: async (projectId: string, page = 0, size = 1000): Promise<TaskListResponse> => {
-        const response = await new ApiCaller().setUrl(`/projects/${projectId}/tasks?page=${page}&size=${size}`).get();
+    listByProject: async (projectId: string, includeArchived = true) => {
+        const response = await new ApiCaller()
+            .setUrl(`/projects/${projectId}/tasks?includeArchived=${includeArchived}&size=1000`)
+            .get();
         const data: any = response.data;
         return (data.data || data) as TaskListResponse;
     },
@@ -92,7 +94,6 @@ export const taskAPI = {
         const data: any = response.data;
         return (data.data || data) as Task;
     },
-
     archive: async (projectId: string, taskId: number): Promise<Task> => {
         const response = await new ApiCaller()
             .setUrl(`/projects/${projectId}/tasks/${taskId}/archive`)
@@ -117,3 +118,7 @@ export const taskAPI = {
         return (data.data || data) as TaskListResponse;
     }
 };
+
+
+
+

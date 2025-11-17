@@ -120,6 +120,7 @@ interface TableContainerProps {
   pageCount?: number;
   currentPage?: number;
   onPageChange?: (page: number) => void;
+  onRowClick?: (row: any) => void;
 }
 
 const TableContainer = ({
@@ -150,6 +151,7 @@ const TableContainer = ({
   pageCount: controlledPageCount,
   currentPage: controlledPageIndex,
   onPageChange: onControlledPageChange,
+  onRowClick,
 }: TableContainerProps) => {
   const { t } = useTranslation();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -300,7 +302,11 @@ const TableContainer = ({
           <tbody>
             {getRowModel().rows.map((row: any) => {
               return (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  onClick={() => onRowClick ? onRowClick(row) : undefined}
+                  style={onRowClick ? { cursor: 'pointer' } : undefined}
+                >
                   {row.getVisibleCells().map((cell: any) => {
                     return (
                       <td key={cell.id}>
