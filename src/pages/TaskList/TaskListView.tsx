@@ -58,6 +58,7 @@ const TaskListView = () => {
     const [filterAssignee, setFilterAssignee] = useState<string>('all');
     const [sortField, setSortField] = useState<string>('createdAt');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -115,7 +116,11 @@ const TaskListView = () => {
 
         // Filter by priority
         if (filterPriority !== 'all') {
-            result = result.filter(task => task.priority === filterPriority);
+            result = result.filter(task => {
+                const taskPriority = task.priority?.toUpperCase();
+                const selectedPriority = filterPriority.toUpperCase();
+                return taskPriority === selectedPriority;
+            });
         }
 
         // Filter by status
@@ -125,7 +130,11 @@ const TaskListView = () => {
 
         // Filter by assignee
         if (filterAssignee !== 'all') {
-            result = result.filter(task => task.assigneeId === filterAssignee);
+            if (filterAssignee === 'unassigned') {
+                result = result.filter(task => !task.assigneeId);
+            } else {
+                result = result.filter(task => task.assigneeId === filterAssignee);
+            }
         }
 
         // Sort
@@ -369,58 +378,111 @@ const TaskListView = () => {
                                 </Col>
                                 <Col md={8} className="text-end">
                                     <div className="d-flex align-items-center justify-content-end gap-2">
-                                        {/* Filter by Priority */}
-                                        <UncontrolledDropdown>
-                                            <DropdownToggle color="light" size="sm" caret>
-                                                <i className="ri-filter-3-line me-1"></i>
-                                                Priority: {filterPriority === 'all' ? 'All' : filterPriority}
+                                        {/* Unified Filter Button */}
+                                        <Dropdown isOpen={isFilterOpen} toggle={() => setIsFilterOpen(!isFilterOpen)}>
+                                            <DropdownToggle caret color="light" size="sm">
+                                                <i className="ri-filter-line me-1"></i>
+                                                Filter
+                                                {(filterAssignee !== "all" || filterPriority !== "all") && (
+                                                    <Badge color="primary" className="ms-1" pill>
+                                                        {(filterAssignee !== "all" ? 1 : 0) + (filterPriority !== "all" ? 1 : 0)}
+                                                    </Badge>
+                                                )}
                                             </DropdownToggle>
-                                            <DropdownMenu>
-                                                <DropdownItem onClick={() => setFilterPriority('all')}>All</DropdownItem>
-                                                <DropdownItem divider />
-                                                <DropdownItem onClick={() => setFilterPriority('HIGH')}>
-                                                    <Badge color="danger" className="me-1">HIGH</Badge>
-                                                </DropdownItem>
-                                                <DropdownItem onClick={() => setFilterPriority('MEDIUM')}>
-                                                    <Badge color="warning" className="me-1">MEDIUM</Badge>
-                                                </DropdownItem>
-                                                <DropdownItem onClick={() => setFilterPriority('LOW')}>
-                                                    <Badge color="info" className="me-1">LOW</Badge>
-                                                </DropdownItem>
-                                            </DropdownMenu>
-                                        </UncontrolledDropdown>
+                                            <DropdownMenu end style={{ minWidth: '280px' }}>
+                                                <div className="px-3 py-2">
+                                                    <h6 className="mb-2">
+                                                        <i className="ri-user-line me-1"></i>
+                                                        Assignee
+                                                    </h6>
+                                                    <div className="d-flex flex-wrap gap-1 mb-3">
+                                                        <Button
+                                                            color={filterAssignee === "all" ? "primary" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterAssignee("all")}
+                                                        >
+                                                            All
+                                                        </Button>
+                                                        <Button
+                                                            color={filterAssignee === "unassigned" ? "primary" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterAssignee("unassigned")}
+                                                        >
+                                                            Unassigned
+                                                        </Button>
+                                                    </div>
+                                                    <div className="d-flex flex-column gap-1 mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                        {uniqueProjectMembers.map((member) => (
+                                                            <Button
+                                                                key={member.userId}
+                                                                color={filterAssignee === member.userId ? "primary" : "light"}
+                                                                size="sm"
+                                                                onClick={() => setFilterAssignee(member.userId)}
+                                                                className="text-start"
+                                                            >
+                                                                {member.email || member.displayName}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
 
-                                        {/* Filter by Assignee */}
-                                        <UncontrolledDropdown>
-                                            <DropdownToggle color="light" size="sm" caret>
-                                                <i className="ri-user-line me-1"></i>
-                                                Assignee
-                                            </DropdownToggle>
-                                            <DropdownMenu end>
-                                                <DropdownItem onClick={() => setFilterAssignee('all')}>All</DropdownItem>
-                                                <DropdownItem divider />
-                                                {uniqueProjectMembers.map(member => (
-                                                    <DropdownItem 
-                                                        key={member.userId}
-                                                        onClick={() => setFilterAssignee(member.userId)}
-                                                    >
-                                                        <div className="d-flex align-items-center">
-                                                            <div className="avatar-xs me-2">
-                                                                <div className="avatar-title rounded-circle bg-primary-subtle text-primary">
-                                                                    {member.displayName.charAt(0).toUpperCase()}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <div>{member.displayName}</div>
-                                                                {member.displayName !== member.email && (
-                                                                    <small className="text-muted">{member.email}</small>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </DropdownItem>
-                                                ))}
+                                                    <DropdownItem divider />
+
+                                                    <h6 className="mb-2 mt-2">
+                                                        <i className="ri-price-tag-3-line me-1"></i>
+                                                        Priority
+                                                    </h6>
+                                                    <div className="d-flex flex-wrap gap-1">
+                                                        <Button
+                                                            color={filterPriority === "all" ? "primary" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterPriority("all")}
+                                                        >
+                                                            All
+                                                        </Button>
+                                                        <Button
+                                                            color={filterPriority === "HIGH" ? "warning" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterPriority("HIGH")}
+                                                        >
+                                                            HIGH
+                                                        </Button>
+                                                        <Button
+                                                            color={filterPriority === "MEDIUM" ? "info" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterPriority("MEDIUM")}
+                                                        >
+                                                            MEDIUM
+                                                        </Button>
+                                                        <Button
+                                                            color={filterPriority === "LOW" ? "secondary" : "light"}
+                                                            size="sm"
+                                                            onClick={() => setFilterPriority("LOW")}
+                                                        >
+                                                            LOW
+                                                        </Button>
+                                                    </div>
+
+                                                    {(filterAssignee !== "all" || filterPriority !== "all") && (
+                                                        <>
+                                                            <DropdownItem divider />
+                                                            <Button
+                                                                color="danger"
+                                                                size="sm"
+                                                                outline
+                                                                className="w-100"
+                                                                onClick={() => {
+                                                                    setFilterAssignee("all");
+                                                                    setFilterPriority("all");
+                                                                }}
+                                                            >
+                                                                <i className="ri-close-line me-1"></i>
+                                                                Clear All Filters
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </DropdownMenu>
-                                        </UncontrolledDropdown>
+                                        </Dropdown>
 
                                         {/* Create Task Button */}
                                         <Button 
@@ -550,7 +612,22 @@ const TaskListView = () => {
                                                                         <User size={16} />
                                                                     )}
                                                                 </DropdownToggle>
-                                                                <DropdownMenu end>
+                                                                <DropdownMenu 
+                                                                    end
+                                                                    popperConfig={{ 
+                                                                        strategy: "fixed",
+                                                                        modifiers: [
+                                                                            {
+                                                                                name: 'preventOverflow',
+                                                                                options: {
+                                                                                    boundary: 'viewport'
+                                                                                }
+                                                                            }
+                                                                        ]
+                                                                    }}
+                                                                    style={{ zIndex: 9999 }}
+                                                                    container="body"
+                                                                >
                                                                     <DropdownItem
                                                                         onClick={() => handleAssignMember(task.id, '')}
                                                                     >

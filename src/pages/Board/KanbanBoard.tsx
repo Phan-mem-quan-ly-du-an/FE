@@ -1233,7 +1233,22 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <User size={16} />
                 )}
               </DropdownToggle>
-              <DropdownMenu end>
+              <DropdownMenu 
+                end
+                popperConfig={{ 
+                  strategy: "fixed",
+                  modifiers: [
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        boundary: 'viewport'
+                      }
+                    }
+                  ]
+                }}
+                style={{ zIndex: 9999 }}
+                container="body"
+              >
                 {projectMembers.length === 1 ? (
                   <DropdownItem disabled className="text-muted">
                     <small>Loading members...</small>
