@@ -13,6 +13,7 @@ import { getWorkspaceById } from 'apiCaller/workspaces';
 import AssignProjectRoleModal from './AssignProjectRoleModal';
 import TransferProjectOwnershipModal from './TransferProjectOwnershipModal';
 import { toast } from 'react-toastify';
+import { isForbiddenError } from '../../helpers/permissions';
 
 const TeamTab: React.FC = () => {
   const { t } = useTranslation();
@@ -88,6 +89,12 @@ const TeamTab: React.FC = () => {
     }, {});
   }, [usersBrief]);
 
+  useEffect(() => {
+    if (error && isForbiddenError(error)) {
+      toast.warning(t('ProjectPermissions.ViewMembersDenied') || 'Bạn không có quyền xem thành viên của dự án này.');
+    }
+  }, [error, t]);
+
   if (isLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
@@ -98,10 +105,11 @@ const TeamTab: React.FC = () => {
   }
 
   if (error) {
+    const forbidden = isForbiddenError(error);
     return (
-      <div className="alert alert-danger text-center">
+      <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
         <i className="ri-error-warning-line me-2"></i>
-        Failed to load members
+        {forbidden ? (t('ProjectPermissions.ViewMembersDenied') || 'Bạn không có quyền xem thành viên của dự án này.') : (t('FailedToLoadMembers') || 'Failed to load members')}
       </div>
     );
   }

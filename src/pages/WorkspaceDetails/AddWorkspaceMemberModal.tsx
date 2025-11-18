@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { getCompanyMembers, CompanyMember } from '../../apiCaller/companyMembers';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
 import { addWorkspaceMember } from '../../apiCaller/workspaceDetails';
+import { isForbiddenError } from '../../helpers/permissions';
 
 type Props = {
     show: boolean;
@@ -20,6 +23,7 @@ type Entry = {
 };
 
 const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, companyId, onSuccess }) => {
+    const { t } = useTranslation();
     const [emailsText, setEmailsText] = useState('');
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<CompanyMember[]>([]);
@@ -37,7 +41,11 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                 setMembers(cm || []);
                 setRoles(rs || []);
             } catch (e) {
-                // ignore
+                if (isForbiddenError(e)) {
+                    toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+                } else {
+                    toast.error(t('FailedToInviteMembers') || 'Không thể tải dữ liệu phục vụ thêm thành viên.');
+                }
             }
         })();
     }, [show, companyId, workspaceId]);
@@ -77,7 +85,11 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
             onClose();
             setEmailsText('');
         } catch (err) {
-            // could add toast later
+            if (isForbiddenError(err)) {
+                toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+            } else {
+                toast.error(t('FailedToInviteMembers') || 'Không thể mời thành viên');
+            }
         } finally {
             setSubmitting(false);
         }
