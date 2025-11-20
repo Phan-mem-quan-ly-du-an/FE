@@ -17,7 +17,8 @@ interface Task {
     description?: string;
     projectId: string;
     sprintId?: number | null;
-    assignedTo?: string;
+    assignedTo?: string; // deprecated, use assigneeId
+    assigneeId?: string; // current field used by backend
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate?: string;
     estimatedHours?: number;
@@ -79,14 +80,33 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     ]);
     const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' } | null>(null);
     const [showArchived, setShowArchived] = useState(false);
-
-    const statusColumns: StatusColumn[] = [
+    const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([
         { id: 1, name: 'TO DO', color: '#840417ff' },
         { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
         { id: 3, name: 'DONE', color: '#10b981' }
-    ];
+    ]);
+
+    const loadBoardColumns = async () => {
+        try {
+            const { getBoardByProjectId } = await import('../../apiCaller/boards');
+            const boardData = await getBoardByProjectId(projectId);
+            if (boardData && boardData.columns && boardData.columns.length > 0) {
+                const columns = boardData.columns.map((col: any) => ({
+                    id: col.id,
+                    name: col.name,
+                    color: col.color || '#3b82f6'
+                }));
+                setStatusColumns(columns);
+                console.log('✅ Loaded board columns:', columns);
+            }
+        } catch (error) {
+            console.error('❌ Error loading board columns:', error);
+            // Keep default columns if load fails
+        }
+    };
 
     useEffect(() => {
+        loadBoardColumns();
         loadData();
         loadProjectMembers();
     }, [projectId, showArchived]);
@@ -285,7 +305,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 description: task.description,
                 projectId: task.projectId,
                 sprintId: task.sprintId,
-                assignedTo: task.assignedTo,
+                assigneeId: task.assigneeId,
                 priority: task.priority,
                 dueDate: task.dueDate,
                 estimatedHours: task.estimatedHours,
@@ -301,43 +321,41 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             toast.success(`Status updated to ${statusName}`, { autoClose: 2000 });
         } catch (error: any) {
             console.error('Error updating status:', error);
-            toast.error('Failed to update status');
+            const errorMsg = error?.response?.data?.message || 'Failed to update status';
+            toast.error(errorMsg);
+            
+            // If column not found, reload columns from backend
+            if (errorMsg.includes('Status column not found')) {
+                toast.info('Reloading latest columns...', { autoClose: 1500 });
+                await loadBoardColumns();
+            }
+            
             updateTaskLocally(task.id, { statusColumn: previousStatus });
         }
     };
 
     const handleAssigneeChange = async (task: Task, userId: string, displayName: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const previousAssignee = task.assignedTo;
+        const previousAssigneeId = task.assigneeId;
 
         setOpenDropdown(null);
 
         updateTaskLocally(task.id, {
-            assignedTo: userId === 'unassigned' ? undefined : userId
+            assigneeId: userId === 'unassigned' ? undefined : userId
         });
 
         try {
-            const updatedTask = {
-                id: task.id,
-                title: task.title,
-                description: task.description,
-                projectId: task.projectId,
-                sprintId: task.sprintId,
-                assignedTo: userId === 'unassigned' ? undefined : userId,
-                priority: task.priority,
-                dueDate: task.dueDate,
-                estimatedHours: task.estimatedHours,
-                tags: task.tags,
-                orderIndex: task.orderIndex,
-                statusColumn: task.statusColumn
+            // Only send assigneeId field (use empty string for unassign, not undefined)
+            const updatePayload = {
+                assigneeId: userId === 'unassigned' ? '' : userId
             };
 
-            await taskAPI.update(projectId, task.id, updatedTask);
+            await taskAPI.update(projectId, task.id, updatePayload);
             toast.success(`Assigned to ${displayName}`, { autoClose: 2000 });
         } catch (error: any) {
             console.error('Error updating assignee:', error);
             toast.error('Failed to update assignee');
-            updateTaskLocally(task.id, { assignedTo: previousAssignee });
+            updateTaskLocally(task.id, { assigneeId: previousAssigneeId });
         }
     };
 
@@ -556,11 +574,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'URGENT': return 'danger';
-            case 'HIGH': return 'warning';
-            case 'MEDIUM': return 'info';
-            case 'LOW': return 'secondary';
+        // Match colors with Board and List: HIGH=warning, MEDIUM=info, LOW=secondary
+        switch (priority?.toUpperCase()) {
+            case 'HIGH': return 'warning'; // Yellow/Orange color
+            case 'MEDIUM': return 'info';  // Blue color
+            case 'LOW': return 'secondary'; // Gray color
             default: return 'secondary';
         }
     };
@@ -581,7 +599,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
             : statusColumns[0];
 
-        const currentAssignee = projectMembers.find(m => m.userId === task.assignedTo) || projectMembers[0];
+        const currentAssignee = projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0];
 
         const TaskContent = (
             <div className={`task-card ${isArchived ? 'archived-task' : ''}`}>
