@@ -33,7 +33,7 @@ interface Task {
     projectId: string;
     sprintId?: number | null;
     assignedTo?: string;
-    assigneeId?: string;
+    assigneeId?: string | null; // Allow null for unassigned tasks
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate?: string;
     estimatedHours?: number;
@@ -74,7 +74,15 @@ const TaskListView = () => {
         try {
             setLoading(true);
             const response = await taskAPI.listByProject(projectId, false);
-            const taskList = response.content || [];
+            const rawTaskList = response.content || [];
+            
+            // Normalize tasks: Backend returns assigneeId, ensure type compatibility
+            const taskList: Task[] = rawTaskList.map((task: any) => ({
+                ...task,
+                assigneeId: task.assigneeId ?? task.assignedTo ?? null,
+                assignedTo: task.assignedTo ?? task.assigneeId ?? undefined
+            }));
+            
             setTasks(taskList);
             setFilteredTasks(taskList);
         } catch (error) {
@@ -226,7 +234,7 @@ const TaskListView = () => {
     };
 
     // Get member info
-    const getMemberInfo = (assigneeId?: string) => {
+    const getMemberInfo = (assigneeId?: string | null) => {
         if (!assigneeId) return null;
         return projectMembers.find(m => m.userId === assigneeId);
     };

@@ -18,6 +18,7 @@ interface Task {
     projectId: string;
     sprintId?: number | null;
     assignedTo?: string;
+    assigneeId?: string | null; // Backend returns assigneeId, normalize to assignedTo
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate?: string;
     estimatedHours?: number;
@@ -155,12 +156,23 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 }
             }
 
-            // 4. Phân loại tasks
+            // 4. Normalize tasks: Backend returns assigneeId, frontend uses assignedTo
+            const normalizeTask = (task: any): Task => {
+                return {
+                    ...task,
+                    // Normalize assigneeId to assignedTo for frontend consistency
+                    assignedTo: task.assignedTo || task.assigneeId || undefined
+                };
+            };
+
+            // 5. Phân loại tasks
             const backlog: Task[] = [];
             const sprintTasksMap: { [sprintId: number]: Task[] } = {};
 
-            normalTasksList.forEach((task: Task) => {
-                const enrichedTask = enrichTaskWithColor(task);
+            normalTasksList.forEach((task: any) => {
+                // Normalize task first
+                const normalizedTask = normalizeTask(task);
+                const enrichedTask = enrichTaskWithColor(normalizedTask);
 
                 if (!enrichedTask.sprintId) {
                     backlog.push(enrichedTask);
@@ -172,10 +184,13 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 }
             });
 
-            // 5. Cập nhật state
+            // 6. Cập nhật state
             setBacklogTasks(backlog.sort((a, b) => a.orderIndex - b.orderIndex));
             setSprintTasks(sprintTasksMap);
-            setArchivedTasks(archived.map(enrichTaskWithColor).sort((a, b) => {
+            setArchivedTasks(archived.map((task: any) => {
+                const normalized = normalizeTask(task);
+                return enrichTaskWithColor(normalized);
+            }).sort((a, b) => {
                 const dateA = a.archivedAt ? new Date(a.archivedAt).getTime() : 0;
                 const dateB = b.archivedAt ? new Date(b.archivedAt).getTime() : 0;
                 return dateB - dateA;
@@ -323,7 +338,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 description: task.description,
                 projectId: task.projectId,
                 sprintId: task.sprintId,
-                assignedTo: userId === 'unassigned' ? undefined : userId,
+                // Backend expects assigneeId, not assignedTo
+                assigneeId: userId === 'unassigned' ? null : userId,
                 priority: task.priority,
                 dueDate: task.dueDate,
                 estimatedHours: task.estimatedHours,
