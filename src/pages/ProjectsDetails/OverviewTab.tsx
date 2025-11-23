@@ -86,6 +86,16 @@ const OverviewTab = () => {
         },
     });
 
+    const {
+        data: metrics,
+        isLoading: isLoadingMetrics,
+    } = useQuery<Record<string, number>>({
+        queryKey: ["metrics7d", projectId],
+        queryFn: () => taskAPI.getMetricsLast7Days(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
     // Debug: Log raw response
     React.useEffect(() => {
         if (tasksResponse) {
@@ -242,7 +252,7 @@ const OverviewTab = () => {
         return filtered;
     }, [tasksResponse, board, projectId, session?.id]);
 
-    const isLoading = isLoadingProject || isLoadingSession || isLoadingBoard || isLoadingTasks;
+    const isLoading = isLoadingProject || isLoadingSession || isLoadingBoard || isLoadingTasks || isLoadingMetrics;
 
     if (isLoading) {
         return (
@@ -277,6 +287,36 @@ const OverviewTab = () => {
 
     return (
         <div className="px-4 py-4">
+            <Card className="mb-3">
+                <CardBody>
+                    <Row className="g-3">
+                        <Col xs={12} sm={6} md={3}>
+                            <div className="text-center border rounded p-3">
+                                <div className="fs-3 fw-bold text-success">{metrics?.completed ?? 0}</div>
+                                <div className="text-muted">Completed (7d)</div>
+                            </div>
+                        </Col>
+                        <Col xs={12} sm={6} md={3}>
+                            <div className="text-center border rounded p-3">
+                                <div className="fs-3 fw-bold text-primary">{metrics?.updated ?? 0}</div>
+                                <div className="text-muted">Updated (7d)</div>
+                            </div>
+                        </Col>
+                        <Col xs={12} sm={6} md={3}>
+                            <div className="text-center border rounded p-3">
+                                <div className="fs-3 fw-bold text-info">{metrics?.created ?? 0}</div>
+                                <div className="text-muted">Created (7d)</div>
+                            </div>
+                        </Col>
+                        <Col xs={12} sm={6} md={3}>
+                            <div className="text-center border rounded p-3">
+                                <div className="fs-3 fw-bold text-warning">{(metrics?.dueSoon ?? (metrics as any)?.due_soon) ?? 0}</div>
+                                <div className="text-muted">Due Soon (7d)</div>
+                            </div>
+                        </Col>
+                    </Row>
+                </CardBody>
+            </Card>
             <Row>
                 {/* Left Column: Summary */}
                 <Col md={6}>

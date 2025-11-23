@@ -143,6 +143,16 @@ export const taskAPI = {
         const response = await apiCaller.get();
         const data: any = response.data;
         return (data.data || data) as TaskListResponse;
+    },
+
+    getMetricsLast7Days: async (projectId: string): Promise<Record<string, number>> => {
+        const apiCaller = new ApiCaller();
+        const url = `/projects/${projectId}/tasks/metrics/7d`;
+        apiCaller.setUrl(url);
+        const response = await apiCaller.get();
+        const data: any = response.data;
+        const payload: any = data.data || data;
+        return payload as Record<string, number>;
     }
 };
 
