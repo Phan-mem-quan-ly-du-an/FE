@@ -16,7 +16,7 @@ interface Task {
     projectId: string;
     sprintId?: number | null;
     assignedTo?: string;
-    assigneeId?: string | null; // Backend might return assigneeId
+    assigneeId?: string | null;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate?: string;
     estimatedHours?: number;
@@ -70,8 +70,7 @@ const OverviewTab = () => {
         retry: 1,
     });
 
-    // Fetch my tasks using the new API endpoint
-    // This is more efficient as it only returns tasks assigned to current user
+    // Fetch my tasks
     const {
         data: tasksResponse,
         isLoading: isLoadingTasks,
@@ -96,161 +95,65 @@ const OverviewTab = () => {
         retry: 1,
     });
 
-    // Debug: Log raw response
-    React.useEffect(() => {
-        if (tasksResponse) {
-            console.log('📥 Raw Tasks Response:', JSON.stringify(tasksResponse, null, 2));
-            console.log('📥 Tasks Response Structure:', {
-                hasContent: 'content' in tasksResponse,
-                hasData: 'data' in tasksResponse,
-                keys: Object.keys(tasksResponse),
-                contentType: typeof tasksResponse.content,
-                isArray: Array.isArray(tasksResponse.content),
-                contentLength: Array.isArray(tasksResponse.content) 
-                    ? tasksResponse.content.length 
-                    : (tasksResponse.content && typeof tasksResponse.content === 'object' && 'length' in tasksResponse.content)
-                        ? (tasksResponse.content as any).length || 0
-                        : 0
-            });
-        }
-        if (tasksError) {
-            console.error('❌ Tasks Error:', tasksError);
-        }
-    }, [tasksResponse, tasksError]);
+    const { data: statusDist } = useQuery<Record<string, number>>({
+        queryKey: ["statusDistribution", projectId],
+        queryFn: () => taskAPI.getStatusDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
 
-    // Debug: Log session and board
+    // Debug logs
     React.useEffect(() => {
-        console.log('👤 Session:', {
-            session,
-            sessionId: session?.id,
-            sessionType: typeof session?.id
-        });
-        console.log('📊 Board:', {
-            board,
-            activeSprintId: board?.activeSprintId,
-            activeSprintIdType: typeof board?.activeSprintId
-        });
-    }, [session, board]);
+        console.log('📊 Status Distribution:', statusDist);
+    }, [statusDist]);
 
-    // Normalize task: Backend returns assigneeId, normalize to assignedTo
+    // Normalize task
     const normalizeTask = (task: any): Task => {
         return {
             ...task,
-            // Normalize assigneeId to assignedTo for frontend consistency
             assignedTo: task.assignedTo || task.assigneeId || undefined,
             assigneeId: task.assigneeId || task.assignedTo || null,
-            // Ensure sprintId is number
-            sprintId: typeof task.sprintId === 'string' 
-                ? parseInt(task.sprintId) 
+            sprintId: typeof task.sprintId === 'string'
+                ? parseInt(task.sprintId)
                 : (task.sprintId ?? null)
         };
     };
 
-    // Process my tasks from API response
-    // Note: The API already filters by assignee and sprintId, but we still normalize the data
-    const myTasks = useMemo(() => {
-        console.log('🔍 Process My Tasks - Initial State:', {
-            hasTasksResponse: !!tasksResponse,
-            hasContent: !!tasksResponse?.content,
-            contentLength: tasksResponse?.content?.length || 0,
-            sessionId: session?.id,
-            hasBoard: !!board,
-            activeSprintId: board?.activeSprintId,
-            rawTasksResponse: tasksResponse
-        });
+    const dynamicColors = [
+        "#0d6efd", // blue
+        "#6c757d", // gray
+        "#198754", // green
+        "#ffc107", // yellow
+        "#dc3545", // red
+        "#20c997", // teal
+        "#6610f2", // purple
+        "#fd7e14", // orange
+    ];
 
-        // Early return if dependencies not ready
+    const myTasks = useMemo(() => {
         if (!tasksResponse?.content || !board?.activeSprintId) {
-            console.warn('⚠️ Missing dependencies:', {
-                hasTasksResponseContent: !!tasksResponse?.content,
-                hasActiveSprintId: !!board?.activeSprintId,
-                tasksResponseContent: tasksResponse?.content,
-                activeSprintId: board?.activeSprintId
-            });
             return [];
         }
 
-        // Extract task list from response - handle different response structures
         let rawTaskList: any[] = [];
         if (Array.isArray(tasksResponse.content)) {
             rawTaskList = tasksResponse.content;
         } else if (tasksResponse.content && typeof tasksResponse.content === 'object') {
-            // Check if it's a nested structure
             if ('content' in tasksResponse.content && Array.isArray((tasksResponse.content as any).content)) {
                 rawTaskList = (tasksResponse.content as any).content;
-            } else if (Array.isArray(tasksResponse.content)) {
-                rawTaskList = tasksResponse.content;
             }
         }
 
-        console.log('📦 Raw Task List from API:', {
-            count: rawTaskList.length,
-            tasks: rawTaskList.map((t: any) => ({
-                id: t.id,
-                title: t.title,
-                assigneeId: t.assigneeId,
-                assignedTo: t.assignedTo,
-                sprintId: t.sprintId,
-                sprintIdType: typeof t.sprintId,
-                projectId: t.projectId
-            }))
-        });
-
-        // Normalize all tasks first
         const normalizedTasks = rawTaskList.map(normalizeTask);
 
-        console.log('🔄 Normalized Tasks:', {
-            count: normalizedTasks.length,
-            tasks: normalizedTasks.map((t: Task) => ({
-                id: t.id,
-                title: t.title,
-                assignedTo: t.assignedTo,
-                assigneeId: t.assigneeId,
-                sprintId: t.sprintId,
-                projectId: t.projectId
-            }))
-        });
-
-        // Additional filter: ensure tasks belong to the correct project and sprint
-        // (API should already filter, but this is a safety check)
         const filtered = normalizedTasks.filter((task: Task) => {
-            // Verify projectId matches
             const projectMatch = task.projectId === projectId;
-            
-            // Verify sprintId matches
-            const taskSprintId = task.sprintId;
-            const sprintMatch = taskSprintId === board.activeSprintId;
-            
-            console.log(`📋 Task #${task.id} "${task.title}":`, {
-                projectId: task.projectId,
-                expectedProjectId: projectId,
-                projectMatch,
-                taskSprintId,
-                activeSprintId: board.activeSprintId,
-                sprintMatch,
-                willInclude: projectMatch && sprintMatch
-            });
-            
+            const sprintMatch = task.sprintId === board.activeSprintId;
             return projectMatch && sprintMatch;
         });
 
-        console.log('🎯 My Tasks Final Result:', {
-            totalTasksFromAPI: normalizedTasks.length,
-            myTasksCount: filtered.length,
-            activeSprintId: board.activeSprintId,
-            projectId: projectId,
-            filteredTasks: filtered.map(t => ({ 
-                id: t.id, 
-                title: t.title, 
-                assignedTo: t.assignedTo, 
-                assigneeId: t.assigneeId,
-                sprintId: t.sprintId,
-                projectId: t.projectId
-            }))
-        });
-
         return filtered;
-    }, [tasksResponse, board, projectId, session?.id]);
+    }, [tasksResponse, board, projectId]);
 
     const isLoading = isLoadingProject || isLoadingSession || isLoadingBoard || isLoadingTasks || isLoadingMetrics;
 
@@ -285,37 +188,121 @@ const OverviewTab = () => {
         }
     };
 
+    const resolveCount = (keys: string[]) => {
+        for (const k of keys) {
+            const v = (statusDist as any)?.[k];
+            if (typeof v === 'number') return v as number;
+        }
+        return 0;
+    };
+
+    // FIXED: Proper pie chart rendering - Even Larger
+    const renderDynamicPie = (dist: Record<string, number>) => {
+        if (!dist || Object.keys(dist).length === 0) {
+            return (
+                <div className="d-flex align-items-center justify-content-center" style={{ width: 300, height: 300 }}>
+                    <div className="text-center text-muted">
+                        <i className="ri-pie-chart-line fs-1"></i>
+                        <div className="small mt-2">No data</div>
+                    </div>
+                </div>
+            );
+        }
+
+        const entries = Object.entries(dist);
+        const total = entries.reduce((sum, [, val]) => sum + val, 0);
+        const size = 300;
+        const strokeWidth = 55;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+
+        let offset = 0;
+
+        return (
+            <svg  viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)", maxWidth: "200px", maxHeight: "200px" }}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="none"
+                    stroke="#e9ecef"
+                    strokeWidth={strokeWidth}
+                />
+
+                {entries.map(([name, value], i) => {
+                    if (value === 0) return null;
+
+                    const length = (value / total) * circumference;
+                    const color = dynamicColors[i % dynamicColors.length];
+
+                    const circle = (
+                        <circle
+                            key={name}
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth={strokeWidth}
+                            strokeDasharray={`${length} ${circumference}`}
+                            strokeDashoffset={-offset}
+                            strokeLinecap="butt"
+                        />
+                    );
+
+                    offset += length;
+                    return circle;
+                })}
+
+                {/* TOTAL NUMBER */}
+                <text
+                    x={size / 2}
+                    y={size / 2}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{
+                        fontSize: '54px',
+                        fontWeight: 'bold',
+                        fill: '#212529',
+                        transform: 'rotate(90deg)',
+                        transformOrigin: 'center'
+                    }}
+                >
+                    {total}
+                </text>
+            </svg>
+        );
+    };
+
     return (
         <div className="px-4 py-4">
             <Card className="mb-3">
-                <CardBody>
-                    <Row className="g-3">
-                        <Col xs={12} sm={6} md={3}>
-                            <div className="text-center border rounded p-3">
-                                <div className="fs-3 fw-bold text-success">{metrics?.completed ?? 0}</div>
-                                <div className="text-muted">Completed (7d)</div>
-                            </div>
-                        </Col>
-                        <Col xs={12} sm={6} md={3}>
-                            <div className="text-center border rounded p-3">
-                                <div className="fs-3 fw-bold text-primary">{metrics?.updated ?? 0}</div>
-                                <div className="text-muted">Updated (7d)</div>
-                            </div>
-                        </Col>
-                        <Col xs={12} sm={6} md={3}>
-                            <div className="text-center border rounded p-3">
-                                <div className="fs-3 fw-bold text-info">{metrics?.created ?? 0}</div>
-                                <div className="text-muted">Created (7d)</div>
-                            </div>
-                        </Col>
-                        <Col xs={12} sm={6} md={3}>
-                            <div className="text-center border rounded p-3">
-                                <div className="fs-3 fw-bold text-warning">{(metrics?.dueSoon ?? (metrics as any)?.due_soon) ?? 0}</div>
-                                <div className="text-muted">Due Soon (7d)</div>
-                            </div>
-                        </Col>
-                    </Row>
-                </CardBody>
+                <Row className="g-3">
+                    <Col xs={12} sm={6} md={3}>
+                        <div className="text-center border rounded p-3">
+                            <div className="fs-3 fw-bold text-success">{metrics?.completed ?? 0}</div>
+                            <div className="text-muted">Completed (7d)</div>
+                        </div>
+                    </Col>
+                    <Col xs={12} sm={6} md={3}>
+                        <div className="text-center border rounded p-3">
+                            <div className="fs-3 fw-bold text-primary">{metrics?.updated ?? 0}</div>
+                            <div className="text-muted">Updated (7d)</div>
+                        </div>
+                    </Col>
+                    <Col xs={12} sm={6} md={3}>
+                        <div className="text-center border rounded p-3">
+                            <div className="fs-3 fw-bold text-info">{metrics?.created ?? 0}</div>
+                            <div className="text-muted">Created (7d)</div>
+                        </div>
+                    </Col>
+                    <Col xs={12} sm={6} md={3}>
+                        <div className="text-center border rounded p-3">
+                            <div className="fs-3 fw-bold text-warning">{(metrics?.dueSoon ?? (metrics as any)?.due_soon) ?? 0}</div>
+                            <div className="text-muted">Due Soon (7d)</div>
+                        </div>
+                    </Col>
+                </Row>
             </Card>
             <Row>
                 {/* Left Column: Summary */}
@@ -341,14 +328,47 @@ const OverviewTab = () => {
                             </ul>
                         </CardBody>
                     </Card>
+                    <Card className="mt-3">
+                        <CardBody>
+                            <h6 className="fw-bold text-uppercase mb-3">Status Distribution</h6>
+                            <div className="d-flex align-items-center justify-content-between gap-3">
+                                {/* Legend */}
+                                <div className="vstack gap-3" style={{ minWidth: "180px" }}>
+                                    {Object.entries(statusDist || {}).map(([name, value], idx) => (
+                                        <div key={name} className="d-flex align-items-center gap-2">
+                                            <span
+                                                style={{
+                                                    width: 18,
+                                                    height: 18,
+                                                    backgroundColor: dynamicColors[idx % dynamicColors.length],
+                                                    borderRadius: "50%"
+                                                }}
+                                            ></span>
+
+                                            <span className="text-muted flex-grow-1">{name}</span>
+                                            <span className="fw-bold">{value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Pie Chart */}
+                                {(() => {
+                                    return (
+                                        <div className="flex-grow-1 d-flex justify-content-end">
+                                            {renderDynamicPie(statusDist || {})}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </CardBody>
+                    </Card>
                 </Col>
 
-                {/* Right Column: My Tasks */}
                 <Col md={6}>
                     <Card>
                         <CardBody>
                             <h5 className="fw-bold text-uppercase mb-3">{t("MyTasks")}</h5>
-                            
+
                             {!board?.activeSprintId ? (
                                 <p className="text-muted mb-0">
                                     {t("NoActiveSprint")}
