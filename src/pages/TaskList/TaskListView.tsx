@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown } from 'reactstrap';
+import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, Label, FormGroup } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { User } from 'lucide-react';
@@ -67,6 +67,9 @@ const TaskListView = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+  const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable'>('comfortable');
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
 
   const appliedFiltersRef = useRef<typeof filters | null>(null);
   const debounceTimerRef = useRef<any>(null);
@@ -298,6 +301,66 @@ const TaskListView = () => {
     fetchTasks(null);
   };
 
+  const toggleTaskSelection = (taskId: number) => {
+    setSelectedTasks(prev => prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTasks.length === tasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(tasks.map(t => t.id));
+    }
+  };
+
+  const bulkAssign = async (assigneeId: string) => {
+    if (selectedTasks.length === 0) return;
+    try {
+      await Promise.all(selectedTasks.map(taskId => handleAssignMember(taskId, assigneeId)));
+      toast.success(`${selectedTasks.length} tasks assigned`, { autoClose: 2000 });
+      setSelectedTasks([]);
+    } catch {
+      toast.error('Failed to assign tasks');
+    }
+  };
+
+  const getTaskKey = (task: Task) => {
+    const prefix = projectId?.substring(0, 4).toUpperCase() || 'PROJ';
+    return `${prefix}-${task.id}`;
+  };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (filters.priorities.length) count += filters.priorities.length;
+    if (filters.assigneeIds.length) count += filters.assigneeIds.length;
+    if (filters.columnIds.length) count += filters.columnIds.length;
+    if (typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) count += 1;
+    if (filters.includeArchived) count += 1;
+    return count;
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Key', 'Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Updated'];
+    const rows = tasks.map(task => [
+      getTaskKey(task),
+      task.title,
+      task.statusColumn?.name || 'No Status',
+      task.priority,
+      getMemberInfo(task.assigneeId)?.displayName || 'Unassigned',
+      formatDate(task.dueDate),
+      formatDate(task.updatedAt)
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tasks-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported successfully', { autoClose: 1500 });
+  };
+
   return (
     <React.Fragment>
       <Row>
@@ -313,55 +376,31 @@ const TaskListView = () => {
             </Col>
             <Col md={8} className="text-end">
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                <Button color={getActiveFiltersCount() > 0 ? 'primary' : 'light'} size="sm" onClick={() => setShowFiltersModal(true)}>
+                  <i className="ri-filter-3-line me-1"></i>
+                  Filters
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge color="light" className="ms-1" pill style={{ color: '#25a0e2' }}>{getActiveFiltersCount()}</Badge>
+                  )}
+                </Button>
+
                 <UncontrolledDropdown>
-                  <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
-                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, assigneeIds: [] }))} active={filters.assigneeIds.length === 0}>All</DropdownItem>
-                    <DropdownItem divider />
-                    {projectMembers.map(m => (
-                      <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
-                    ))}
+                  <DropdownToggle caret color="light" size="sm">
+                    <i className="ri-layout-line me-1"></i>View
+                  </DropdownToggle>
+                  <DropdownMenu end>
+                    <DropdownItem onClick={() => setViewDensity('compact')} active={viewDensity === 'compact'}>
+                      <i className="ri-layout-row-line me-1"></i>Compact
+                    </DropdownItem>
+                    <DropdownItem onClick={() => setViewDensity('comfortable')} active={viewDensity === 'comfortable'}>
+                      <i className="ri-layout-2-line me-1"></i>Comfortable
+                    </DropdownItem>
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
-                <UncontrolledDropdown>
-                  <DropdownToggle caret color={filters.priorities.length ? 'info' : 'light'} size="sm">Priority</DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '220px' }}>
-                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, priorities: [] }))} active={filters.priorities.length === 0}>All</DropdownItem>
-                    <DropdownItem divider />
-                    <DropdownItem onClick={() => togglePriority('HIGH')} active={filters.priorities.includes('HIGH')}>HIGH</DropdownItem>
-                    <DropdownItem onClick={() => togglePriority('MEDIUM')} active={filters.priorities.includes('MEDIUM')}>MEDIUM</DropdownItem>
-                    <DropdownItem onClick={() => togglePriority('LOW')} active={filters.priorities.includes('LOW')}>LOW</DropdownItem>
-                  </DropdownMenu>
-                </UncontrolledDropdown>
-
-                <UncontrolledDropdown>
-                  <DropdownToggle caret color={filters.columnIds.length ? 'info' : 'light'} size="sm">Status</DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
-                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, columnIds: [] }))} active={filters.columnIds.length === 0}>All</DropdownItem>
-                    <DropdownItem divider />
-                    {columns.map(c => (
-                      <DropdownItem key={c.id} onClick={() => toggleColumn(c.id)} active={filters.columnIds.includes(c.id)}>{c.name}</DropdownItem>
-                    ))}
-                  </DropdownMenu>
-                </UncontrolledDropdown>
-
-                <UncontrolledDropdown>
-                  <DropdownToggle caret color={(typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) ? 'info' : 'light'} size="sm">Sprint</DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '240px' }}>
-                    <DropdownItem onClick={() => setSprint(undefined)} active={typeof filters.sprintId === 'undefined'}>None</DropdownItem>
-                    <DropdownItem divider />
-                    {sprints.map(s => (
-                      <DropdownItem key={s.id} onClick={() => setSprint(s.id)} active={filters.sprintId === s.id}>{s.name}</DropdownItem>
-                    ))}
-                    <DropdownItem divider />
-                    <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
-                  </DropdownMenu>
-                </UncontrolledDropdown>
-
-                <Button color={filters.includeArchived ? 'info' : 'light'} size="sm" onClick={toggleIncludeArchived}>Archived</Button>
-
-                <Button color="danger" size="sm" outline onClick={clearAllFilters}><i className="ri-close-line me-1"></i>Clear</Button>
+                <Button color="light" size="sm" onClick={exportToCSV} title="Export to CSV">
+                  <i className="ri-download-line"></i>
+                </Button>
 
                 <Button color="primary" size="sm" onClick={() => setShowCreateModal(true)}>
                   <i className="ri-add-line me-1"></i>
@@ -458,6 +497,35 @@ const TaskListView = () => {
             </Col>
           </Row>
 
+          {selectedTasks.length > 0 && (
+            <Card className="bg-primary-subtle mb-3">
+              <CardBody className="py-2">
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <strong>{selectedTasks.length}</strong> task{selectedTasks.length > 1 ? 's' : ''} selected
+                  </div>
+                  <div className="d-flex gap-2">
+                    <UncontrolledDropdown>
+                      <DropdownToggle caret color="primary" size="sm">
+                        <i className="ri-user-add-line me-1"></i>Assign
+                      </DropdownToggle>
+                      <DropdownMenu end>
+                        {projectMembers.map(m => (
+                          <DropdownItem key={m.userId} onClick={() => bulkAssign(m.userId)}>
+                            {m.displayName || m.email}
+                          </DropdownItem>
+                        ))}
+                      </DropdownMenu>
+                    </UncontrolledDropdown>
+                    <Button color="secondary" size="sm" outline onClick={() => setSelectedTasks([])}>
+                      <i className="ri-close-line"></i> Clear
+                    </Button>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           <Card>
             <CardBody>
               <div className="mb-2">
@@ -485,9 +553,13 @@ const TaskListView = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <Table hover className="align-middle table-nowrap mb-0">
+                  <Table hover className={`align-middle table-nowrap mb-0 ${viewDensity === 'compact' ? 'table-sm' : ''}`}>
                     <thead className="table-light">
                       <tr>
+                        <th style={{ width: '40px' }}>
+                          <Input type="checkbox" checked={selectedTasks.length === tasks.length && tasks.length > 0} onChange={toggleSelectAll} />
+                        </th>
+                        <th style={{ width: '100px' }}>Key</th>
                         <th className="cursor-pointer" onClick={() => handleSort('title')}>Task {getSortIcon('title')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('statusColumn')}>Status {getSortIcon('statusColumn')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('priority')}>Priority {getSortIcon('priority')}</th>
@@ -499,13 +571,34 @@ const TaskListView = () => {
                     <tbody>
                       {tasks.map(task => {
                         const member = getMemberInfo(task.assigneeId);
+                        const sprint = sprints.find(s => s.id === task.sprintId);
                         return (
-                          <tr key={task.id}>
+                          <tr key={task.id} className={selectedTasks.includes(task.id) ? 'table-active' : ''}>
+                            <td>
+                              <Input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleTaskSelection(task.id)} />
+                            </td>
+                            <td>
+                              <span className="badge bg-light text-dark border">{getTaskKey(task)}</span>
+                            </td>
                             <td>
                               <div className="cursor-pointer" onClick={() => { setSelectedTask(task); setShowDetailModal(true); }}>
                                 <h6 className="mb-1 fw-semibold text-primary">{task.title}</h6>
-                                {task.description && (
+                                {task.description && viewDensity === 'comfortable' && (
                                   <p className="text-muted mb-0 text-truncate" style={{ maxWidth: '300px' }}>{task.description}</p>
+                                )}
+                                {(task.tags || sprint) && viewDensity === 'comfortable' && (
+                                  <div className="d-flex gap-1 mt-1 flex-wrap">
+                                    {task.tags && task.tags.split(',').map((tag, i) => (
+                                      <span key={i} className="badge bg-light text-dark border" style={{ fontSize: '10px' }}>
+                                        <i className="ri-price-tag-3-line"></i> {tag.trim()}
+                                      </span>
+                                    ))}
+                                    {sprint && (
+                                      <span className="badge bg-info-subtle text-info border border-info" style={{ fontSize: '10px' }}>
+                                        <i className="ri-sprint-line"></i> {sprint.name}
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </td>
@@ -573,6 +666,114 @@ const TaskListView = () => {
       {showDetailModal && selectedTask && (
         <TaskDetailModal show={showDetailModal} onHide={() => { setShowDetailModal(false); setSelectedTask(null); }} task={selectedTask} projectId={projectId!} onUpdate={() => { appliedFiltersRef.current = { ...filters }; fetchTasks(appliedFiltersRef.current); }} />
       )}
+
+      <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
+        <ModalHeader toggle={() => setShowFiltersModal(false)}>
+          <i className="ri-filter-3-line me-2"></i>
+          Filters
+        </ModalHeader>
+        <ModalBody>
+          <Row>
+            <Col md={6}>
+              <FormGroup>
+                <Label className="fw-semibold">Priority</Label>
+                <div className="d-flex flex-column gap-2">
+                  {['HIGH', 'MEDIUM', 'LOW'].map(p => (
+                    <div key={p} className="form-check">
+                      <Input
+                        type="checkbox"
+                        id={`priority-${p}`}
+                        checked={filters.priorities.includes(p)}
+                        onChange={() => togglePriority(p as any)}
+                      />
+                      <Label check htmlFor={`priority-${p}`}>
+                        <Badge color={getPriorityColor(p)} className="me-2">{p}</Badge>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </FormGroup>
+
+              <FormGroup className="mt-3">
+                <Label className="fw-semibold">Status</Label>
+                <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {columns.map(c => (
+                    <div key={c.id} className="form-check">
+                      <Input
+                        type="checkbox"
+                        id={`status-${c.id}`}
+                        checked={filters.columnIds.includes(c.id)}
+                        onChange={() => toggleColumn(c.id)}
+                      />
+                      <Label check htmlFor={`status-${c.id}`}>{c.name}</Label>
+                    </div>
+                  ))}
+                </div>
+              </FormGroup>
+            </Col>
+
+            <Col md={6}>
+              <FormGroup>
+                <Label className="fw-semibold">Assignee</Label>
+                <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {projectMembers.map(m => (
+                    <div key={m.userId} className="form-check">
+                      <Input
+                        type="checkbox"
+                        id={`assignee-${m.userId}`}
+                        checked={filters.assigneeIds.includes(m.userId)}
+                        onChange={() => toggleAssignee(m.userId)}
+                      />
+                      <Label check htmlFor={`assignee-${m.userId}`}>{m.displayName || m.email}</Label>
+                    </div>
+                  ))}
+                </div>
+              </FormGroup>
+
+              <FormGroup className="mt-3">
+                <Label className="fw-semibold">Sprint</Label>
+                <Input type="select" value={filters.sprintId || ''} onChange={(e) => setSprint(e.target.value ? parseInt(e.target.value) : undefined)}>
+                  <option value="">No specific sprint</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Input>
+                <div className="form-check mt-2">
+                  <Input
+                    type="checkbox"
+                    id="only-active-sprint"
+                    checked={filters.onlyActiveSprint}
+                    onChange={toggleOnlyActiveSprint}
+                  />
+                  <Label check htmlFor="only-active-sprint">Only Active Sprint</Label>
+                </div>
+              </FormGroup>
+
+              <FormGroup className="mt-3">
+                <div className="form-check">
+                  <Input
+                    type="checkbox"
+                    id="include-archived"
+                    checked={filters.includeArchived}
+                    onChange={toggleIncludeArchived}
+                  />
+                  <Label check htmlFor="include-archived">Include Archived Tasks</Label>
+                </div>
+              </FormGroup>
+            </Col>
+          </Row>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" outline onClick={clearAllFilters}>
+            <i className="ri-close-line me-1"></i>
+            Clear All
+          </Button>
+          <Button color="primary" onClick={() => setShowFiltersModal(false)}>
+            <i className="ri-check-line me-1"></i>
+            Apply
+          </Button>
+        </ModalFooter>
+      </Modal>
     </React.Fragment>
   );
 };
