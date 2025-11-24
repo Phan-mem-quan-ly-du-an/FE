@@ -44,8 +44,8 @@
     border-color: rgba(37, 160, 226, 0.3);
 }
 
-/* Assignee avatar dropdown - copied from KanbanBoard */
-.dropdown-toggle {
+/* Assignee avatar dropdown - only affect table row dropdowns */
+.table tbody .dropdown-toggle {
     outline: none !important;
     box-shadow: none !important;
     background: none !important;
@@ -54,16 +54,16 @@
     z-index: 1;
 }
 
-.dropdown-toggle:hover {
+.table tbody .dropdown-toggle:hover {
     opacity: 0.8 !important;
 }
 
-.dropdown-toggle:focus {
+.table tbody .dropdown-toggle:focus {
     outline: none !important;
     box-shadow: none !important;
 }
 
-.dropdown-toggle::after {
+.table tbody .dropdown-toggle::after {
     display: none !important;
 }
 
@@ -87,6 +87,26 @@
     border-color: #ced4da !important;
     color: #343a40 !important;
     box-shadow: 0 0 0 0.2rem rgba(37, 160, 226, 0.25) !important;
+}
+
+.btn-info.dropdown-toggle {
+    background-color: #25a0e2 !important;
+    border: 1px solid #25a0e2 !important;
+    color: #ffffff !important;
+}
+
+.btn-info.dropdown-toggle:hover {
+    background-color: #1f8ecd !important;
+    border-color: #1f8ecd !important;
+    color: #ffffff !important;
+}
+
+.btn-info.dropdown-toggle:focus,
+.btn-info.dropdown-toggle:active {
+    background-color: #1b78af !important;
+    border-color: #1b78af !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0.2rem rgba(37, 160, 226, 0.35) !important;
 }
 
 .dropdown {
