@@ -47,12 +47,11 @@ export default function MembersTable({
                 cell: (cell: any) => cell.row.index + 1,
             },
             {
-                header: t("UserID"),
-                accessorKey: "userId",
+                header: t("Email"),
+                accessorKey: "email",
+                accessorFn: (row: CompanyMember) => row.email ?? row.invitedEmail ?? row.userId,
                 enableColumnFilter: false,
-                cell: (cell: any) => (
-                    <span className="font-monospace">{cell.getValue()}</span>
-                ),
+                cell: (cell: any) => cell.getValue() ?? '—',
             },
             {
                 header: t("Role"),
@@ -73,12 +72,6 @@ export default function MembersTable({
                 accessorKey: "owner",
                 enableColumnFilter: false,
                 cell: (cell: any) => cell.getValue() ? 'Yes' : 'No',
-            },
-            {
-                header: t("InvitedEmail"),
-                accessorKey: "invitedEmail",
-                enableColumnFilter: false,
-                cell: (cell: any) => cell.getValue() ?? '—',
             },
             {
                 header: t("JoinedAt"),
@@ -143,19 +136,18 @@ export default function MembersTable({
     },
 ],
         // Cập nhật mảng phụ thuộc
-                [companyId, deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, onAssignRole, t, openDropdownId, toggleDropdown, roles]
+                [deletingUserId, deleteMemberMutation.isPending, onTransferOwnership, onDelete, onAssignRole, t, openDropdownId, toggleDropdown, roles]
     );
 
     return (
         <TableContainer
             columns={columns}
             data={members || []}
-            isGlobalFilter={true}
+            isGlobalFilter={false}
             customPageSize={10}
             divClass="table-responsive table-card mb-1 mt-0"
             tableClass="align-middle table-nowrap"
             theadClass="table-light text-muted text-uppercase"
-            SearchPlaceholder="Search for user ID, email, or role..."
         />
     );
 }

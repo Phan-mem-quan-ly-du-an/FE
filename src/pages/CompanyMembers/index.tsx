@@ -1,5 +1,5 @@
-import {useEffect, useState} from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import {useEffect, useMemo, useState} from 'react';
+import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardBody, CardHeader, Col, Container, Row } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import {
     getCompanyRoles,
     transferOwnership
 } from '../../apiCaller/companyMembers';
+import { getUsersByIds, UserBrief } from '../../apiCaller/users';
 import BreadCrumb from '../../Components/Common/BreadCrumb';
 import InviteMemberModal from './InviteMemberModal';
 import TransferOwnershipModal from './TransferOwnershipModal';
@@ -18,7 +19,6 @@ import AssignRoleModal from './AssignRoleModal';
 import MembersTable from './MembersTable';
 
 export default function CompanyMemberPage() {
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { t } = useTranslation();
 
@@ -37,6 +37,35 @@ export default function CompanyMemberPage() {
         queryFn: () => getCompanyRoles(companyId!, true),
         enabled: !!companyId,
     });
+
+    const memberUserIds = useMemo(() => {
+        const ids = members
+            .map(member => member.userId)
+            .filter((id): id is string => !!id);
+        return Array.from(new Set(ids));
+    }, [members]);
+
+    const { data: usersBrief = [] } = useQuery<UserBrief[]>({
+        queryKey: ['users-brief', memberUserIds],
+        queryFn: () => getUsersByIds(memberUserIds),
+        enabled: memberUserIds.length > 0,
+        staleTime: 60_000,
+    });
+
+    const userEmailMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        usersBrief.forEach(user => {
+            map[user.id] = user.email;
+        });
+        return map;
+    }, [usersBrief]);
+
+    const resolvedMembers = useMemo<CompanyMember[]>(() => {
+        return members.map(member => ({
+            ...member,
+            email: member.email ?? userEmailMap[member.userId] ?? member.invitedEmail ?? member.userId
+        }));
+    }, [members, userEmailMap]);
 
     // Mutations
     const deleteMemberMutation = useMutation({
@@ -66,6 +95,7 @@ export default function CompanyMemberPage() {
 
     // Invite member modal states
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [memberSearch, setMemberSearch] = useState('');
 
     // Assign role modal states
     const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
@@ -152,6 +182,22 @@ export default function CompanyMemberPage() {
         setAssignRoleMember(null);
     };
 
+    const filteredMembers = useMemo(() => {
+        const query = memberSearch.trim().toLowerCase();
+        if (!query) return resolvedMembers;
+
+        return resolvedMembers.filter(member => {
+            const email = member.email?.toLowerCase() || '';
+            const invited = member.invitedEmail?.toLowerCase() || '';
+            const userId = member.userId?.toLowerCase() || '';
+            const roleName = roles?.find(r => r.id === member.roleId)?.name?.toLowerCase() || '';
+            return email.startsWith(query)
+                || invited.startsWith(query)
+                || userId.startsWith(query)
+                || roleName.startsWith(query);
+        });
+    }, [memberSearch, resolvedMembers, roles]);
+
 
     return (
         <div className="page-content">
@@ -179,7 +225,17 @@ export default function CompanyMemberPage() {
                                         <h5 className="card-title mb-0">{t('MembersList')}</h5>
                                     </div>
                                     <div className="col-sm-auto">
-                                        <div className="d-flex gap-1 flex-wrap">
+                                        <div className="d-flex gap-1 flex-wrap align-items-center">
+                                            <div className="search-box me-2 mb-2 d-inline-block">
+                                                <input
+                                                    type="search"
+                                                    className="form-control search"
+                                                    placeholder={t('SearchMembersPlaceholder') || ''}
+                                                    value={memberSearch}
+                                                    onChange={(event) => setMemberSearch(event.target.value)}
+                                                />
+                                                <i className="bx bx-search-alt search-icon"></i>
+                                            </div>
                                             <button className="btn btn-primary" onClick={openInviteModal}>
                                                 <i className="ri-user-add-line me-1"></i>
                                                 {t('AddMember')}
@@ -190,7 +246,7 @@ export default function CompanyMemberPage() {
                             </CardHeader>
                             <CardBody className="pt-0">
                                 <MembersTable
-                                    members={members}
+                                    members={filteredMembers}
                                     companyId={companyId!}
                                     roles={roles}
                                     deletingUserId={deletingUserId}

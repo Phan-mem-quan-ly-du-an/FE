@@ -4,6 +4,8 @@ export type CompanyMember = {
     id: number;
     companyId: string;
     userId: string;
+    email?: string | null;
+    displayName?: string | null;
     roleId?: number | null;
     invitedEmail?: string | null;
     invitedBy?: string | null;

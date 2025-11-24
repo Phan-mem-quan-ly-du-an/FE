@@ -277,6 +277,7 @@
     "React Datatables": "React Datatables",
     "EditRolePermissions": "Permissions",
     "SearchRolesPlaceholder": "Search for role ID or name",
+    "SearchMembersPlaceholder": "Search by email or user ID",
     "ProjectList": "Project List",
     "AddNew": "Add New",
     "Search": "Search",
