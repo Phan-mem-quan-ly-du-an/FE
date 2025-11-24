@@ -420,5 +420,8 @@
     "ErrorCreatingRole": "An error occurred while creating the role.",
     "ErrorUpdatingRole": "An error occurred while updating the role.",
     "LoadRolesError": "Failed to load roles ",
-    "NoRoles": "No roles available."
+    "NoRoles": "No roles available.",
+    "MyTasks": "My Tasks",
+    "NoActiveSprint": "No active sprint",
+    "NoTasksAssigned": "No tasks assigned to you in the active sprint"
 }

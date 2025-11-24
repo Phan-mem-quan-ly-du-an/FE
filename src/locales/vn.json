@@ -414,7 +414,10 @@
   "ProjectRoles": "Role của dự án",
   "NoRolesInProject": "Chưa có role nào trong dự án này.",
   "ErrorCreatingRole": "Có lỗi xảy ra khi tạo role.",
-  "ErrorUpdatingRole": "Có lỗi xảy ra khi cập nhật role.",
-  "LoadRolesError": "Không thể tải danh sách role (mã lỗi: {{status}}) {{text}}",
-  "NoRoles": "Chưa có role nào."
+    "ErrorUpdatingRole": "Có lỗi xảy ra khi cập nhật role.",
+    "LoadRolesError": "Không thể tải danh sách role (mã lỗi: {{status}}) {{text}}",
+    "NoRoles": "Chưa có role nào.",
+    "MyTasks": "Nhiệm vụ của tôi",
+    "NoActiveSprint": "Không có sprint đang chạy",
+    "NoTasksAssigned": "Không có nhiệm vụ nào được gán cho bạn trong sprint đang chạy"
 }
