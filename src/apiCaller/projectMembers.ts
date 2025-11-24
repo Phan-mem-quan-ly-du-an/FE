@@ -20,6 +20,7 @@ export const getProjectMembers = async (projectId: string): Promise<ProjectMembe
             .setUrl(`/projects/${projectId}/members`)
             .get();
         
+        // Backend now returns ProjectMemberDto with email and displayName
         return response.data as ProjectMember[];
     } catch (error) {
         console.error("Error fetching project members:", error);

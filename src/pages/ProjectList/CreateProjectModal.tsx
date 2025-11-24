@@ -122,38 +122,45 @@ export default function CreateProjectModal({
                         <Label className="form-label">
                             {t('Workspace')} <span className="text-danger">*</span>
                         </Label>
-                        <Input
-                            type="select"
-                            value={selectedWorkspaceId}
-                            onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-                            required
-                            disabled={saving || loadingWorkspaces || !!defaultWorkspaceId}
-                        >
-                            <option value="">{t('SelectWorkspacePlaceholder')}</option>
-                            {workspaces.map((workspace) => (
-                                <option key={workspace.id} value={workspace.id}>
-                                    {workspace.name}
-                                </option>
-                            ))}
-                        </Input>
-                        {loadingWorkspaces && <div className="form-text">{t('LoadingWorkspaces')}</div>}
-                        {workspacesError && (
-                            <div className="form-text text-danger">
-                                {t('ErrorLoadingWorkspaces')}
-                                <div className="small">Error: {String(workspacesError)}</div>
-                            </div>
-                        )}
-                        {!loadingWorkspaces && !workspacesError && workspaces.length === 0 && (
-                            <div className="form-text text-warning">
-                                {t('NoWorkspacesFound')}
-                                <div className="small">CompanyId: {companyId || 'undefined'}</div>
-                            </div>
-                        )}
-                        {defaultWorkspaceId && workspaces.some(w => w.id === defaultWorkspaceId) && (
-                            <div className="form-text text-info">
-                                <i className="ri-information-line me-1"></i>
-                                {t('WorkspacePreselected') || 'Workspace is pre-selected for this context'}
-                            </div>
+                        {defaultWorkspaceId ? (
+                            <Input
+                                type="text"
+                                value={
+                                    workspaces.find(w => w.id === defaultWorkspaceId)?.name || defaultWorkspaceId
+                                }
+                                disabled
+                                readOnly
+                            />
+                        ) : (
+                            <>
+                                <Input
+                                    type="select"
+                                    value={selectedWorkspaceId}
+                                    onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                                    required
+                                    disabled={saving || loadingWorkspaces}
+                                >
+                                    <option value="">{t('SelectWorkspacePlaceholder')}</option>
+                                    {workspaces.map((workspace) => (
+                                        <option key={workspace.id} value={workspace.id}>
+                                            {workspace.name}
+                                        </option>
+                                    ))}
+                                </Input>
+                                {loadingWorkspaces && <div className="form-text">{t('LoadingWorkspaces')}</div>}
+                                {workspacesError && (
+                                    <div className="form-text text-danger">
+                                        {t('ErrorLoadingWorkspaces')}
+                                        <div className="small">Error: {String(workspacesError)}</div>
+                                    </div>
+                                )}
+                                {!loadingWorkspaces && !workspacesError && workspaces.length === 0 && (
+                                    <div className="form-text text-warning">
+                                        {t('NoWorkspacesFound')}
+                                        <div className="small">CompanyId: {companyId || 'undefined'}</div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 

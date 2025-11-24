@@ -35,7 +35,8 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
     name: '',
     startDate: '',
     endDate: '',
-    description: ''
+    description: '',
+    status: 'planned' as 'planned' | 'active' | 'completed' | 'cancelled' | 'paused'
   });
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +46,8 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
         name: sprint.name,
         startDate: sprint.startDate || '',
         endDate: sprint.endDate || '',
-        description: sprint.description || ''
+        description: sprint.description || '',
+        status: sprint.status
       });
     }
   }, [sprint]);
@@ -93,7 +95,8 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
       setLoading(true);
       const updateData: any = {
         name: formData.name.trim(),
-        description: formData.description.trim()
+        description: formData.description.trim(),
+        status: formData.status
       };
 
       // Only include dates if they are provided
@@ -180,10 +183,23 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
 
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
-            <Form.Label>Sprint Name *</Form.Label>
+            <div className="d-flex justify-content-between align-items-center">
+              <Form.Label>Sprint Name *</Form.Label>
+              <Button 
+                variant="outline-secondary" 
+                size="sm"
+                onClick={() => {
+                  const sprintNumber = sprint?.name.match(/\d+/)?.[0] || '1';
+                  setFormData({ ...formData, name: `Sprint ${sprintNumber}` });
+                }}
+                style={{ fontSize: '11px', padding: '2px 8px' }}
+              >
+                Generate
+              </Button>
+            </div>
             <Form.Control
               type="text"
-              placeholder="e.g., Sprint 1, Q1 Sprint"
+              placeholder="e.g., Sprint 1, Q1 Sprint, Feature Development Sprint"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
@@ -205,23 +221,26 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
             <div className="col-md-6">
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Start Date * 
-                  {focusOnDates && <span className="text-danger"> (Required to start)</span>}
+                  Start Date
+                  {focusOnDates && <span className="text-danger"> *</span>}
                 </Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  min={getTodayDate()}
                   className={focusOnDates && !formData.startDate ? 'border-warning' : ''}
+                  placeholder="dd/mm/yyyy"
                 />
+                <Form.Text className="text-muted">
+                  Optional for planning. Required for active sprints.
+                </Form.Text>
               </Form.Group>
             </div>
             <div className="col-md-6">
               <Form.Group className="mb-3">
                 <Form.Label>
-                  End Date *
-                  {focusOnDates && <span className="text-danger"> (Required to start)</span>}
+                  End Date
+                  {focusOnDates && <span className="text-danger"> *</span>}
                 </Form.Label>
                 <Form.Control
                   type="date"
@@ -229,10 +248,31 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   min={formData.startDate || getTodayDate()}
                   className={focusOnDates && !formData.endDate ? 'border-warning' : ''}
+                  placeholder="dd/mm/yyyy"
                 />
+                <Form.Text className="text-muted">
+                  Optional for planning. Required for active sprints.
+                </Form.Text>
               </Form.Group>
             </div>
           </div>
+
+          {(!formData.startDate || !formData.endDate) && (
+            <div className="alert alert-info mb-3 py-2">
+              <i className="ri-lightbulb-line me-2"></i>
+              <strong>💡 Tip:</strong> You can create a sprint without dates for planning purposes. Set the dates later when you're ready to start the sprint.
+              <br />
+              <Button 
+                variant="link" 
+                size="sm" 
+                onClick={generateDefaultDates}
+                className="p-0 mt-1"
+              >
+                <i className="ri-calendar-check-line me-1"></i>
+                Set 2-week sprint (default)
+              </Button>
+            </div>
+          )}
 
           {sprintDuration !== null && (
             <div className="alert alert-info mb-3 py-2" style={{ fontSize: '13px' }}>
@@ -243,17 +283,22 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
             </div>
           )}
 
-          {(!formData.startDate || !formData.endDate) && (
-            <Button 
-              variant="link" 
-              size="sm" 
-              onClick={generateDefaultDates}
-              className="mb-3 p-0"
+          <Form.Group className="mb-3">
+            <Form.Label>Initial Status</Form.Label>
+            <Form.Select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
             >
-              <i className="ri-calendar-check-line me-1"></i>
-              Set 2-week sprint (default)
-            </Button>
-          )}
+              <option value="planned">Planned (for future planning)</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </Form.Select>
+            <Form.Text className="text-muted">
+              Perfect for planning sprints. You can set dates later when ready to start.
+            </Form.Text>
+          </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer>
@@ -263,13 +308,9 @@ const EditSprintModal: React.FC<EditSprintModalProps> = ({
         <Button 
           variant="primary" 
           onClick={handleSubmit}
-          disabled={loading || (focusOnDates && (!formData.startDate || !formData.endDate))}
+          disabled={loading}
         >
-          {loading ? 'Saving...' : (
-            autoStartAfterSave && focusOnDates 
-              ? 'Save & Start Sprint' 
-              : 'Save Changes'
-          )}
+          {loading ? 'Saving...' : 'Update Sprint'}
         </Button>
       </Modal.Footer>
     </Modal>

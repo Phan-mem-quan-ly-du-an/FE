@@ -25,3 +25,5 @@ yarn-error.log*
 srcFE.zip
 .idea
 aigrow.postman_collection.json
+package-lock.json
+yarn.lock

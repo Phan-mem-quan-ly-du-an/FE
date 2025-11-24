@@ -13,6 +13,7 @@ import { toast } from 'react-toastify';
 import AssignWorkspaceRoleModal from './AssignWorkspaceRoleModal';
 import { getUsersByIds, UserBrief } from '../../apiCaller/users';
 import { useTranslation } from 'react-i18next';
+import { isForbiddenError } from '../../helpers/permissions';
 
 const MemberTab: React.FC = () => {
     const { t } = useTranslation();
@@ -98,6 +99,10 @@ const MemberTab: React.FC = () => {
             toast.success('Xóa thành viên thành công');
         },
         onError: (e: any) => {
+            if (isForbiddenError(e)) {
+                toast.warning(t('WorkspacePermissions.DeleteMemberDenied') || 'Bạn không có quyền xóa thành viên workspace.');
+                return;
+            }
             toast.error(e?.message || 'Xóa thành viên thất bại');
         }
     });
@@ -211,10 +216,11 @@ const MemberTab: React.FC = () => {
     }
 
     if (error) {
+        const forbidden = isForbiddenError(error);
         return (
-            <div className="alert alert-danger text-center">
+            <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2"></i>
-                Failed to load members
+                {forbidden ? (t('WorkspacePermissions.ViewMembersDenied') || 'Bạn không có quyền xem thành viên của workspace.') : (t('FailedToLoadMembers') || 'Failed to load members')}
             </div>
         );
     }
@@ -249,7 +255,10 @@ const MemberTab: React.FC = () => {
                     onClose={() => setShowAdd(false)}
                     workspaceId={workspaceId}
                     companyId={workspace.companyId}
-                    onSuccess={() => { /* could refresh list */ }}
+                    onSuccess={async () => {
+                        await queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+                        toast.success(t('MembersInvitedSuccessfully') || 'Mời thành viên thành công');
+                    }}
                 />
             )}
             {showAssign && workspaceId && (
