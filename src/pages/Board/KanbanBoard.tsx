@@ -47,6 +47,7 @@ import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
+import DeleteColumnModal from "./DeleteColumnModal";
 import "../../assets/scss/pages/KanbanBoard.scss";
 
 const KanbanBoard: React.FC = () => {
@@ -108,6 +109,10 @@ const KanbanBoard: React.FC = () => {
   // Task detail modal states
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
+
+  // Delete column modal states
+  const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
+  const [deletingColumn, setDeletingColumn] = useState<BoardColumnResponse | null>(null);
 
   // ============= HELPER FUNCTIONS =============
   // Convert TaskResponse to Task format for TaskDetailModal
@@ -504,22 +509,10 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
-  // ============= HANDLE DELETE COLUMN =============
-  const handleDeleteColumn = async (columnId: number, columnName: string) => {
-    if (
-      !window.confirm(
-        `Xóa column "${columnName}"?\nCác tasks trong column sẽ chuyển về Unassigned.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await deleteColumn(columnId);
-      loadBoard(); // Reload board
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Không thể xóa column");
-    }
+  // ============= OPEN DELETE COLUMN MODAL =============
+  const openDeleteColumnModal = (column: BoardColumnResponse) => {
+    setDeletingColumn(column);
+    setShowDeleteColumnModal(true);
   };
 
   // ============= HANDLE ADD TASK =============
@@ -1031,10 +1024,10 @@ const KanbanBoard: React.FC = () => {
                       color="link"
                       size="sm"
                       className="text-white p-0"
-                      onClick={() => handleDeleteColumn(column.id, column.name)}
-                    >
+                      onClick={() => openDeleteColumnModal(column)}
+                      >
                       <i className="ri-delete-bin-line"></i>
-                    </Button>
+                      </Button>
                   </div>
 
                   {/* DROPPABLE AREA */}
@@ -1334,6 +1327,20 @@ const KanbanBoard: React.FC = () => {
             task={convertToTask(selectedTask)}
             projectId={projectId!}
             onUpdate={loadBoard}
+          />
+        )}
+
+        {/* Delete Column Modal */}
+        {deletingColumn && board && (
+          <DeleteColumnModal
+            isOpen={showDeleteColumnModal}
+            toggle={() => {
+              setShowDeleteColumnModal(false);
+              setDeletingColumn(null);
+            }}
+            column={deletingColumn}
+            columns={board.columns}
+            onSuccess={loadBoard}
           />
         )}
 
