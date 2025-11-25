@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardBody, CardHeader, Button, Spinner, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { getWorkspaceRoles, WorkspaceRole, deleteWorkspaceRole, createWorkspaceRole, updateWorkspaceRole } from '../../apiCaller/workspaceRoles';
@@ -7,6 +8,7 @@ import CreateRoleModal from '../Companies/Roles/CreateRoleModal';
 import EditRoleModal from '../Companies/Roles/EditRoleModal';
 
 const RoleTab: React.FC = () => {
+    const { t } = useTranslation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -50,14 +52,14 @@ const RoleTab: React.FC = () => {
     };
 
     const handleDelete = (role: WorkspaceRole) => {
-        if (window.confirm(`Are you sure you want to delete role "${role.name || role.code}"?`)) {
+        if (globalThis.confirm(t('ConfirmDeleteRole'))) {
             deleteRoleMutation.mutate(role.id);
         }
     };
 
     const columns = useMemo(() => [
         {
-            header: '#',
+            header: t('SerialNumber'),
             id: 'serial',
             enableColumnFilter: false,
             cell: ({ row }: any) => (
@@ -65,7 +67,7 @@ const RoleTab: React.FC = () => {
             ),
         },
         {
-            header: 'Name',
+            header: t('RoleName'),
             accessorKey: 'name',
             enableColumnFilter: false,
             cell: ({ row }: any) => {
@@ -79,13 +81,13 @@ const RoleTab: React.FC = () => {
             },
         },
         {
-            header: 'Description',
+            header: t('RoleDescription'),
             accessorKey: 'description',
             enableColumnFilter: false,
             cell: ({ getValue }: any) => getValue() || '—',
         },
         {
-            header: 'Action',
+            header: t('Action'),
             id: 'action',
             enableColumnFilter: false,
             cell: ({ row }: any) => {
@@ -98,13 +100,13 @@ const RoleTab: React.FC = () => {
                         <DropdownToggle
                             tag="button"
                             className="btn btn-ghost-secondary btn-icon btn-sm"
-                            title="More options"
+                            title={t('More')}
                         >
-                            <i className="ri-more-2-fill fs-16"></i>
+                            <i className="ri-more-2-fill fs-16" />
                         </DropdownToggle>
                         <DropdownMenu>
                             <DropdownItem onClick={() => handleEdit(role)}>
-                                <i className="ri-edit-2-line me-2"></i> Edit
+                                <i className="ri-edit-2-line me-2" /> {t('Edit')}
                             </DropdownItem>
                             <DropdownItem onClick={() => {
                                 if (workspaceId) {
@@ -117,24 +119,24 @@ const RoleTab: React.FC = () => {
                                     });
                                 }
                             }}>
-                                <i className="ri-shield-user-line me-2"></i> Permissions
+                                <i className="ri-shield-user-line me-2" /> {t('RolePermissions')}
                             </DropdownItem>
                             <DropdownItem divider />
                             <DropdownItem onClick={() => handleDelete(role)} className="text-danger">
-                                <i className="ri-delete-bin-5-line me-2"></i> Delete
+                                <i className="ri-delete-bin-5-line me-2" /> {t('Delete')}
                             </DropdownItem>
                         </DropdownMenu>
                     </Dropdown>
                 );
             },
         },
-    ], [workspaceId, navigate, openDropdownId]);
+    ], [workspaceId, navigate, openDropdownId, t]);
 
     if (isLoading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+            <div className="d-flex justify-content-center align-items-center" style={{ blockSize: '200px' }}>
                 <Spinner color="primary" />
-                <span className="ms-2">Loading roles...</span>
+                <span className="ms-2">{t('LoadingRoles')}</span>
             </div>
         );
     }
@@ -142,8 +144,8 @@ const RoleTab: React.FC = () => {
     if (error) {
         return (
             <div className="alert alert-danger text-center">
-                <i className="ri-error-warning-line me-2"></i>
-                Failed to load roles
+                <i className="ri-error-warning-line me-2" />
+                {t('FailedToLoadRoles')}
             </div>
         );
     }
@@ -153,10 +155,10 @@ const RoleTab: React.FC = () => {
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">Workspace Roles</h5>
+                        <h5 className="mb-0">{t('WorkspaceRoles')}</h5>
                         <div>
                             <Button color="success" size="sm" className="me-2" onClick={() => setShowCreate(true)}>
-                                <i className="ri-add-line me-1"></i> Create Role
+                                <i className="ri-add-line me-1" /> {t('CreateRole')}
                             </Button>
                         </div>
                     </div>
@@ -164,8 +166,8 @@ const RoleTab: React.FC = () => {
                 <CardBody>
                     {roles.length === 0 ? (
                         <div className="text-center py-5">
-                            <i className="ri-shield-line fs-1 text-muted"></i>
-                            <p className="text-muted mt-2">No roles in this workspace yet.</p>
+                            <i className="ri-shield-line fs-1 text-muted" />
+                            <p className="text-muted mt-2">{t('NoRolesInWorkspace')}</p>
                         </div>
                     ) : (
                         <Table className="table-nowrap align-middle mb-0">
@@ -194,11 +196,11 @@ const RoleTab: React.FC = () => {
                                                 tag="button"
                                                 className="btn btn-ghost-secondary btn-icon btn-sm"
                                             >
-                                                <i className="ri-more-2-fill fs-16"></i>
+                                                <i className="ri-more-2-fill fs-16" />
                                             </DropdownToggle>
                                             <DropdownMenu>
                                                 <DropdownItem onClick={() => handleEdit(role)}>
-                                                    <i className="ri-edit-2-line me-2"></i> Edit
+                                                    <i className="ri-edit-2-line me-2" /> {t('Edit')}
                                                 </DropdownItem>
                                                 <DropdownItem onClick={() => {
                                                     if (workspaceId) {
@@ -211,11 +213,11 @@ const RoleTab: React.FC = () => {
                                                         });
                                                     }
                                                 }}>
-                                                    <i className="ri-shield-user-line me-2"></i> Permissions
+                                                    <i className="ri-shield-user-line me-2" /> {t('RolePermissions')}
                                                 </DropdownItem>
                                                 <DropdownItem divider />
                                                 <DropdownItem onClick={() => handleDelete(role)} className="text-danger">
-                                                    <i className="ri-delete-bin-5-line me-2"></i> Delete
+                                                    <i className="ri-delete-bin-5-line me-2" /> {t('Delete')}
                                                 </DropdownItem>
                                             </DropdownMenu>
                                         </Dropdown>

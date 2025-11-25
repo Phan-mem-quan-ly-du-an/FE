@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     Table,
     Spinner,
@@ -25,6 +26,7 @@ import EditProjectModal from '../ProjectList/EditProjectModal';
 import CreateProjectModal from '../ProjectList/CreateProjectModal';
 
 const ProjectTab: React.FC = () => {
+    const { t } = useTranslation();
     const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
     const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
@@ -61,11 +63,11 @@ const ProjectTab: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
             setDeleteModal(false);
-            toast.success('Project deleted successfully');
+            toast.success(t('ProjectDeletedSuccessfully'));
         },
         onError: (err: unknown) => {
             console.error('Error deleting project:', err);
-            toast.error('Failed to delete project');
+            toast.error(t('FailedDeleteProject'));
         }
     });
 
@@ -93,7 +95,7 @@ const ProjectTab: React.FC = () => {
         return (
             <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
                 <Spinner color="primary" />
-                <span className="ms-2">Loading projects...</span>
+                <span className="ms-2">{t('LoadingProjects')}</span>
             </div>
         );
     }
@@ -101,8 +103,8 @@ const ProjectTab: React.FC = () => {
     if (error) {
         return (
             <div className="alert alert-danger text-center">
-                <i className="ri-error-warning-line me-2"></i>
-                Failed to load projects
+                <i className="ri-error-warning-line me-2" />
+                {t('FailedLoadProjects')}
             </div>
         );
     }
@@ -137,21 +139,21 @@ const ProjectTab: React.FC = () => {
                 <Card>
                     <CardHeader>
                         <div className="d-flex justify-content-between align-items-center">
-                            <h5 className="mb-0">Projects</h5>
+                            <h5 className="mb-0">{t('WorkspaceProjects')}</h5>
                             <div className="d-flex gap-2">
                                 <Button color="success" size="sm" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> Add Project
+                                    <i className="ri-add-line me-1" /> {t('AddProject')}
                                 </Button>
                             </div>
                         </div>
                     </CardHeader>
                     <CardBody>
                         <div className="text-center py-5">
-                            <i className="ri-folder-open-line fs-1 text-muted"></i>
-                            <p className="text-muted mt-2">No projects in this workspace yet.</p>
+                            <i className="ri-folder-open-line fs-1 text-muted" />
+                            <p className="text-muted mt-2">{t('NoProjectsInWorkspace')}</p>
                             <div className="mt-3">
                                 <Button color="success" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> Add Project
+                                    <i className="ri-add-line me-1" /> {t('AddProject')}
                                 </Button>
                             </div>
                         </div>
@@ -203,9 +205,9 @@ const ProjectTab: React.FC = () => {
                                                 <span className="text-dark">{project.name}</span>
                                             </h5>
                                             {project.archivedAt ? (
-                                                <Badge color="secondary" className="badge-soft-secondary">Archived</Badge>
+                                                <Badge color="secondary" className="badge-soft-secondary">{t('ProjectArchived')}</Badge>
                                             ) : (
-                                                <Badge color="success" className="badge-soft-success">Active</Badge>
+                                                <Badge color="success" className="badge-soft-success">{t('ProjectActive')}</Badge>
                                             )}
                                         </div>
                                         <p className="text-muted text-truncate-two-lines mb-3">
@@ -237,11 +239,11 @@ const ProjectTab: React.FC = () => {
             <Table className="table-nowrap align-middle mb-0">
                 <thead className="table-light">
                 <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Description</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Created At</th>
-                    <th scope="col">Actions</th>
+                    <th scope="col">{t('ProjectName')}</th>
+                    <th scope="col">{t('ProjectDescription')}</th>
+                    <th scope="col">{t('ProjectStatus')}</th>
+                    <th scope="col">{t('ProjectCreatedAt')}</th>
+                    <th scope="col">{t('ProjectActions')}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -269,9 +271,9 @@ const ProjectTab: React.FC = () => {
                         </td>
                         <td>
                             {project.archivedAt ? (
-                                <Badge color="secondary">Archived</Badge>
+                                <Badge color="secondary">{t('ProjectArchived')}</Badge>
                             ) : (
-                                <Badge color="success">Active</Badge>
+                                <Badge color="success">{t('ProjectActive')}</Badge>
                             )}
                         </td>
                         <td>{new Date(project.createdAt).toLocaleDateString()}</td>
@@ -339,7 +341,7 @@ const ProjectTab: React.FC = () => {
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">Projects</h5>
+                        <h5 className="mb-0">{t('WorkspaceProjects')}</h5>
                         <div className="d-flex gap-2">
                             <div className="btn-group" role="group">
                                 <Button
@@ -348,7 +350,7 @@ const ProjectTab: React.FC = () => {
                                     className="btn-icon"
                                     size="sm"
                                 >
-                                    <i className="ri-grid-fill"></i>
+                                    <i className="ri-grid-fill" />
                                 </Button>
                                 <Button
                                     color={viewMode === 'list' ? 'primary' : 'light'}
@@ -356,11 +358,11 @@ const ProjectTab: React.FC = () => {
                                     className="btn-icon"
                                     size="sm"
                                 >
-                                    <i className="ri-list-check"></i>
+                                    <i className="ri-list-check" />
                                 </Button>
                             </div>
                             <Button color="success" size="sm" onClick={handleCreateProject}>
-                                <i className="ri-add-line me-1"></i> Add Project
+                                <i className="ri-add-line me-1" /> {t('AddProject')}
                             </Button>
                         </div>
                     </div>

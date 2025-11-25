@@ -2,9 +2,11 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { Spinner, Card, CardBody, Row, Col } from "reactstrap";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { getWorkspaceById, Workspace } from "../../apiCaller/workspaceDetails";
 
 const OverviewTab = () => {
+    const { t } = useTranslation();
     const { workspaceId } = useParams<{ workspaceId: string }>();
 
     const {
@@ -21,7 +23,7 @@ const OverviewTab = () => {
         return (
             <div className="text-center py-5">
                 <Spinner color="primary" />
-                <p className="mt-2 text-muted">Loading workspace details...</p>
+                <p className="mt-2 text-muted">{t('LoadingWorkspace')}</p>
             </div>
         );
     }
@@ -29,8 +31,8 @@ const OverviewTab = () => {
     if (error || !workspace) {
         return (
             <div className="alert alert-danger text-center my-4">
-                <i className="ri-error-warning-line me-2"></i>
-                Failed to load workspace details
+                <i className="ri-error-warning-line me-2" />
+                {t('FailedLoadWorkspaceDetails')}
             </div>
         );
     }
@@ -43,11 +45,11 @@ const OverviewTab = () => {
                     <Card>
                         <CardBody>
                             <h5 className="card-title mb-3">
-                                <i className="ri-file-text-line me-2"></i>
-                                Description
+                                <i className="ri-file-text-line me-2" />
+                                {t('WorkspaceDescription')}
                             </h5>
                             <p className="text-muted mb-0">
-                                {workspace.description || "No description available."}
+                                {workspace.description || t('NoDescriptionAvailable')}
                             </p>
                         </CardBody>
                     </Card>

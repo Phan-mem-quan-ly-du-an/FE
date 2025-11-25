@@ -54,7 +54,7 @@ const Section = () => {
         return (
             <div className="d-flex justify-content-center align-items-center py-5">
                 <Spinner color="primary" />
-                <span className="ms-2">Loading workspace...</span>
+                <span className="ms-2">{t('LoadingWorkspace')}</span>
             </div>
         );
     }
@@ -63,10 +63,10 @@ const Section = () => {
         return (
             <div className="alert alert-danger text-center mt-4">
                 <i className="ri-error-warning-line me-2"></i>
-                Failed to load workspace details
+                {t('FailedLoadWorkspaceDetails')}
                 <div className="mt-2">
                     <Link to="/companies" className="btn btn-outline-danger btn-sm">
-                        Back to Companies
+                        {t('BackToCompanies')}
                     </Link>
                 </div>
             </div>
@@ -133,7 +133,7 @@ const Section = () => {
                                             tag={Link}
                                             to={`/companies/${workspace.companyId}/workspaces`}
                                         >
-                                            <i className="ri-arrow-left-line me-1"></i> Back to Workspaces
+                                            <i className="ri-arrow-left-line me-1"></i> {t('BackToWorkspaces')}
                                         </Button>
                                     </div>
                                 </Row>
@@ -146,7 +146,7 @@ const Section = () => {
                                             onClick={() => toggleTab('1')}
                                             href="#"
                                         >
-                                            Overview
+                                            {t('WorkspaceOverview')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -155,7 +155,7 @@ const Section = () => {
                                             onClick={() => toggleTab('2')}
                                             href="#"
                                         >
-                                            Projects
+                                            {t('WorkspaceProjects')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -164,7 +164,7 @@ const Section = () => {
                                             onClick={() => toggleTab('3')}
                                             href="#"
                                         >
-                                            Members
+                                            {t('WorkspaceMembers')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -173,7 +173,7 @@ const Section = () => {
                                             onClick={() => toggleTab('4')}
                                             href="#"
                                         >
-                                            Roles
+                                            {t('WorkspaceRoles')}
                                         </NavLink>
                                     </NavItem>
                                 </Nav>

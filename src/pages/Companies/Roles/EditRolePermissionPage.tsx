@@ -181,8 +181,7 @@ export default function EditRolePermissionPage() {
                                         </h5>
                                         {isDefaultRole && (
                                             <div className="text-danger small mt-1">
-                                                {t("DefaultRoleCannotBeEdited") ||
-                                                    "This is a default role and cannot be modified."}
+                                                {t('DefaultRoleCannotBeEdited')}
                                             </div>
                                         )}
                                     </div>
@@ -221,8 +220,8 @@ export default function EditRolePermissionPage() {
                                     <table className="table align-middle table-nowrap">
                                         <thead className="table-light text-muted text-uppercase">
                                         <tr>
-                                            <th>{t("Permission Name")}</th>
-                                            <th className="text-center">{t("Tick")}</th>
+                                            <th>{t('PermissionName')}</th>
+                                            <th className="text-center">{t('Tick')}</th>
                                         </tr>
                                         </thead>
                                         <tbody>
