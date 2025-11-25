@@ -60,7 +60,7 @@ export default function MembersTable({
                 cell: (cell: any) => {
                     const member = cell.row.original;
                     const role = roles?.find(r => r.id === member.roleId);
-                    const roleName = role ? role.name : t('No Role');
+                    const roleName = role ? role.name : t('NoRole');
 
                     return (member.owner) ?
                         <span className="badge text-uppercase bg-success-subtle text-success">{t('Owner')}</span>
@@ -71,7 +71,7 @@ export default function MembersTable({
                 header: t("Owner") + "?",
                 accessorKey: "owner",
                 enableColumnFilter: false,
-                cell: (cell: any) => cell.getValue() ? 'Yes' : 'No',
+                cell: (cell: any) => cell.getValue() ? t('Yes') : t('No'),
             },
             {
                 header: t("JoinedAt"),

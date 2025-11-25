@@ -1,13 +1,12 @@
 import React from 'react';
-import {Role} from '../../apiCaller/companyMembers';
+import { useTranslation } from 'react-i18next';
+import {Role, CompanyMember} from '../../apiCaller/companyMembers';
 
 interface TransferOwnershipModalProps {
     show: boolean;
     onClose: () => void;
     onConfirm: () => void;
-    targetMember: {
-        userId: string;
-    } | null;
+    targetMember: CompanyMember | null;
     roles: Role[];
     selectedDowngradeRoleId: number | '';
     onRoleChange: (roleId: number | '') => void;
@@ -24,7 +23,11 @@ export default function TransferOwnershipModal({
     onRoleChange,
     isPending
 }: TransferOwnershipModalProps) {
+    const { t } = useTranslation();
+    
     if (!show) return null;
+
+    const memberEmail = targetMember?.email ?? targetMember?.invitedEmail ?? targetMember?.userId ?? '';
 
     return (
         <>
@@ -32,17 +35,17 @@ export default function TransferOwnershipModal({
                 <div className="modal-dialog" role="document">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h5 className="modal-title">Transfer ownership</h5>
+                            <h5 className="modal-title">{t('TransferOwnership')}</h5>
                             <button type="button" className="btn-close" aria-label="Close"
                                     onClick={onClose}/>
                         </div>
                         <div className="modal-body">
                             <p className="mb-2">
-                                Chuyển quyền Owner cho: <span
-                                className="font-monospace">{targetMember?.userId}</span>
+                                {t('TransferOwnershipTo')}: <span
+                                className="font-monospace">{memberEmail}</span>
                             </p>
                             <div className="mb-3">
-                                <label className="form-label">Role cho Owner hiện tại (downgrade)</label>
+                                <label className="form-label">{t('RoleForCurrentOwner')}</label>
                                 <select
                                     className="form-select"
                                     value={selectedDowngradeRoleId === '' ? '' : String(selectedDowngradeRoleId)}
@@ -50,7 +53,7 @@ export default function TransferOwnershipModal({
                                         onRoleChange(e.target.value ? Number(e.target.value) : '')
                                     }
                                 >
-                                    <option value="">— Chọn role —</option>
+                                    <option value="">{t('SelectRole')}</option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
                                             {r.code}
@@ -59,18 +62,18 @@ export default function TransferOwnershipModal({
                                     ))}
                                 </select>
                                 <div className="form-text">
-                                    Bạn phải chọn role để gán cho Owner cũ sau khi chuyển quyền.
+                                    {t('SelectRoleForOldOwnerMessage')}
                                 </div>
                             </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={onClose}
                                     disabled={isPending}>
-                                Cancel
+                                {t('Cancel')}
                             </button>
                             <button className="btn btn-primary" onClick={onConfirm}
                                     disabled={isPending}>
-                                {isPending ? 'Transferring...' : 'Confirm Transfer'}
+                                {isPending ? t('Transferring') : t('ConfirmTransfer')}
                             </button>
                         </div>
                     </div>
