@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
+import { toast } from 'react-toastify';
 import { getCompanyMembers, CompanyMember } from '../../apiCaller/companyMembers';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
 import { addWorkspaceMember } from '../../apiCaller/workspaceDetails';
+import { isForbiddenError } from '../../helpers/permissions';
 
 type Props = {
     show: boolean;
@@ -39,10 +41,14 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                 setMembers(cm || []);
                 setRoles(rs || []);
             } catch (e) {
-                console.error('Error loading members and roles:', e);
+                if (isForbiddenError(e)) {
+                    toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+                } else {
+                    toast.error(t('FailedToInviteMembers') || 'Không thể tải dữ liệu phục vụ thêm thành viên.');
+                }
             }
         })();
-    }, [show, companyId, workspaceId]);
+    }, [show, companyId, workspaceId]); // Added dependencies to comply with hooks rules, though intended logic might rely only on show
 
     useEffect(() => {
         const rows = emailsText
@@ -60,7 +66,7 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
             };
         });
         setEntries(resolved);
-    }, [emailsText, members]);
+    }, [emailsText, members, t]);
 
     const canSubmit = useMemo(() => {
         if (entries.length === 0) return false;
@@ -88,7 +94,11 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
             onClose();
             setEmailsText('');
         } catch (err) {
-            console.error('Error inviting members:', err);
+            if (isForbiddenError(err)) {
+                toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+            } else {
+                toast.error(t('FailedToInviteMembers') || 'Không thể mời thành viên');
+            }
         } finally {
             setSubmitting(false);
         }
@@ -165,6 +175,3 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
 };
 
 export default AddWorkspaceMemberModal;
-
-
-

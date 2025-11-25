@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Dropdown, Accordion } from 'react-bootstrap';
+import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form } from 'react-bootstrap';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive } from 'lucide-react';
+import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CreateSprintModal from './CreateSprintModal';
 import EditSprintModal from './EditSprintModal';
 import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
-import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
-import { getBoardByProjectId } from '../../apiCaller/boards';
+import { getProjectMembers } from '../../apiCaller/projectMembers';
 import '../../assets/scss/pages/BacklogSprint.scss';
 
 interface Task {
@@ -18,7 +17,8 @@ interface Task {
     description?: string;
     projectId: string;
     sprintId?: number | null;
-    assignedTo?: string;
+    assignedTo?: string; // deprecated, use assigneeId
+    assigneeId?: string | null; // current field used by backend
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate?: string;
     estimatedHours?: number;
@@ -36,6 +36,12 @@ interface StatusColumn {
     id: number;
     name: string;
     color: string;
+}
+
+interface ProjectMember {
+    userId: string;
+    displayName: string;
+    email: string;
 }
 
 interface Sprint {
@@ -59,6 +65,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
     const [sprintTasks, setSprintTasks] = useState<{ [sprintId: number]: Task[] }>({});
+    const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateSprint, setShowCreateSprint] = useState(false);
     const [showEditSprint, setShowEditSprint] = useState(false);
@@ -72,14 +79,37 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         { userId: 'unassigned', displayName: 'Unassigned', email: '' }
     ]);
     const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' } | null>(null);
-    const [expandedSprints, setExpandedSprints] = useState<{ [sprintId: number]: boolean }>({});
-    const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([]);
+    const [showArchived, setShowArchived] = useState(false);
+    const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([
+        { id: 1, name: 'TO DO', color: '#840417ff' },
+        { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
+        { id: 3, name: 'DONE', color: '#10b981' }
+    ]);
+
+    const loadBoardColumns = async () => {
+        try {
+            const { getBoardByProjectId } = await import('../../apiCaller/boards');
+            const boardData = await getBoardByProjectId(projectId);
+            if (boardData && boardData.columns && boardData.columns.length > 0) {
+                const columns = boardData.columns.map((col: any) => ({
+                    id: col.id,
+                    name: col.name,
+                    color: col.color || '#3b82f6'
+                }));
+                setStatusColumns(columns);
+                console.log('✅ Loaded board columns:', columns);
+            }
+        } catch (error) {
+            console.error('❌ Error loading board columns:', error);
+            // Keep default columns if load fails
+        }
+    };
 
     useEffect(() => {
+        loadBoardColumns();
         loadData();
         loadProjectMembers();
-        loadStatusColumns();
-    }, [projectId]);
+    }, [projectId, showArchived]);
 
     const enrichTaskWithColor = (task: Task): Task => {
         if (task.statusColumn) {
@@ -117,49 +147,51 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         }
     };
 
-    const loadStatusColumns = async () => {
-        try {
-            const boardData = await getBoardByProjectId(projectId);
-            const columns: StatusColumn[] = boardData.columns.map(col => ({
-                id: col.id,
-                name: col.name,
-                color: col.color
-            }));
-            setStatusColumns(columns);
-        } catch (error) {
-            console.error('Error loading status columns:', error);
-            setStatusColumns([
-                { id: 1, name: 'To Do', color: '#6B7280' },
-                { id: 2, name: 'In Progress', color: '#3B82F6' },
-                { id: 3, name: 'Done', color: '#10B981' }
-            ]);
-        }
-    };
-
     const loadData = async () => {
         try {
             setLoading(true);
+
+            // 1. Load sprints (không đổi)
             const sprintsData = await sprintAPI.listByProject(projectId);
             setSprints(sprintsData);
 
-            const tasksData = await taskAPI.listByProject(projectId);
+            // 2. Load tasks bình thường (exclude archived)
+            const normalTasksResponse = await taskAPI.listByProject(projectId, false); // false = không lấy archived
+            const normalTasksList = Array.isArray(normalTasksResponse)
+                ? normalTasksResponse
+                : (normalTasksResponse.content || []);
+
+            // 3. Nếu showArchived = true → load thêm archived tasks
+            let archived: Task[] = [];
+            if (showArchived) {
+                try {
+                    const archivedResponse = await taskAPI.listArchived(projectId);
+                    archived = Array.isArray(archivedResponse)
+                        ? archivedResponse
+                        : (archivedResponse.content || []);
+                } catch (err) {
+                    console.warn('Failed to load archived tasks:', err);
+                    // Không lỗi toàn bộ nếu archived API lỗi
+                }
+            }
+
+            // 4. Normalize tasks: Backend returns assigneeId, frontend uses assignedTo
+            const normalizeTask = (task: any): Task => {
+                return {
+                    ...task,
+                    // Normalize assigneeId to assignedTo for frontend consistency
+                    assignedTo: task.assignedTo || task.assigneeId || undefined
+                };
+            };
+
+            // 5. Phân loại tasks
             const backlog: Task[] = [];
             const sprintTasksMap: { [sprintId: number]: Task[] } = {};
 
-            const tasksList = Array.isArray(tasksData) ? tasksData : (tasksData.content || []);
-
-            tasksList.forEach((task: Task) => {
-                if (task.archivedAt) {
-                    return;
-                }
-
-                const anyTask: any = task as any;
-                const normalized: Task = {
-                    ...task,
-                    assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined
-                };
-
-                const enrichedTask = enrichTaskWithColor(normalized);
+            normalTasksList.forEach((task: any) => {
+                // Normalize task first
+                const normalizedTask = normalizeTask(task);
+                const enrichedTask = enrichTaskWithColor(normalizedTask);
 
                 if (!enrichedTask.sprintId) {
                     backlog.push(enrichedTask);
@@ -171,8 +203,18 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 }
             });
 
+            // 6. Cập nhật state
             setBacklogTasks(backlog.sort((a, b) => a.orderIndex - b.orderIndex));
             setSprintTasks(sprintTasksMap);
+            setArchivedTasks(archived.map((task: any) => {
+                const normalized = normalizeTask(task);
+                return enrichTaskWithColor(normalized);
+            }).sort((a, b) => {
+                const dateA = a.archivedAt ? new Date(a.archivedAt).getTime() : 0;
+                const dateB = b.archivedAt ? new Date(b.archivedAt).getTime() : 0;
+                return dateB - dateA;
+            }));
+
         } catch (error) {
             console.error('Error loading data:', error);
             toast.error('Failed to load backlog and sprints');
@@ -183,31 +225,67 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
     const handleArchiveTask = async (task: Task, e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!window.confirm(`Are you sure you want to archive task "${task.title}"?`)) return;
 
-        if (!window.confirm(`Are you sure you want to archive task "${task.title}"?`)) {
+        try {
+            await taskAPI.archive(projectId, task.id);
+            toast.success('Task archived successfully');
+            loadData(); // Reload toàn bộ
+        } catch (error) {
+            console.error('Error archiving task:', error);
+            toast.error('Failed to archive task');
+        }
+    };
+
+    const handleRestoreTask = async (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm(`Are you sure you want to restore task "${task.title}"?`)) return;
+
+        try {
+            await taskAPI.restore(projectId, task.id);
+            toast.success('Task restored successfully');
+            loadData(); // Reload toàn bộ
+        } catch (error) {
+            console.error('Error restoring task:', error);
+            toast.error('Failed to restore task');
+        }
+    };
+
+    const handlePermanentDelete = async (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        // Xác nhận 2 bước
+        const confirm1 = window.confirm(
+            `⚠️ XÓA VĨNH VIỄN TASK #${task.id}: "${task.title}"\n\n` +
+            `Task này đã bị archived. Bạn có chắc muốn XÓA HOÀN TOÀN khỏi hệ thống?\n` +
+            `Hành động này KHÔNG THỂ KHÔI PHỤC!`
+        );
+        if (!confirm1) return;
+
+        const confirm2 = window.prompt(
+            `Gõ từ "DELETE FOREVER" để xác nhận xóa vĩnh viễn:`
+        );
+        if (confirm2 !== "DELETE FOREVER") {
+            toast.warn("Xóa bị hủy. Từ khóa không đúng.");
             return;
         }
 
         try {
-            await taskAPI.archive(projectId, task.id);
-
-            if (task.sprintId) {
-                setSprintTasks(prev => ({
-                    ...prev,
-                    [task.sprintId!]: prev[task.sprintId!].filter(t => t.id !== task.id)
-                }));
-            } else {
-                setBacklogTasks(prev => prev.filter(t => t.id !== task.id));
-            }
-
-            toast.success('Task archived successfully', { autoClose: 2000 });
+            await taskAPI.delete(projectId, task.id); // Gọi hard delete
+            setArchivedTasks(prev => prev.filter(t => t.id !== task.id));
+            toast.success(`Task #${task.id} đã bị xóa vĩnh viễn!`, { autoClose: 3000 });
         } catch (error: any) {
-            console.error('Error archiving task:', error);
-            toast.error('Failed to archive task');
-            loadData();
+            console.error('Hard delete failed:', error);
+            if (error.status === 403) {
+                toast.error("Bạn không có quyền xóa vĩnh viễn task này.");
+            } else if (error.status === 404) {
+                toast.warn("Task đã không còn tồn tại.");
+                setArchivedTasks(prev => prev.filter(t => t.id !== task.id));
+            } else {
+                toast.error("Xóa vĩnh viễn thất bại. Vui lòng thử lại.");
+            }
         }
     };
-
     const updateTaskLocally = (taskId: number, updates: Partial<Task>) => {
         setBacklogTasks(prev => prev.map(task =>
             task.id === taskId ? { ...task, ...updates } : task
@@ -241,7 +319,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 description: task.description,
                 projectId: task.projectId,
                 sprintId: task.sprintId,
-                assignedTo: task.assignedTo,
+                assigneeId: task.assigneeId,
                 priority: task.priority,
                 dueDate: task.dueDate,
                 estimatedHours: task.estimatedHours,
@@ -257,43 +335,41 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             toast.success(`Status updated to ${statusName}`, { autoClose: 2000 });
         } catch (error: any) {
             console.error('Error updating status:', error);
-            toast.error('Failed to update status');
+            const errorMsg = error?.response?.data?.message || 'Failed to update status';
+            toast.error(errorMsg);
+            
+            // If column not found, reload columns from backend
+            if (errorMsg.includes('Status column not found')) {
+                toast.info('Reloading latest columns...', { autoClose: 1500 });
+                await loadBoardColumns();
+            }
+            
             updateTaskLocally(task.id, { statusColumn: previousStatus });
         }
     };
 
     const handleAssigneeChange = async (task: Task, userId: string, displayName: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const previousAssignee = task.assignedTo;
+        const previousAssigneeId = task.assigneeId;
 
         setOpenDropdown(null);
 
         updateTaskLocally(task.id, {
-            assignedTo: userId === 'unassigned' ? undefined : userId
+            assigneeId: userId === 'unassigned' ? undefined : userId
         });
 
         try {
-            const updatedTask = {
-                id: task.id,
-                title: task.title,
-                description: task.description,
-                projectId: task.projectId,
-                sprintId: task.sprintId,
-                assigneeId: userId === 'unassigned' ? null : userId,
-                priority: task.priority,
-                dueDate: task.dueDate,
-                estimatedHours: task.estimatedHours,
-                tags: task.tags,
-                orderIndex: task.orderIndex,
-                statusColumn: task.statusColumn
+            // Only send assigneeId field (use empty string for unassign, not undefined)
+            const updatePayload = {
+                assigneeId: userId === 'unassigned' ? '' : userId
             };
 
-            await taskAPI.update(projectId, task.id, updatedTask);
+            await taskAPI.update(projectId, task.id, updatePayload);
             toast.success(`Assigned to ${displayName}`, { autoClose: 2000 });
         } catch (error: any) {
             console.error('Error updating assignee:', error);
             toast.error('Failed to update assignee');
-            updateTaskLocally(task.id, { assignedTo: previousAssignee });
+            updateTaskLocally(task.id, { assigneeId: previousAssigneeId });
         }
     };
 
@@ -364,6 +440,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 }
             }
 
+            // Only send necessary fields for sprint drag-drop (exclude statusColumn)
             await taskAPI.update(projectId, taskId, {
                 sprintId: destSprintId,
                 orderIndex: destination.index
@@ -511,11 +588,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'URGENT': return 'danger';
-            case 'HIGH': return 'warning';
-            case 'MEDIUM': return 'info';
-            case 'LOW': return 'secondary';
+        // Match colors with Board and List: HIGH=warning, MEDIUM=info, LOW=secondary
+        switch (priority?.toUpperCase()) {
+            case 'HIGH': return 'warning'; // Yellow/Orange color
+            case 'MEDIUM': return 'info';  // Blue color
+            case 'LOW': return 'secondary'; // Gray color
             default: return 'secondary';
         }
     };
@@ -531,16 +608,220 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         }
     };
 
-    const renderTask = (task: Task, index: number) => {
+    const renderTask = (task: Task, index: number, isArchived = false) => {
         const currentStatus: StatusColumn = task.statusColumn
-            ? {
-                id: task.statusColumn.id,
-                name: task.statusColumn.name,
-                color: task.statusColumn.color || (statusColumns.length > 0 ? statusColumns[0].color : '#6B7280')
-            }
-            : (statusColumns.length > 0 ? statusColumns[0] : { id: 0, name: 'No Status', color: '#6B7280' });
+            ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
+            : statusColumns[0];
 
-        const currentAssignee = projectMembers.find(m => m.userId === task.assignedTo) || projectMembers[0];
+        const currentAssignee = projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0];
+
+        const TaskContent = (
+            <div className={`task-card ${isArchived ? 'archived-task' : ''}`}>
+                <div className="task-header">
+                    <span className="task-id">#{task.id}</span>
+                    <div className="d-flex gap-1 align-items-center">
+                        {/* Priority Badge */}
+                        <Badge bg={getPriorityColor(task.priority)}>
+                            {task.priority}
+                        </Badge>
+
+                        {/* Nút Archive (chỉ task chưa archive) */}
+                        {!isArchived && (
+                            <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 text-muted"
+                                onClick={(e) => handleArchiveTask(task, e)}
+                                title="Archive this task"
+                                style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <Archive size={14} />
+                            </Button>
+                        )}
+
+                        {/* Nút Restore (chỉ archived task) */}
+                        {isArchived && (
+                            <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 text-success"
+                                onClick={(e) => handleRestoreTask(task, e)}
+                                title="Restore this task"
+                                style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <RotateCcw size={14} />
+                            </Button>
+                        )}
+
+                        {isArchived && (
+                            <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 text-danger"
+                                onClick={(e) => handlePermanentDelete(task, e)}
+                                title="Xóa vĩnh viễn (không thể khôi phục)"
+                                style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <i className="ri-delete-bin-2-fill" style={{ fontSize: '14px' }}></i>
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="task-content-row">
+                    <div className="task-main-content">
+                        <div
+                            className="task-title"
+                            onClick={() => {
+                                setSelectedTask(task);
+                                setShowTaskDetail(true);
+                            }}
+                        >
+                            {task.title}
+                        </div>
+
+                        {task.description && (
+                            <div className="task-description">{task.description.substring(0, 80)}...</div>
+                        )}
+                    </div>
+
+                    {!isArchived && (
+                        <div className="task-actions-right" onClick={(e) => e.stopPropagation()}>
+                            <Dropdown
+                                className="d-inline-block"
+                                drop="down"
+                                show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
+                                onToggle={(isOpen) => {
+                                    if (isOpen) {
+                                        setOpenDropdown({ taskId: task.id, type: 'status' });
+                                    } else {
+                                        setOpenDropdown(null);
+                                    }
+                                }}
+                            >
+                                <Dropdown.Toggle
+                                    variant="light"
+                                    size="sm"
+                                    id={`status-dropdown-${task.id}`}
+                                    className="task-action-btn"
+                                    style={{
+                                        borderColor: currentStatus.color,
+                                        color: currentStatus.color,
+                                        fontSize: '10px',
+                                        padding: '2px 6px'
+                                    }}
+                                >
+                                    <CheckCircle size={10} className="me-1" />
+                                    {currentStatus.name}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu>
+                                    {statusColumns.map((status, idx) => (
+                                        <Dropdown.Item
+                                            key={`${status.name}-${idx}`}
+                                            onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
+                                            active={currentStatus.name === status.name}
+                                        >
+                      <span
+                          className="d-inline-block me-2"
+                          style={{
+                              width: '10px',
+                              height: '10px',
+                              borderRadius: '50%',
+                              backgroundColor: status.color
+                          }}
+                      />
+                                            {status.name}
+                                        </Dropdown.Item>
+                                    ))}
+                                </Dropdown.Menu>
+                            </Dropdown>
+
+                            <Dropdown
+                                className="d-inline-block"
+                                drop="down"
+                                show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
+                                onToggle={(isOpen) => {
+                                    if (isOpen) {
+                                        setOpenDropdown({ taskId: task.id, type: 'assignee' });
+                                    } else {
+                                        setOpenDropdown(null);
+                                    }
+                                }}
+                            >
+                                <Dropdown.Toggle
+                                    variant="light"
+                                    size="sm"
+                                    id={`assignee-dropdown-${task.id}`}
+                                    className="task-action-btn"
+                                    style={{
+                                        fontSize: '10px',
+                                        padding: '2px 6px'
+                                    }}
+                                >
+                                    <User size={10} className="me-1" />
+                                    {currentAssignee.displayName}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu>
+                                    {projectMembers.map(member => (
+                                        <Dropdown.Item
+                                            key={member.userId}
+                                            onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
+                                            active={currentAssignee.userId === member.userId}
+                                        >
+                                            <User size={12} className="me-2" />
+                                            {member.displayName}
+                                            {member.email && (
+                                                <small className="text-muted ms-2">({member.email})</small>
+                                            )}
+                                        </Dropdown.Item>
+                                    ))}
+                                </Dropdown.Menu>
+                            </Dropdown>
+                        </div>
+                    )}
+                </div>
+
+                <div className="task-footer">
+                    {task.estimatedHours && (
+                        <span className="task-meta">
+              <Clock size={12} /> {task.estimatedHours}h
+            </span>
+                    )}
+                    {task.dueDate && (
+                        <span className="task-meta">
+              <Calendar size={12} /> {new Date(task.dueDate).toLocaleDateString()}
+            </span>
+                    )}
+                    {isArchived && task.archivedAt && (
+                        <span className="task-meta text-muted">
+              <Archive size={12} /> Archived {new Date(task.archivedAt).toLocaleDateString()}
+            </span>
+                    )}
+                </div>
+            </div>
+        );
+
+        if (isArchived) {
+            return <div key={task.id}>{TaskContent}</div>;
+        }
 
         return (
             <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
@@ -549,159 +830,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
+                        className={snapshot.isDragging ? 'dragging' : ''}
                     >
-                        <div className="task-header">
-                            <span className="task-id">#{task.id}</span>
-                            <div className="d-flex gap-1 align-items-center">
-                                <Badge bg={getPriorityColor(task.priority)}>
-                                    {task.priority}
-                                </Badge>
-                                <Button
-                                    variant="link"
-                                    size="sm"
-                                    className="p-0 text-muted"
-                                    onClick={(e) => handleArchiveTask(task, e)}
-                                    title="Archive this task"
-                                    style={{
-                                        width: '20px',
-                                        height: '20px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    <Archive size={14} />
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="task-content-row">
-                            <div className="task-main-content">
-                                <div
-                                    className="task-title"
-                                    onClick={() => {
-                                        setSelectedTask(task);
-                                        setShowTaskDetail(true);
-                                    }}
-                                >
-                                    {task.title}
-                                </div>
-
-                                {task.description && (
-                                    <div className="task-description">{task.description.substring(0, 80)}...</div>
-                                )}
-                            </div>
-
-                            <div className="task-actions-right" onClick={(e) => e.stopPropagation()}>
-                                <Dropdown
-                                    className="d-inline-block"
-                                    drop="down"
-                                    show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
-                                    onToggle={(isOpen) => {
-                                        if (isOpen) {
-                                            setOpenDropdown({ taskId: task.id, type: 'status' });
-                                        } else {
-                                            setOpenDropdown(null);
-                                        }
-                                    }}
-                                >
-                                    <Dropdown.Toggle
-                                        variant="light"
-                                        size="sm"
-                                        id={`status-dropdown-${task.id}`}
-                                        className="task-action-btn"
-                                        style={{
-                                            borderColor: currentStatus.color,
-                                            color: currentStatus.color,
-                                            fontSize: '10px',
-                                            padding: '2px 6px'
-                                        }}
-                                    >
-                                        <CheckCircle size={10} className="me-1" />
-                                        {currentStatus.name}
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu>
-                                        {statusColumns.map((status, index) => (
-                                            <Dropdown.Item
-                                                key={`${status.name}-${index}`}
-                                                onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
-                                                active={currentStatus.name === status.name}
-                                            >
-                        <span
-                            className="d-inline-block me-2"
-                            style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                backgroundColor: status.color
-                            }}
-                        />
-                                                {status.name}
-                                            </Dropdown.Item>
-                                        ))}
-                                    </Dropdown.Menu>
-                                </Dropdown>
-
-                                <Dropdown
-                                    className="d-inline-block"
-                                    drop="down"
-                                    show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
-                                    onToggle={(isOpen) => {
-                                        if (isOpen) {
-                                            setOpenDropdown({ taskId: task.id, type: 'assignee' });
-                                        } else {
-                                            setOpenDropdown(null);
-                                        }
-                                    }}
-                                >
-                                    <Dropdown.Toggle
-                                        variant="light"
-                                        size="sm"
-                                        id={`assignee-dropdown-${task.id}`}
-                                        className="task-action-btn"
-                                        style={{
-                                            fontSize: '10px',
-                                            padding: '2px 6px'
-                                        }}
-                                    >
-                                        <User size={10} className="me-1" />
-                                        {currentAssignee?.displayName || 'Unassigned'}
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu>
-                                        {projectMembers.length === 1 ? (
-                                            <Dropdown.Item disabled className="text-muted">
-                                                <small>Loading members...</small>
-                                            </Dropdown.Item>
-                                        ) : (
-                                            projectMembers.map(member => (
-                                                <Dropdown.Item
-                                                    key={member.userId}
-                                                    onClick={(e) => handleAssigneeChange(task, member.userId, member.displayName, e)}
-                                                    active={currentAssignee?.userId === member.userId}
-                                                >
-                                                    <User size={12} className="me-2" />
-                                                    {member.email || member.displayName}
-                                                </Dropdown.Item>
-                                            ))
-                                        )}
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <div className="task-footer">
-                            {task.estimatedHours && (
-                                <span className="task-meta">
-                  <Clock size={12} /> {task.estimatedHours}h
-                </span>
-                            )}
-                            {task.dueDate && (
-                                <span className="task-meta">
-                  <Calendar size={12} /> {new Date(task.dueDate).toLocaleDateString()}
-                </span>
-                            )}
-                        </div>
+                        {TaskContent}
                     </div>
                 )}
             </Draggable>
@@ -723,6 +854,15 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     <Button variant="primary" onClick={() => setShowCreateSprint(true)}>
                         <Plus size={16} className="me-1" /> Create Sprint
                     </Button>
+                </Col>
+                <Col xs="auto" className="ms-auto">
+                    <Form.Check
+                        type="switch"
+                        id="show-archived-toggle"
+                        label={`Show Archived Tasks (${archivedTasks.length})`}
+                        checked={showArchived}
+                        onChange={(e) => setShowArchived(e.target.checked)}
+                    />
                 </Col>
             </Row>
 
@@ -808,8 +948,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                           </span>
                                                 )}
                                                 {!sprint.startDate && !sprint.endDate && (
-                                                    <span className="text-muted small fst-italic">
-                            No dates set
+                                                    <span className="text-muted small fst-italic">No dates set
                           </span>
                                                 )}
                                                 <Badge bg="secondary" className="task-count-badge">
@@ -911,6 +1050,31 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             );
                         })}
                 </Accordion>
+
+                {showArchived && archivedTasks.length > 0 && (
+                    <Accordion defaultActiveKey="archived" alwaysOpen className="mb-3 mt-4">
+                        <Accordion.Item eventKey="archived" className="sprint-accordion-item archived-section">
+                            <Accordion.Header className="sprint-accordion-header">
+                                <div className="d-flex align-items-center justify-content-between w-100 pe-3">
+                                    <div className="d-flex align-items-center gap-3">
+                                        <h5 className="mb-0">
+                                            <Archive size={18} className="me-2" />
+                                            Archived Tasks
+                                        </h5>
+                                        <Badge bg="secondary" className="task-count-badge">
+                                            {archivedTasks.length} {archivedTasks.length === 1 ? 'task' : 'tasks'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </Accordion.Header>
+                            <Accordion.Body className="sprint-accordion-body">
+                                <div className="tasks-list archived-tasks-list">
+                                    {archivedTasks.map((task, index) => renderTask(task, index, true))}
+                                </div>
+                            </Accordion.Body>
+                        </Accordion.Item>
+                    </Accordion>
+                )}
             </DragDropContext>
 
             <CreateSprintModal

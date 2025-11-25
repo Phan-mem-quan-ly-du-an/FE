@@ -3,6 +3,8 @@ import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'reactstrap';
 import { toast } from 'react-toastify';
 import { deleteWorkspace, Workspace } from '../../apiCaller/workspaces';
 import { useTranslation } from 'react-i18next';
+import { AxiosError } from 'axios';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface ConfirmDeleteWorkspaceModalProps {
     isOpen: boolean;
@@ -25,7 +27,12 @@ const ConfirmDeleteWorkspaceModal: React.FC<ConfirmDeleteWorkspaceModalProps> = 
                 onClose();
                 onSuccess();
             } catch (error) {
-                toast.error(t('t-workspace-toast-delete-error'));
+                const isForbidden = (error instanceof AxiosError && error.response?.status === 403) || isForbiddenError(error);
+                if (isForbidden) {
+                    toast.warning(t('WorkspacePermissions.DeleteWorkspaceDenied') || t('t-workspace-toast-delete-error'));
+                } else {
+                    toast.error(t('t-workspace-toast-delete-error'));
+                }
             } finally {
                 setIsDeleting(false);
             }

@@ -9,7 +9,12 @@ import {
   Button,
   Badge,
   Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
   Form,
+  FormGroup,
+  Label,
   Spinner,
   Alert,
   Dropdown,
@@ -23,7 +28,7 @@ import {
   Draggable,
   DropResult,
 } from "react-beautiful-dnd";
-import { Check, Eye, Edit, User } from "lucide-react";
+import { Check, Eye, Edit, User, Download, Layers, CheckSquare, Square } from "lucide-react";
 import {
   getBoardByProjectId,
   createBoard,
@@ -41,6 +46,7 @@ import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
+import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
 import "../../assets/scss/pages/KanbanBoard.scss";
 
 const KanbanBoard: React.FC = () => {
@@ -83,9 +89,149 @@ const KanbanBoard: React.FC = () => {
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
   // Filter states
-  const [filterAssignee, setFilterAssignee] = useState<string>("all");
-  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
+  const [filterPriority, setFilterPriority] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  // Bulk selection states
+  const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+
+  // View density state
+  const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable'>('comfortable');
+
+  // Toolbar dropdown states
+  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
+  const [viewDensityOpen, setViewDensityOpen] = useState(false);
+
+  // Task detail modal states
+  const [showTaskDetail, setShowTaskDetail] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
+
+  // ============= HELPER FUNCTIONS =============
+  // Convert TaskResponse to Task format for TaskDetailModal
+  const convertToTask = (taskResponse: TaskResponse): any => {
+    return {
+      ...taskResponse,
+      sprintId: taskResponse.sprintId ? parseInt(taskResponse.sprintId as string) : null,
+      assignedTo: taskResponse.assigneeId,
+    };
+  };
+
+  // Generate task key like PROJ-123
+  const getTaskKey = (task: TaskResponse): string => {
+    const prefix = board?.projectId?.substring(0, 4).toUpperCase() || 'TASK';
+    return `${prefix}-${task.id}`;
+  };
+
+  // Count active filters
+  const getActiveFiltersCount = (): number => {
+    let count = 0;
+    if (filterAssignee.length > 0) count++;
+    if (filterPriority.length > 0) count++;
+    return count;
+  };
+
+  // Toggle task selection
+  const toggleTaskSelection = (taskId: number) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  // Toggle select all in a column
+  const toggleSelectAllInColumn = (tasks: TaskResponse[]) => {
+    const taskIds = tasks.map(t => t.id);
+    const allSelected = taskIds.every(id => selectedTasks.includes(id));
+    
+    if (allSelected) {
+      setSelectedTasks(prev => prev.filter(id => !taskIds.includes(id)));
+    } else {
+      setSelectedTasks(prev => [...new Set([...prev, ...taskIds])]);
+    }
+  };
+
+  // Bulk assign tasks
+  const bulkAssign = async (assigneeId: string) => {
+    try {
+      const displayName = projectMembers.find(m => m.userId === assigneeId)?.displayName || 'Unassigned';
+      const tasksToUpdate = selectedTasks
+        .map(taskId => board?.columns.flatMap(col => col.tasks).find(t => t.id === taskId))
+        .filter(task => task !== undefined);
+
+      if (tasksToUpdate.length === 0) {
+        toast.error('No tasks selected');
+        return;
+      }
+
+      // Update tasks via API
+      const results = await Promise.allSettled(
+        tasksToUpdate.map(task => 
+          updateTask(projectId!, task!.id, {
+            ...task!,
+            assigneeId: assigneeId === 'unassigned' ? null : assigneeId,
+          })
+        )
+      );
+
+      // Count successes and failures
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failCount = results.filter(r => r.status === 'rejected').length;
+
+      if (successCount > 0) {
+        toast.success(`✅ ${successCount} task(s) assigned to ${displayName}`);
+      }
+      if (failCount > 0) {
+        toast.error(`❌ ${failCount} task(s) failed to assign`);
+      }
+
+      // Clear selection and reload
+      setSelectedTasks([]);
+      await loadBoard();
+    } catch (error) {
+      console.error('Error bulk assigning:', error);
+      toast.error('Failed to assign tasks');
+      await loadBoard();
+    }
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (!board) return;
+
+    const allTasks = board.columns.flatMap(col => col.tasks);
+    const filteredTasks = filterTasks(allTasks);
+
+    const headers = ['Key', 'Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Est. Hours', 'Tags'];
+    const rows = filteredTasks.map(task => {
+      const assignee = projectMembers.find(m => m.userId === task.assigneeId);
+      return [
+        getTaskKey(task),
+        task.title,
+        task.statusColumn?.name || 'N/A',
+        task.priority || 'N/A',
+        assignee?.displayName || 'Unassigned',
+        task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A',
+        task.estimatedHours?.toString() || 'N/A',
+        task.tags || 'N/A'
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `board-export-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.success(`✅ Exported ${filteredTasks.length} tasks to CSV`);
+  };
 
   // ============= LOAD PROJECT MEMBERS =============
   const loadProjectMembers = async () => {
@@ -176,24 +322,28 @@ const KanbanBoard: React.FC = () => {
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    return tasks.filter((task) => {
-      // Filter by assignee
-      if (filterAssignee !== "all") {
-        if (filterAssignee === "unassigned") {
-          if (task.assigneeId) return false;
-        } else {
-          if (task.assigneeId !== filterAssignee) return false;
+    // If no filters selected, show all tasks
+    if (filterAssignee.length === 0 && filterPriority.length === 0) {
+      return tasks;
+    }
+
+    return tasks.filter(task => {
+      // Filter by assignee (if any assignee filter selected)
+      if (filterAssignee.length > 0) {
+        const taskAssignee = task.assigneeId || 'unassigned';
+        if (!filterAssignee.includes(taskAssignee)) {
+          return false; // Task doesn't match assignee filter
         }
       }
 
-      // Filter by priority
-      if (filterPriority !== "all") {
-        if (task.priority?.toUpperCase() !== filterPriority.toUpperCase()) {
-          return false;
+      // Filter by priority (if any priority filter selected)
+      if (filterPriority.length > 0) {
+        if (!task.priority || !filterPriority.includes(task.priority)) {
+          return false; // Task doesn't match priority filter
         }
       }
 
-      return true;
+      return true; // Task passes all active filters
     });
   };
 
@@ -263,15 +413,30 @@ const KanbanBoard: React.FC = () => {
 
     try {
       // Gọi API để sync với backend
-      console.log("� Calling moveTask API...");
+      console.log("🔄 Calling moveTask API...");
       await moveTask(projectId!, taskId, destColumnId, destination.index);
       console.log(
         `✅ API Success - Moved task ${taskId} from column ${sourceColumnId} to ${destColumnId}`
       );
+      
+      // Get column names for success message
+      const sourceColName = board.columns.find((c) => c.id === sourceColumnId)?.name;
+      const destColName = board.columns.find((c) => c.id === destColumnId)?.name;
+      
+      console.log("📢 Showing toast notification:", { sourceColumnId, destColumnId, destColName });
+      
+      if (sourceColumnId !== destColumnId) {
+        console.log("📢 Different columns - showing move toast");
+        toast.success(`Task moved to ${destColName}`, { autoClose: 2000 });
+      } else {
+        console.log("📢 Same column - showing reorder toast");
+        toast.success(`Task reordered`, { autoClose: 1500 });
+      }
     } catch (err: any) {
       console.error("❌ Error moving task:", err);
       console.error("❌ Error details:", err?.response?.data);
-      alert(err?.response?.data?.message || "Không thể di chuyển task");
+      const errorMsg = err?.response?.data?.message || "Failed to move task";
+      toast.error(errorMsg);
       // Revert về trạng thái cũ bằng cách reload
       await loadBoard();
     }
@@ -282,9 +447,9 @@ const KanbanBoard: React.FC = () => {
     task: TaskResponse,
     userId: string,
     displayName: string,
-    e: React.MouseEvent
+    e?: React.MouseEvent
   ) => {
-    e.stopPropagation(); // Prevent card click
+    if (e) e.stopPropagation(); // Prevent card click
     const previousAssignee = task.assigneeId;
 
     // Close dropdown immediately
@@ -634,111 +799,81 @@ const KanbanBoard: React.FC = () => {
                   </>
                 )}
 
-                {/* Filter Button with Dropdown */}
-                <Dropdown isOpen={isFilterOpen} toggle={() => setIsFilterOpen(!isFilterOpen)}>
-                  <DropdownToggle caret color="light" size="sm">
-                    <i className="ri-filter-line me-1"></i>
-                    Filter
-                    {(filterAssignee !== "all" || filterPriority !== "all") && (
-                      <Badge color="primary" className="ms-1" pill>
-                        {(filterAssignee !== "all" ? 1 : 0) + (filterPriority !== "all" ? 1 : 0)}
-                      </Badge>
-                    )}
-                  </DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '280px' }}>
-                    <div className="px-3 py-2">
-                      <h6 className="mb-2">
-                        <i className="ri-user-line me-1"></i>
-                        Assignee
-                      </h6>
-                      <div className="d-flex flex-wrap gap-1 mb-3">
-                        <Button
-                          color={filterAssignee === "all" ? "primary" : "light"}
-                          size="sm"
-                          onClick={() => setFilterAssignee("all")}
-                        >
-                          All
-                        </Button>
-                        <Button
-                          color={filterAssignee === "unassigned" ? "primary" : "light"}
-                          size="sm"
-                          onClick={() => setFilterAssignee("unassigned")}
-                        >
-                          Unassigned
-                        </Button>
-                      </div>
-                      <div className="d-flex flex-column gap-1 mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {projectMembers.filter(m => m.userId !== 'unassigned').map((member) => (
-                          <Button
+                {/* Bulk Actions Bar */}
+                {selectedTasks.length > 0 && (
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded">
+                    <CheckSquare size={18} className="text-primary" />
+                    <span className="fw-medium">{selectedTasks.length} selected</span>
+                    <Dropdown isOpen={bulkActionsOpen} toggle={() => setBulkActionsOpen(!bulkActionsOpen)}>
+                      <DropdownToggle caret color="primary" size="sm">
+                        Bulk Assign
+                      </DropdownToggle>
+                      <DropdownMenu>
+                        {projectMembers.map(member => (
+                          <DropdownItem
                             key={member.userId}
-                            color={filterAssignee === member.userId ? "primary" : "light"}
-                            size="sm"
-                            onClick={() => setFilterAssignee(member.userId)}
-                            className="text-start"
-                          >
-                            {member.email || member.displayName}
-                          </Button>
-                        ))}
-                      </div>
-
-                      <DropdownItem divider />
-
-                      <h6 className="mb-2 mt-2">
-                        <i className="ri-price-tag-3-line me-1"></i>
-                        Priority
-                      </h6>
-                      <div className="d-flex flex-wrap gap-1">
-                        <Button
-                          color={filterPriority === "all" ? "primary" : "light"}
-                          size="sm"
-                          onClick={() => setFilterPriority("all")}
-                        >
-                          All
-                        </Button>
-                        <Button
-                          color={filterPriority === "HIGH" ? "warning" : "light"}
-                          size="sm"
-                          onClick={() => setFilterPriority("HIGH")}
-                        >
-                          HIGH
-                        </Button>
-                        <Button
-                          color={filterPriority === "MEDIUM" ? "info" : "light"}
-                          size="sm"
-                          onClick={() => setFilterPriority("MEDIUM")}
-                        >
-                          MEDIUM
-                        </Button>
-                        <Button
-                          color={filterPriority === "LOW" ? "secondary" : "light"}
-                          size="sm"
-                          onClick={() => setFilterPriority("LOW")}
-                        >
-                          LOW
-                        </Button>
-                      </div>
-
-                      {(filterAssignee !== "all" || filterPriority !== "all") && (
-                        <>
-                          <DropdownItem divider />
-                          <Button
-                            color="danger"
-                            size="sm"
-                            outline
-                            className="w-100"
                             onClick={() => {
-                              setFilterAssignee("all");
-                              setFilterPriority("all");
+                              bulkAssign(member.userId);
+                              setBulkActionsOpen(false);
                             }}
                           >
-                            <i className="ri-close-line me-1"></i>
-                            Clear All Filters
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                            {member.displayName}
+                          </DropdownItem>
+                        ))}
+                      </DropdownMenu>
+                    </Dropdown>
+                    <Button
+                      color="light"
+                      size="sm"
+                      onClick={() => setSelectedTasks([])}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+
+                {/* Filters Button */}
+                <Button
+                  color="light"
+                  size="sm"
+                  onClick={() => setShowFiltersModal(true)}
+                >
+                  <i className="ri-filter-line me-1"></i>
+                  Filters
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge color="primary" className="ms-1" pill>
+                      {getActiveFiltersCount()}
+                    </Badge>
+                  )}
+                </Button>
+
+                {/* View Density Dropdown */}
+                <Dropdown isOpen={viewDensityOpen} toggle={() => setViewDensityOpen(!viewDensityOpen)}>
+                  <DropdownToggle caret color="light" size="sm">
+                    <Layers size={14} className="me-1" />
+                    {viewDensity === 'compact' ? 'Compact' : 'Comfortable'}
+                  </DropdownToggle>
+                  <DropdownMenu>
+                    <DropdownItem onClick={() => {
+                      setViewDensity('comfortable');
+                      setViewDensityOpen(false);
+                    }}>
+                      Comfortable
+                    </DropdownItem>
+                    <DropdownItem onClick={() => {
+                      setViewDensity('compact');
+                      setViewDensityOpen(false);
+                    }}>
+                      Compact
+                    </DropdownItem>
                   </DropdownMenu>
                 </Dropdown>
+
+                {/* Export CSV Button */}
+                <Button color="light" size="sm" onClick={exportToCSV}>
+                  <Download size={14} className="me-1" />
+                  Export
+                </Button>
 
                 {/* Add Column Button */}
                 <Button
@@ -751,6 +886,94 @@ const KanbanBoard: React.FC = () => {
                 </Button>
               </div>
             </div>
+          </Col>
+        </Row>
+
+        {/* Statistics Cards */}
+        <Row className="mb-3">
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center">
+                  <div className="flex-shrink-0">
+                    <div className="avatar-sm rounded-circle bg-primary bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-task-line fs-4"></i>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">Total Tasks</h6>
+                    <h4 className="mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Col>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center">
+                  <div className="flex-shrink-0">
+                    <div className="avatar-sm rounded-circle bg-warning bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-alert-line fs-4"></i>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">High Priority</h6>
+                    <h4 className="mb-0">
+                      {board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Col>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center">
+                  <div className="flex-shrink-0">
+                    <div className="avatar-sm rounded-circle bg-success bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-check-double-line fs-4"></i>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">Completed</h6>
+                    <h4 className="mb-0">
+                      {board.columns
+                        .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
+                        .reduce((sum, col) => sum + col.tasks.length, 0)}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Col>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center">
+                  <div className="flex-shrink-0">
+                    <div className="avatar-sm rounded-circle bg-info bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-user-follow-line fs-4"></i>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">Assigned</h6>
+                    <h4 className="mb-0">
+                      {board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </Col>
         </Row>
 
@@ -786,13 +1009,23 @@ const KanbanBoard: React.FC = () => {
                     className="card-header d-flex justify-content-between align-items-center"
                     style={{ backgroundColor: column.color, color: "#fff" }}
                   >
-                    <div>
-                      <h5 className="mb-0" style={{ color: "#fff" }}>
-                        {column.name}
-                      </h5>
-                      <small style={{ color: "#f0f0f0" }}>
-                        {column.tasks.length} tasks
-                      </small>
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={column.tasks.length > 0 && column.tasks.every(t => selectedTasks.includes(t.id))}
+                        onChange={() => toggleSelectAllInColumn(column.tasks)}
+                        className="form-check-input bg-white"
+                        style={{ cursor: 'pointer' }}
+                        title="Select all in column"
+                      />
+                      <div>
+                        <h5 className="mb-0" style={{ color: "#fff" }}>
+                          {column.name}
+                        </h5>
+                        <small style={{ color: "#f0f0f0" }}>
+                          {column.tasks.length} tasks
+                        </small>
+                      </div>
                     </div>
                     <Button
                       color="link"
@@ -851,6 +1084,14 @@ const KanbanBoard: React.FC = () => {
                                       openAssigneeDropdown={openAssigneeDropdown}
                                       setOpenAssigneeDropdown={setOpenAssigneeDropdown}
                                       onAssigneeChange={handleAssigneeChange}
+                                      onTaskClick={(task) => {
+                                        setSelectedTask(task);
+                                        setShowTaskDetail(true);
+                                      }}
+                                      isSelected={selectedTasks.includes(task.id)}
+                                      onToggleSelect={toggleTaskSelection}
+                                      taskKey={getTaskKey(task)}
+                                      viewDensity={viewDensity}
                                     />
                                   </div>
                                 )}
@@ -1081,6 +1322,118 @@ const KanbanBoard: React.FC = () => {
             .reduce((sum, col) => sum + col.tasks.length, 0)}
           handleEditSprintSuccess={handleEditSprintSuccess}
         />
+
+        {/* Task Detail Modal */}
+        {selectedTask && (
+          <TaskDetailModal
+            show={showTaskDetail}
+            onHide={() => {
+              setShowTaskDetail(false);
+              setSelectedTask(null);
+            }}
+            task={convertToTask(selectedTask)}
+            projectId={projectId!}
+            onUpdate={loadBoard}
+          />
+        )}
+
+        {/* Filters Modal */}
+        <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
+          <ModalHeader toggle={() => setShowFiltersModal(false)}>
+            <i className="ri-filter-line me-2"></i>
+            Filters
+          </ModalHeader>
+          <ModalBody>
+            <Row>
+              {/* Left Column */}
+              <Col md={6}>
+                {/* Priority Filter */}
+                <FormGroup>
+                  <Label className="fw-semibold">
+                    <i className="ri-price-tag-3-line me-2"></i>
+                    Priority
+                  </Label>
+                  <div className="d-flex flex-column gap-2">
+                    {['HIGH', 'MEDIUM', 'LOW'].map(priority => (
+                      <FormGroup check key={priority}>
+                        <Label check>
+                          <input
+                            type="checkbox"
+                            checked={filterPriority.includes(priority)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFilterPriority([...filterPriority, priority]);
+                              } else {
+                                setFilterPriority(filterPriority.filter(p => p !== priority));
+                              }
+                            }}
+                            className="me-2"
+                          />
+                          <Badge 
+                            color={
+                              priority === 'HIGH' ? 'warning' : 
+                              priority === 'MEDIUM' ? 'info' : 
+                              'secondary'
+                            }
+                            className="me-2"
+                          >
+                            {priority}
+                          </Badge>
+                        </Label>
+                      </FormGroup>
+                    ))}
+                  </div>
+                </FormGroup>
+              </Col>
+
+              {/* Right Column */}
+              <Col md={6}>
+                {/* Assignee Filter */}
+                <FormGroup>
+                  <Label className="fw-semibold">
+                    <i className="ri-user-line me-2"></i>
+                    Assignee
+                  </Label>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {projectMembers.map(member => (
+                      <FormGroup check key={member.userId}>
+                        <Label check>
+                          <input
+                            type="checkbox"
+                            checked={filterAssignee.includes(member.userId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFilterAssignee([...filterAssignee, member.userId]);
+                              } else {
+                                setFilterAssignee(filterAssignee.filter(a => a !== member.userId));
+                              }
+                            }}
+                            className="me-2"
+                          />
+                          {member.displayName || member.email}
+                        </Label>
+                      </FormGroup>
+                    ))}
+                  </div>
+                </FormGroup>
+              </Col>
+            </Row>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="light"
+              onClick={() => {
+                setFilterPriority([]);
+                setFilterAssignee([]);
+              }}
+            >
+              Clear All
+            </Button>
+            <Button color="primary" onClick={() => setShowFiltersModal(false)}>
+              Apply Filters
+            </Button>
+          </ModalFooter>
+        </Modal>
       </Container>
     </div>
   );
@@ -1099,15 +1452,26 @@ interface TaskCardProps {
     displayName: string,
     e: React.MouseEvent
   ) => void;
+  onTaskClick: (task: TaskResponse) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({
+const TaskCard: React.FC<TaskCardProps & {
+  isSelected?: boolean;
+  onToggleSelect?: (taskId: number) => void;
+  taskKey?: string;
+  viewDensity?: 'compact' | 'comfortable';
+}> = ({
   task,
   isDragging,
   projectMembers,
   openAssigneeDropdown,
   setOpenAssigneeDropdown,
   onAssigneeChange,
+  onTaskClick,
+  isSelected = false,
+  onToggleSelect,
+  taskKey,
+  viewDensity = 'comfortable',
 }) => {
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
@@ -1127,18 +1491,46 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <Card
-      className={`mb-0 shadow-sm ${isDragging ? "shadow-lg" : ""}`}
+      className={`mb-0 shadow-sm ${isDragging ? "shadow-lg" : ""} ${isSelected ? "border-primary" : ""}`}
       style={{
-        border: isDragging ? "2px solid #3b82f6" : "1px solid #e5e7eb",
-        cursor: "grab",
+        border: isDragging ? "2px solid #3b82f6" : isSelected ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+        cursor: "pointer",
       }}
     >
-      <div className="card-body p-3">
-        {/* Task Title */}
-        <h6 className="card-title mb-2">{task.title}</h6>
+      <div className="card-body p-2" style={{ padding: viewDensity === 'compact' ? '8px' : '12px' }}>
+        {/* Header with checkbox and key */}
+        <div className="d-flex justify-content-between align-items-start mb-2">
+          <div className="d-flex align-items-center gap-2 flex-grow-1" onClick={() => onTaskClick(task)}>
+            {onToggleSelect && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(task.id)}
+                  className="form-check-input"
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+            )}
+            {taskKey && (
+              <span className="badge bg-secondary" style={{ fontSize: '10px' }}>
+                {taskKey}
+              </span>
+            )}
+          </div>
+        </div>
 
-        {/* Task Description */}
-        {task.description && (
+        {/* Task Title */}
+        <h6 
+          className="card-title mb-2" 
+          style={{ fontSize: viewDensity === 'compact' ? '13px' : '14px' }}
+          onClick={() => onTaskClick(task)}
+        >
+          {task.title}
+        </h6>
+
+        {/* Task Description - hide in compact mode */}
+        {viewDensity === 'comfortable' && task.description && (
           <p
             className="card-text text-muted small mb-2"
             style={{
@@ -1146,22 +1538,35 @@ const TaskCard: React.FC<TaskCardProps> = ({
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
+              fontSize: '12px',
             }}
+            onClick={() => onTaskClick(task)}
           >
             {task.description}
           </p>
         )}
 
+        {/* Labels/Tags - hide in compact mode */}
+        {viewDensity === 'comfortable' && task.tags && (
+          <div className="mb-2" onClick={() => onTaskClick(task)}>
+            {task.tags.split(',').map((tag, idx) => (
+              <Badge key={idx} color="light" className="me-1 mb-1" style={{ fontSize: '10px' }}>
+                {tag.trim()}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {/* Task Metadata */}
         <div className="d-flex justify-content-between align-items-center">
-          <div>
+          <div onClick={() => onTaskClick(task)}>
             {task.priority && (
-              <Badge color={getPriorityColor(task.priority)} className="me-1">
+              <Badge color={getPriorityColor(task.priority)} className="me-1" style={{ fontSize: '10px' }}>
                 {task.priority}
               </Badge>
             )}
             {task.estimatedHours && (
-              <span className="text-muted small">
+              <span className="text-muted" style={{ fontSize: '11px' }}>
                 <i className="ri-time-line me-1"></i>
                 {task.estimatedHours}h
               </span>
@@ -1178,8 +1583,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 tag="div"
                 style={{
                   cursor: "pointer",
-                  width: "32px",
-                  height: "32px",
+                  width: viewDensity === 'compact' ? "28px" : "32px",
+                  height: viewDensity === 'compact' ? "28px" : "32px",
                   borderRadius: "50%",
                   backgroundColor: task.assigneeId ? "#3b82f6" : "#6B7280",
                   display: "flex",
@@ -1194,10 +1599,25 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 {task.assigneeId ? (
                   currentAssignee?.email?.charAt(0).toUpperCase() || "?"
                 ) : (
-                  <User size={16} />
+                  <User size={viewDensity === 'compact' ? 14 : 16} />
                 )}
               </DropdownToggle>
-              <DropdownMenu end>
+              <DropdownMenu 
+                end
+                popperConfig={{ 
+                  strategy: "fixed",
+                  modifiers: [
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        boundary: 'viewport'
+                      }
+                    }
+                  ]
+                }}
+                style={{ zIndex: 9999 }}
+                container="body"
+              >
                 {projectMembers.length === 1 ? (
                   <DropdownItem disabled className="text-muted">
                     <small>Loading members...</small>
@@ -1219,9 +1639,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
 
-        {/* Due Date */}
-        {task.dueDate && (
-          <div className="mt-2 text-muted small">
+        {/* Due Date - compact in small mode */}
+        {task.dueDate && viewDensity === 'comfortable' && (
+          <div className="mt-2 text-muted" style={{ fontSize: '11px' }} onClick={() => onTaskClick(task)}>
             <i className="ri-calendar-line me-1"></i>
             {new Date(task.dueDate).toLocaleDateString("vi-VN")}
           </div>

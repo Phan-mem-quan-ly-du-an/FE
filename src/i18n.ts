@@ -10,9 +10,9 @@ const resources = {
     vn: {
         translation: translationVN,
     },
-  en: {
-    translation: translationENG,
-  }
+    en: {
+        translation: translationENG,
+    }
 };
 
 const language = localStorage.getItem("I18N_LANGUAGE");

@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import AssignWorkspaceRoleModal from './AssignWorkspaceRoleModal';
 import { getUsersByIds, UserBrief } from '../../apiCaller/users';
 import { useTranslation } from 'react-i18next';
+import { isForbiddenError } from '../../helpers/permissions';
 
 const MemberTab: React.FC = () => {
     const { t } = useTranslation();
@@ -95,6 +96,10 @@ const MemberTab: React.FC = () => {
             toast.success(t('MemberDeletedSuccessfully'));
         },
         onError: (e: any) => {
+            if (isForbiddenError(e)) {
+                toast.warning(t('WorkspacePermissions.DeleteMemberDenied') || 'Bạn không có quyền xóa thành viên workspace.');
+                return;
+            }
             toast.error(e?.message || t('FailedDeleteMember'));
         }
     });
@@ -141,15 +146,10 @@ const MemberTab: React.FC = () => {
                 enableColumnFilter: false,
                 cell: (cell: any) => {
                     const member = cell.row.original;
-                    console.log('Rendering Owner cell for:', member.userId, 'owner:', member.owner);
-                    
                     // Xử lý các trường hợp khác nhau của giá trị owner
                     if (member.owner === true || member.owner === 'true' || member.owner === 1) {
                         return t('Owner');
-                    } else if (member.owner === false || member.owner === 'false' || member.owner === 0 || member.owner === undefined || member.owner === null) {
-                        return '—';
                     } else {
-                        console.warn('Unexpected owner value:', member.owner);
                         return '—';
                     }
                 },
@@ -195,7 +195,7 @@ const MemberTab: React.FC = () => {
                 },
             },
         ],
-        [openDropdownId, toggleDropdown, showAssign, setAssignMember, showTransfer, setShowTransfer, deleteMemberMutation]
+        [openDropdownId, toggleDropdown, showAssign, setAssignMember, showTransfer, setShowTransfer, deleteMemberMutation, t, roles, idToEmail]
     );
 
     if (isLoading) {
@@ -208,10 +208,13 @@ const MemberTab: React.FC = () => {
     }
 
     if (error) {
+        const forbidden = isForbiddenError(error);
         return (
-            <div className="alert alert-danger text-center">
+            <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2" />
-                {t('FailedLoadMembers')}
+                {forbidden 
+                    ? (t('WorkspacePermissions.ViewMembersDenied') || 'Bạn không có quyền xem thành viên của workspace.') 
+                    : (t('FailedLoadMembers') || 'Failed to load members')}
             </div>
         );
     }
@@ -246,7 +249,10 @@ const MemberTab: React.FC = () => {
                     onClose={() => setShowAdd(false)}
                     workspaceId={workspaceId}
                     companyId={workspace.companyId}
-                    onSuccess={() => { /* could refresh list */ }}
+                    onSuccess={async () => {
+                        await queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+                        toast.success(t('MembersInvitedSuccessfully') || 'Mời thành viên thành công');
+                    }}
                 />
             )}
             {showAssign && workspaceId && (
@@ -296,4 +302,3 @@ const MemberTab: React.FC = () => {
 };
 
 export default MemberTab;
-

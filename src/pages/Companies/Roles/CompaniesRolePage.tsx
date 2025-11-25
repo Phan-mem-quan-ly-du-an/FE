@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCompanyRoles, deleteRole, createCompanyRole, updateCompanyRole, Role } from "../../../apiCaller/companyRoles";
@@ -16,7 +16,6 @@ export default function CompaniesRolePage() {
     const { t } = useTranslation();
     const { companyId } = useParams<{ companyId: string }>();
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
 
     const resolvedCompanyId = companyId || "";
 
@@ -27,6 +26,7 @@ export default function CompaniesRolePage() {
     const [editing, setEditing] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<Role | null>(null);
+    const [roleSearch, setRoleSearch] = useState('');
 
     const rolesQuery = useQuery<Role[]>({
         queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
@@ -64,15 +64,6 @@ export default function CompaniesRolePage() {
 
     const handleDeleteRole = (r: Role) => {
         if (r?.id) setConfirmDelete(r);
-    };
-
-    const handleRowDoubleClick = (roleData: Role) => {
-        const roleId = roleData.id;
-        if (roleId && resolvedCompanyId) {
-            navigate(`/companies/${resolvedCompanyId}/roles/${roleId}/permission`);
-        } else {
-            console.error("Cannot navigate: missing Role ID or Company ID.");
-        }
     };
 
     const columns = useMemo(
@@ -165,7 +156,20 @@ export default function CompaniesRolePage() {
     );
 
 
-    const data = (rolesQuery.data ?? []) as Role[];
+    const filteredData = useMemo(() => {
+        const roles = (rolesQuery.data ?? []) as Role[];
+        const query = roleSearch.trim().toLowerCase();
+        if (!query) return roles;
+
+        const startsWithQuery = (value?: string | null) =>
+            (value || '').toLowerCase().startsWith(query);
+
+        return roles.filter(role =>
+            startsWithQuery(role.name) ||
+            startsWithQuery(role.code) ||
+            startsWithQuery(role.description)
+        );
+    }, [rolesQuery.data, roleSearch]);
 
     if (auth.isLoading) return <div className="container">{t("CheckingSession")}</div>;
     if (!auth.isAuthenticated || !auth.user?.access_token) {
@@ -199,6 +203,16 @@ export default function CompaniesRolePage() {
                                 <div className="d-sm-flex align-items-center justify-content-between gap-2">
                                     <h5 className="card-title mb-0">{t('CompanyRoles')}</h5>
                                     <div className="d-flex flex-wrap gap-2 justify-content-sm-end">
+                                        <div className="search-box me-2 mb-2 d-inline-block">
+                                            <input
+                                                type="search"
+                                                className="form-control search"
+                                                placeholder={t('SearchRolesPlaceholder') || ''}
+                                                value={roleSearch}
+                                                onChange={(event) => setRoleSearch(event.target.value)}
+                                            />
+                                            <i className="bx bx-search-alt search-icon"></i>
+                                        </div>
                                         <button
                                             type="button"
                                             className="btn btn-primary"
@@ -216,8 +230,8 @@ export default function CompaniesRolePage() {
                                 ) : (
                                     <TableContainer
                                         columns={columns}
-                                        data={data}
-                                        isGlobalFilter={true}
+                                        data={filteredData}
+                                        isGlobalFilter={false}
                                         hidePagination={false}
                                         customPageSize={10}
                                         divClass="table-responsive table-card mb-1 mt-0"
@@ -226,7 +240,7 @@ export default function CompaniesRolePage() {
                                         SearchPlaceholder={t('SearchRolesPlaceholder')}
                                     />
                                 )}
-                                {!rolesQuery.isLoading && data.length === 0 && (
+                                {!rolesQuery.isLoading && filteredData.length === 0 && (
                                     <div className="text-center text-muted py-5">{t('NoRoles')}</div>
                                 )}
                             </CardBody>

@@ -6,6 +6,7 @@ import * as Yup from 'yup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { WorkspaceMember, assignWorkspaceMemberRole } from '../../apiCaller/workspaceDetails';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface AssignWorkspaceRoleModalProps {
     show: boolean;
@@ -27,7 +28,7 @@ export default function AssignWorkspaceRoleModal({
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
-    const { data: roles = [] } = useQuery<WorkspaceRole[]>({
+    const { data: roles = [], error: rolesError, isLoading: rolesLoading } = useQuery<WorkspaceRole[]>({
         queryKey: ['workspace-roles', workspaceId],
         queryFn: () => getWorkspaceRoles(workspaceId),
         enabled: !!workspaceId && show,
@@ -68,6 +69,10 @@ export default function AssignWorkspaceRoleModal({
                         onClose();
                     },
                     onError: (error: any) => {
+                        if (isForbiddenError(error)) {
+                            onError?.(t('WorkspacePermissions.AssignMemberRoleDenied') || 'Bạn không có quyền gán role cho thành viên.');
+                            return;
+                        }
                         onError?.(error?.message || t('FailedToAssignRole'));
                     },
                 }
@@ -103,6 +108,14 @@ export default function AssignWorkspaceRoleModal({
                         </div>
                     )}
 
+                    {rolesError && (
+                        <div className={`alert ${isForbiddenError(rolesError) ? 'alert-warning' : 'alert-danger'}`}>
+                            {isForbiddenError(rolesError)
+                                ? (t('WorkspacePermissions.ViewRolesDenied') || 'Bạn không có quyền xem danh sách role của workspace.')
+                                : 'Không thể tải danh sách role.'}
+                        </div>
+                    )}
+
                     <div className="table-responsive">
                         <table className="table table-bordered align-middle">
                             <tbody>
@@ -125,7 +138,7 @@ export default function AssignWorkspaceRoleModal({
                             id="role-field"
                             type="select"
                             className="form-select"
-                            disabled={isOwner}
+                            disabled={isOwner || rolesLoading || !!rolesError}
                             onChange={validation.handleChange}
                             onBlur={validation.handleBlur}
                             value={validation.values.roleId || ''}
@@ -158,5 +171,3 @@ export default function AssignWorkspaceRoleModal({
         </Modal>
     );
 }
-
-

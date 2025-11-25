@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardBody, CardHeader, Button, Spinner, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 import { getWorkspaceRoles, WorkspaceRole, deleteWorkspaceRole, createWorkspaceRole, updateWorkspaceRole } from '../../apiCaller/workspaceRoles';
 import CreateRoleModal from '../Companies/Roles/CreateRoleModal';
 import EditRoleModal from '../Companies/Roles/EditRoleModal';
+import { isForbiddenError } from '../../helpers/permissions';
 
 const RoleTab: React.FC = () => {
     const { t } = useTranslation();
@@ -35,6 +37,14 @@ const RoleTab: React.FC = () => {
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
+            toast.success(t('RoleDeletedSuccessfully') || 'Xóa role thành công');
+        },
+        onError: (error: any) => {
+            if (isForbiddenError(error)) {
+                toast.warning(t('WorkspacePermissions.DeleteRoleDenied') || 'Bạn không có quyền xóa role của workspace.');
+                return;
+            }
+            toast.error(error?.message || t('FailedDeleteRole') || 'Xóa role thất bại');
         },
     });
 
@@ -142,10 +152,13 @@ const RoleTab: React.FC = () => {
     }
 
     if (error) {
+        const forbidden = isForbiddenError(error);
         return (
-            <div className="alert alert-danger text-center">
-                <i className="ri-error-warning-line me-2" />
-                {t('FailedToLoadRoles')}
+            <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
+                <i className="ri-error-warning-line me-2"></i>
+                {forbidden 
+                    ? (t('WorkspacePermissions.ViewRolesDenied') || 'Bạn không có quyền xem danh sách role của workspace.') 
+                    : t('FailedToLoadRoles')}
             </div>
         );
     }
@@ -242,8 +255,13 @@ const RoleTab: React.FC = () => {
                                 await createWorkspaceRole(workspaceId, values);
                                 setShowCreate(false);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
+                                toast.success(t('Saved') || 'Đã lưu');
                             } catch (error: any) {
-                                alert(error?.message || 'Error creating role');
+                                if (isForbiddenError(error)) {
+                                    toast.warning(t('WorkspacePermissions.CreateRoleDenied') || 'Bạn không có quyền tạo role trong workspace.');
+                                } else {
+                                    toast.error(error?.message || t('ErrorCreatingRole') || 'Error creating role');
+                                }
                             }
                         }}
                     />
@@ -265,8 +283,13 @@ const RoleTab: React.FC = () => {
                                 setShowEdit(false);
                                 setEditingRole(null);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
+                                toast.success(t('Saved') || 'Đã lưu');
                             } catch (error: any) {
-                                alert(error?.message || 'Error updating role');
+                                if (isForbiddenError(error)) {
+                                    toast.warning(t('WorkspacePermissions.UpdateRoleDenied') || 'Bạn không có quyền sửa role của workspace.');
+                                } else {
+                                    toast.error(error?.message || t('ErrorUpdatingRole') || 'Error updating role');
+                                }
                             }
                         }}
                     />
@@ -277,4 +300,3 @@ const RoleTab: React.FC = () => {
 };
 
 export default RoleTab;
-

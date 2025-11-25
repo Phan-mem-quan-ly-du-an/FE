@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import OverviewTab from './OverviewTab';
 import SprintTab from './SprintTab';
 import KanbanBoard from '../Board/KanbanBoard';
+import TaskListView from '../TaskList/TaskListView';
 import RoleTab from './RoleTab';
 import TeamTab from './TeamTab';
 const Section = () => {
@@ -202,13 +203,22 @@ const Section = () => {
                                             onClick={() => toggleTab('4')}
                                             href="#"
                                         >
-                                            {t('Team')}
+                                            List
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
                                         <NavLink
                                             className={classnames({ active: activeTab === '5' }, 'fw-semibold')}
                                             onClick={() => toggleTab('5')}
+                                            href="#"
+                                        >
+                                            {t('Team')}
+                                        </NavLink>
+                                    </NavItem>
+                                    <NavItem>
+                                        <NavLink
+                                            className={classnames({ active: activeTab === '6' }, 'fw-semibold')}
+                                            onClick={() => toggleTab('6')}
                                             href="#"
                                         >
                                             {t('Roles')}
@@ -235,9 +245,12 @@ const Section = () => {
                             <KanbanBoard />
                         </TabPane>
                         <TabPane tabId="4">
-                            <TeamTab />
+                            <TaskListView />
                         </TabPane>
                         <TabPane tabId="5">
+                            <TeamTab />
+                        </TabPane>
+                        <TabPane tabId="6">
                             <RoleTab />
                         </TabPane>
                     </TabContent>
