@@ -1,8 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, Label, FormGroup } from 'reactstrap';
+import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, FormGroup, Label } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { User } from 'lucide-react';
 import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import { sprintAPI } from '../../apiCaller/backlogSprint';
@@ -64,6 +63,8 @@ const TaskListView = () => {
     onlyActiveSprint: false,
     includeArchived: false
   });
+  const [groupBy, setGroupBy] = useState<'none' | 'priority' | 'assignee' | 'status' | 'sprint'>('none');
+  const [groupValue, setGroupValue] = useState<string | number | undefined>(undefined);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -294,6 +295,21 @@ const TaskListView = () => {
     return { total, highPriority, assigned, unassigned };
   }, [tasks, totalElements]);
 
+  const displayTasks = useMemo(() => {
+    if (groupBy === 'none' || typeof groupValue === 'undefined' || groupValue === null || groupValue === '') return tasks;
+    const isMatch = (t: Task) => {
+      if (groupBy === 'priority') return ((t.priority || '').toString().toUpperCase()) === ((groupValue as string) || '').toUpperCase();
+      if (groupBy === 'assignee') return (t.assigneeId || '') === (groupValue as string);
+      if (groupBy === 'status') return (t.statusColumn?.id || -1) === (groupValue as number);
+      if (groupBy === 'sprint') return (t.sprintId || null) === (groupValue as number);
+      return false;
+    };
+    const matched: Task[] = [];
+    const others: Task[] = [];
+    tasks.forEach(t => { (isMatch(t) ? matched : others).push(t); });
+    return [...matched, ...others];
+  }, [tasks, groupBy, groupValue]);
+
   const clearAllFilters = () => {
     setFilters({ q: '', priorities: [], assigneeIds: [], columnIds: [], sprintId: undefined, onlyActiveSprint: false, includeArchived: false });
     setPage(0);
@@ -376,28 +392,119 @@ const TaskListView = () => {
             </Col>
             <Col md={8} className="text-end">
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
-                <Button color={getActiveFiltersCount() > 0 ? 'primary' : 'light'} size="sm" onClick={() => setShowFiltersModal(true)}>
-                  <i className="ri-filter-3-line me-1"></i>
-                  Filters
-                  {getActiveFiltersCount() > 0 && (
-                    <Badge color="light" className="ms-1" pill style={{ color: '#25a0e2' }}>{getActiveFiltersCount()}</Badge>
-                  )}
-                </Button>
-
                 <UncontrolledDropdown>
-                  <DropdownToggle caret color="light" size="sm">
-                    <i className="ri-layout-line me-1"></i>View
-                  </DropdownToggle>
-                  <DropdownMenu end>
-                    <DropdownItem onClick={() => setViewDensity('compact')} active={viewDensity === 'compact'}>
-                      <i className="ri-layout-row-line me-1"></i>Compact
-                    </DropdownItem>
-                    <DropdownItem onClick={() => setViewDensity('comfortable')} active={viewDensity === 'comfortable'}>
-                      <i className="ri-layout-2-line me-1"></i>Comfortable
-                    </DropdownItem>
+                  <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, assigneeIds: [] }))} active={filters.assigneeIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {projectMembers.map(m => (
+                      <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
+                    ))}
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.priorities.length ? 'info' : 'light'} size="sm">Priority</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '220px' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, priorities: [] }))} active={filters.priorities.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    <DropdownItem onClick={() => togglePriority('HIGH')} active={filters.priorities.includes('HIGH')}>HIGH</DropdownItem>
+                    <DropdownItem onClick={() => togglePriority('MEDIUM')} active={filters.priorities.includes('MEDIUM')}>MEDIUM</DropdownItem>
+                    <DropdownItem onClick={() => togglePriority('LOW')} active={filters.priorities.includes('LOW')}>LOW</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.columnIds.length ? 'info' : 'light'} size="sm">Status</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, columnIds: [] }))} active={filters.columnIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {columns.map(c => (
+                      <DropdownItem key={c.id} onClick={() => toggleColumn(c.id)} active={filters.columnIds.includes(c.id)}>{c.name}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={(typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) ? 'info' : 'light'} size="sm">Sprint</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '240px' }}>
+                    <DropdownItem onClick={() => setSprint(undefined)} active={typeof filters.sprintId === 'undefined'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    {sprints.map(s => (
+                      <DropdownItem key={s.id} onClick={() => setSprint(s.id)} active={filters.sprintId === s.id}>{s.name}</DropdownItem>
+                    ))}
+                    <DropdownItem divider />
+                    <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <Button color={filters.includeArchived ? 'info' : 'light'} size="sm" onClick={toggleIncludeArchived}>Archived</Button>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={groupBy !== 'none' && typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group By</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '220px' }}>
+                    <DropdownItem onClick={() => { setGroupBy('none'); setGroupValue(undefined); }} active={groupBy === 'none'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    <DropdownItem onClick={() => { setGroupBy('priority'); setGroupValue(undefined); }} active={groupBy === 'priority'}>Priority</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('status'); setGroupValue(undefined); }} active={groupBy === 'status'}>Status</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('assignee'); setGroupValue(undefined); }} active={groupBy === 'assignee'}>Assignee</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('sprint'); setGroupValue(undefined); }} active={groupBy === 'sprint'}>Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                {groupBy === 'priority' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '220px' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      <DropdownItem onClick={() => setGroupValue('HIGH')} active={groupValue === 'HIGH'}>HIGH</DropdownItem>
+                      <DropdownItem onClick={() => setGroupValue('MEDIUM')} active={groupValue === 'MEDIUM'}>MEDIUM</DropdownItem>
+                      <DropdownItem onClick={() => setGroupValue('LOW')} active={groupValue === 'LOW'}>LOW</DropdownItem>
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'status' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {columns.map(c => (
+                        <DropdownItem key={c.id} onClick={() => setGroupValue(c.id)} active={groupValue === c.id}>{c.name}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'assignee' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {projectMembers.map(m => (
+                        <DropdownItem key={m.userId} onClick={() => setGroupValue(m.userId)} active={groupValue === m.userId}>{m.displayName || m.email}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'sprint' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '240px' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {sprints.map(s => (
+                        <DropdownItem key={s.id} onClick={() => setGroupValue(s.id)} active={groupValue === s.id}>{s.name}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                <Button color="danger" size="sm" outline onClick={clearAllFilters}><i className="ri-close-line me-1"></i>Clear</Button>
                 <Button color="light" size="sm" onClick={exportToCSV} title="Export to CSV">
                   <i className="ri-download-line"></i>
                 </Button>
@@ -553,7 +660,7 @@ const TaskListView = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <Table hover className={`align-middle table-nowrap mb-0 ${viewDensity === 'compact' ? 'table-sm' : ''}`}>
+                  <Table hover className="align-middle table-nowrap mb-0">
                     <thead className="table-light">
                       <tr>
                         <th style={{ width: '40px' }}>
@@ -569,7 +676,7 @@ const TaskListView = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {tasks.map(task => {
+                      {displayTasks.map(task => {
                         const member = getMemberInfo(task.assigneeId);
                         const sprint = sprints.find(s => s.id === task.sprintId);
                         return (

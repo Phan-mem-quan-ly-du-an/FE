@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form } from 'react-bootstrap';
+import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form, ProgressBar, Card, Modal, Spinner } from 'react-bootstrap';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -8,7 +8,9 @@ import EditSprintModal from './EditSprintModal';
 import CreateTaskModal from './CreateTaskModal';
 import TaskDetailModal from './TaskDetailModal';
 import { sprintAPI, taskAPI } from '../../apiCaller/backlogSprint';
+import { getBoardByProjectId } from '../../apiCaller/boards';
 import { getProjectMembers } from '../../apiCaller/projectMembers';
+import ApiCaller from '../../apiCaller/caller/apiCaller';
 import '../../assets/scss/pages/BacklogSprint.scss';
 
 interface Task {
@@ -57,6 +59,19 @@ interface Sprint {
     updatedAt: string;
 }
 
+interface Epic {
+    id: number;
+    projectId: string;
+    title: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    totalTasks?: number;
+    doneTasks?: number;
+    progressPercent?: number;
+    overdue?: boolean;
+}
+
 interface BacklogSprintProps {
     projectId: string;
 }
@@ -85,10 +100,40 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
         { id: 3, name: 'DONE', color: '#10b981' }
     ]);
+    const [epics, setEpics] = useState<Epic[]>([]);
+    const [showCreateEpic, setShowCreateEpic] = useState(false);
+    const [creatingEpic, setCreatingEpic] = useState(false);
+    const [newEpicTitle, setNewEpicTitle] = useState('');
+    const [newEpicDescription, setNewEpicDescription] = useState('');
+    const [newEpicStartDate, setNewEpicStartDate] = useState<string>('');
+    const [newEpicEndDate, setNewEpicEndDate] = useState<string>('');
+    const [showEpicSidebar, setShowEpicSidebar] = useState<boolean>(() => {
+        const persisted = localStorage.getItem('showEpicSidebar');
+        return persisted ? persisted === 'true' : true;
+    });
+    const [selectedEpicId, setSelectedEpicId] = useState<number | null>(null);
+    const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
+    const [epicLoading, setEpicLoading] = useState<boolean>(false);
+    const [epicEditTitle, setEpicEditTitle] = useState<string>('');
+    const [epicEditDescription, setEpicEditDescription] = useState<string>('');
+    const [epicEditStartDate, setEpicEditStartDate] = useState<string>('');
+    const [epicEditEndDate, setEpicEditEndDate] = useState<string>('');
+    const [epicTasks, setEpicTasks] = useState<Task[]>([]);
+    const [epicTasksLoading, setEpicTasksLoading] = useState<boolean>(false);
+    const [showAssignTaskModal, setShowAssignTaskModal] = useState<boolean>(false);
+    const [assignSelectedTaskId, setAssignSelectedTaskId] = useState<number | null>(null);
+    const [assignMode, setAssignMode] = useState<'existing' | 'new'>('existing');
+    const [newTaskTitle, setNewTaskTitle] = useState<string>('');
+    const [newTaskDescription, setNewTaskDescription] = useState<string>('');
+    const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
+    const [newTaskSprintId, setNewTaskSprintId] = useState<number | null>(null);
+    const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<string>('');
+    const [newTaskEstimatedHours, setNewTaskEstimatedHours] = useState<string>('');
+    const [newTaskTags, setNewTaskTags] = useState<string>('');
+    const [newTaskDueDate, setNewTaskDueDate] = useState<string>('');
 
     const loadBoardColumns = async () => {
         try {
-            const { getBoardByProjectId } = await import('../../apiCaller/boards');
             const boardData = await getBoardByProjectId(projectId);
             if (boardData && boardData.columns && boardData.columns.length > 0) {
                 const columns = boardData.columns.map((col: any) => ({
@@ -215,11 +260,298 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 return dateB - dateA;
             }));
 
+            const activeSprint = Array.isArray(sprintsData) ? sprintsData.find(s => s.status === 'active') : undefined;
+            await loadEpics(activeSprint?.id);
+
         } catch (error) {
             console.error('Error loading data:', error);
             toast.error('Failed to load backlog and sprints');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadEpics = async (sprintId?: number) => {
+        try {
+            const query = sprintId ? `?sprintId=${sprintId}` : '';
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics${query}`).get();
+            const data: any = res.data?.data || res.data || [];
+            setEpics(Array.isArray(data) ? data : (data.content || []));
+        } catch (e) {
+            setEpics([]);
+        }
+    };
+
+    const loadEpicDetail = async (epicId: number) => {
+        try {
+            setEpicLoading(true);
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics/${epicId}`).get();
+            const epic: Epic = (res.data?.data || res.data) as any;
+            setSelectedEpic(epic);
+            setEpicEditTitle(epic.title || '');
+            setEpicEditDescription(epic.description || '');
+            setEpicEditStartDate(epic.startDate || '');
+            setEpicEditEndDate(epic.endDate || '');
+            await loadEpicTasks(epicId);
+        } catch (e) {
+            toast.error('Failed to load epic detail');
+            setSelectedEpic(null);
+            setSelectedEpicId(null);
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const loadEpicTasks = async (epicId: number) => {
+        try {
+            setEpicTasksLoading(true);
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics/${epicId}/tasks`).get();
+            const data: any = res.data?.data || res.data || [];
+            const list: Task[] = Array.isArray(data) ? data : (data.content || []);
+            setEpicTasks(list);
+        } catch (e) {
+            setEpicTasks([]);
+        } finally {
+            setEpicTasksLoading(false);
+        }
+    };
+
+    const handleSelectEpic = (epicId: number) => {
+        setSelectedEpicId(epicId);
+        loadEpicDetail(epicId);
+    };
+
+    const handleUpdateEpic = async () => {
+        if (!selectedEpicId) return;
+        if (!epicEditTitle.trim()) {
+            toast.warn('Please enter epic title');
+            return;
+        }
+        try {
+            setEpicLoading(true);
+            const payload: any = {
+                title: epicEditTitle.trim(),
+                description: epicEditDescription?.trim() || undefined,
+                startDate: epicEditStartDate || undefined,
+                endDate: epicEditEndDate || undefined
+            };
+            await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).put({ data: payload });
+            toast.success('Epic updated');
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            await loadEpics(activeSprintId);
+            await loadEpicDetail(selectedEpicId);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to update epic');
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const handleDeleteEpic = async () => {
+        if (!selectedEpicId) return;
+        const ok = window.confirm('Are you sure you want to delete this epic?');
+        if (!ok) return;
+        try {
+            setEpicLoading(true);
+            await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).delete();
+            toast.success('Epic deleted');
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            await loadEpics(activeSprintId);
+            setSelectedEpic(null);
+            setSelectedEpicId(null);
+            setEpicTasks([]);
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to delete epic');
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const handleAssignSelectedTaskToEpic = async () => {
+        if (!selectedEpicId || !assignSelectedTaskId) return;
+        try {
+            setEpicLoading(true);
+            await new ApiCaller()
+                .setUrl(`/projects/${projectId}/tasks/${assignSelectedTaskId}/epic`)
+                .setQueryParams({ epicId: selectedEpicId })
+                .patch({ data: {} });
+            await loadEpicTasks(selectedEpicId);
+            setShowAssignTaskModal(false);
+            setAssignSelectedTaskId(null);
+            setAssignMode('existing');
+            toast.success('Task assigned to epic');
+
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            const allSprintTasks = Object.values(sprintTasks).flat();
+            const task = [...backlogTasks, ...allSprintTasks].find(t => t.id === assignSelectedTaskId);
+            if (task && activeSprintId && task.sprintId === activeSprintId) {
+                const isDone = (task.statusColumn?.name || '').toLowerCase().includes('done') || (task.statusColumn?.name || '').toLowerCase().includes('completed');
+                setEpics(prev => prev.map(e => {
+                    if (e.id !== selectedEpicId) return e;
+                    const newTotal = (typeof e.totalTasks === 'number' ? e.totalTasks : 0) + 1;
+                    const newDone = (typeof e.doneTasks === 'number' ? e.doneTasks : 0) + (isDone ? 1 : 0);
+                    const newPercent = newTotal > 0 ? Math.round((newDone / newTotal) * 100) : 0;
+                    return { ...e, totalTasks: newTotal, doneTasks: newDone, progressPercent: newPercent };
+                }));
+            }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to assign task');
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const handleCreateTaskInEpic = async () => {
+        if (!selectedEpicId) return;
+        if (!newTaskTitle.trim()) {
+            toast.warn('Please enter task title');
+            return;
+        }
+        if (newTaskSprintId && newTaskDueDate) {
+            const sp = sprints.find(s => s.id === newTaskSprintId);
+            if (sp && sp.startDate) {
+                const sprintStart = new Date(sp.startDate);
+                const due = new Date(newTaskDueDate);
+                sprintStart.setHours(0,0,0,0);
+                due.setHours(0,0,0,0);
+                if (due < sprintStart) {
+                    toast.warn('Due date cannot be before sprint start date');
+                    return;
+                }
+            }
+        }
+        try {
+            setEpicLoading(true);
+            let created: any = null;
+            try {
+                const res1: any = await new ApiCaller()
+                    .setUrl(`/projects/${projectId}/epic/${selectedEpicId}/tasks`)
+                    .post({ data: {
+                        title: newTaskTitle.trim(),
+                        description: newTaskDescription?.trim() || undefined,
+                        priority: newTaskPriority,
+                        sprintId: newTaskSprintId || undefined,
+                        assigneeId: newTaskAssigneeId || undefined,
+                        estimatedHours: newTaskEstimatedHours ? Number(newTaskEstimatedHours) : undefined,
+                        tags: newTaskTags || undefined,
+                        dueDate: newTaskDueDate || undefined,
+                        orderIndex: 0
+                    } });
+                created = res1?.data?.data || res1?.data;
+            } catch {}
+            if (!created) {
+                const res2: any = await new ApiCaller()
+                    .setUrl(`/projects/${projectId}/epics/${selectedEpicId}/tasks`)
+                    .post({ data: {
+                        title: newTaskTitle.trim(),
+                        description: newTaskDescription?.trim() || undefined,
+                        priority: newTaskPriority,
+                        sprintId: newTaskSprintId || undefined,
+                        assigneeId: newTaskAssigneeId || undefined,
+                        estimatedHours: newTaskEstimatedHours ? Number(newTaskEstimatedHours) : undefined,
+                        tags: newTaskTags || undefined,
+                        dueDate: newTaskDueDate || undefined,
+                        orderIndex: 0
+                    } });
+                created = res2?.data?.data || res2?.data;
+            }
+
+            await loadEpicTasks(selectedEpicId);
+            setShowAssignTaskModal(false);
+            setAssignMode('existing');
+            setNewTaskTitle('');
+            setNewTaskDescription('');
+            setNewTaskPriority('MEDIUM');
+            setNewTaskSprintId(null);
+            setNewTaskAssigneeId('');
+            setNewTaskEstimatedHours('');
+            setNewTaskTags('');
+            setNewTaskDueDate('');
+            toast.success('Task created in epic');
+
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            const isInActive = created?.sprintId && activeSprintId && created.sprintId === activeSprintId;
+            const isDone = ((created?.statusColumn?.name || '')).toLowerCase().includes('done') || ((created?.statusColumn?.name || '')).toLowerCase().includes('completed');
+            if (isInActive) {
+                setEpics(prev => prev.map(e => {
+                    if (e.id !== selectedEpicId) return e;
+                    const newTotal = (typeof e.totalTasks === 'number' ? e.totalTasks : 0) + 1;
+                    const newDone = (typeof e.doneTasks === 'number' ? e.doneTasks : 0) + (isDone ? 1 : 0);
+                    const newPercent = newTotal > 0 ? Math.round((newDone / newTotal) * 100) : 0;
+                    return { ...e, totalTasks: newTotal, doneTasks: newDone, progressPercent: newPercent };
+                }));
+            }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to create task');
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const handleRemoveTaskFromEpic = async (taskId: number) => {
+        if (!selectedEpicId) return;
+        try {
+            setEpicLoading(true);
+            try {
+                await new ApiCaller()
+                    .setUrl(`/projects/${projectId}/tasks/${taskId}/epic`)
+                    .setQueryParams({ epicId: '' })
+                    .patch({ data: {} });
+            } catch {
+                await new ApiCaller()
+                    .setUrl(`/projects/${projectId}/tasks/${taskId}/epic`)
+                    .setQueryParams({ epicId: null as any })
+                    .patch({ data: {} });
+            }
+            await loadEpicTasks(selectedEpicId);
+            toast.success('Task removed from epic');
+
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            const task = epicTasks.find(t => t.id === taskId);
+            if (task && activeSprintId && task.sprintId === activeSprintId) {
+                const isDone = (task.statusColumn?.name || '').toLowerCase().includes('done') || (task.statusColumn?.name || '').toLowerCase().includes('completed');
+                setEpics(prev => prev.map(e => {
+                    if (e.id !== selectedEpicId) return e;
+                    const newTotal = Math.max(0, (typeof e.totalTasks === 'number' ? e.totalTasks : 0) - 1);
+                    const newDone = Math.max(0, (typeof e.doneTasks === 'number' ? e.doneTasks : 0) - (isDone ? 1 : 0));
+                    const newPercent = newTotal > 0 ? Math.round((newDone / newTotal) * 100) : 0;
+                    return { ...e, totalTasks: newTotal, doneTasks: newDone, progressPercent: newPercent };
+                }));
+            }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to remove task');
+        } finally {
+            setEpicLoading(false);
+        }
+    };
+
+    const handleCreateEpic = async () => {
+        if (!newEpicTitle.trim()) {
+            toast.warn('Please enter epic title');
+            return;
+        }
+        try {
+            setCreatingEpic(true);
+            const payload: any = {
+                title: newEpicTitle.trim(),
+                description: newEpicDescription?.trim() || undefined,
+                startDate: newEpicStartDate || undefined,
+                endDate: newEpicEndDate || undefined
+            };
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics`).post({ data: payload });
+            const created: any = res.data?.data || res.data;
+            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
+            await loadEpics(activeSprintId);
+            setShowCreateEpic(false);
+            setNewEpicTitle('');
+            setNewEpicDescription('');
+            setNewEpicStartDate('');
+            setNewEpicEndDate('');
+            toast.success('Epic created successfully', { autoClose: 1500 });
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to create epic');
+        } finally {
+            setCreatingEpic(false);
         }
     };
 
@@ -864,10 +1196,64 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         onChange={(e) => setShowArchived(e.target.checked)}
                     />
                 </Col>
+                <Col xs="auto">
+                    <Form.Check
+                        type="switch"
+                        id="show-epics-toggle"
+                        label={`${showEpicSidebar ? 'Hide' : 'Show'} Epics`}
+                        checked={showEpicSidebar}
+                        onChange={(e) => {
+                            setShowEpicSidebar(e.target.checked);
+                            localStorage.setItem('showEpicSidebar', String(e.target.checked));
+                        }}
+                    />
+                </Col>
             </Row>
-
-            <DragDropContext onDragEnd={onDragEnd}>
-                <Accordion defaultActiveKey="backlog" alwaysOpen className="mb-3">
+            <Row>
+                {showEpicSidebar && (
+                    <Col md={3} className="mb-3">
+                        <Card>
+                            <Card.Body>
+                                <h6 className="mb-3">Epics</h6>
+                                {epics.length === 0 ? (
+                                    <div className="text-muted">No epics</div>
+                                ) : (
+                                    <div className="d-flex flex-column gap-3">
+                                        {epics.map(e => {
+                                            const total = typeof e.totalTasks === 'number' ? e.totalTasks : undefined;
+                                            const done = typeof e.doneTasks === 'number' ? e.doneTasks : undefined;
+                                            const percent = typeof e.progressPercent === 'number'
+                                                ? Math.round(e.progressPercent)
+                                                : (total && done ? Math.round((done / Math.max(total, 1)) * 100) : 0);
+                                        return (
+                                            <div key={e.id}>
+                                                <div className="d-flex align-items-center justify-content-between mb-1">
+                                                    <Button variant="link" className="p-0 fw-semibold text-truncate" title={e.title} onClick={() => handleSelectEpic(e.id)}>
+                                                        {e.title}
+                                                    </Button>
+                                                    <span className="small text-muted">{percent}%</span>
+                                                </div>
+                                                <ProgressBar now={percent} variant={percent >= 100 ? 'success' : 'info'} style={{ height: 6 }} />
+                                                {typeof total === 'number' && typeof done === 'number' && (
+                                                    <div className="small text-muted mt-1">{done} / {total}</div>
+                                                )}
+                                            </div>
+                                        );
+                                        })}
+                                    </div>
+                                )}
+                                <div className="mt-3">
+                                    <Button variant="outline-primary" size="sm" onClick={() => setShowCreateEpic(true)}>
+                                        <Plus size={14} className="me-1" /> Add Epic
+                                    </Button>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                )}
+                <Col md={showEpicSidebar ? (selectedEpic ? 6 : 9) : (selectedEpic ? 8 : 12)}>
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <Accordion defaultActiveKey="backlog" alwaysOpen className="mb-3">
                     <Accordion.Item eventKey="backlog" className="sprint-accordion-item">
                         <Accordion.Header className="sprint-accordion-header">
                             <div className="d-flex align-items-center justify-content-between w-100 pe-3">
@@ -1075,7 +1461,187 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         </Accordion.Item>
                     </Accordion>
                 )}
-            </DragDropContext>
+                    </DragDropContext>
+                </Col>
+                {selectedEpic && (
+                    <Col md={showEpicSidebar ? 3 : 4} className="mb-3">
+                        <Card>
+                            <Card.Body>
+                                <div className="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 className="mb-0">Epic Detail</h6>
+                                    <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedEpic(null); setSelectedEpicId(null); }}>Close</Button>
+                                </div>
+                                {epicLoading && (
+                                    <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
+                                )}
+                                {!epicLoading && selectedEpic && (
+                                    <>
+                                        <Form.Group className="mb-2">
+                                            <Form.Label>Title</Form.Label>
+                                            <Form.Control type="text" value={epicEditTitle} onChange={(e) => setEpicEditTitle(e.target.value)} />
+                                        </Form.Group>
+                                        <Form.Group className="mb-2">
+                                            <Form.Label>Description</Form.Label>
+                                            <Form.Control as="textarea" rows={3} value={epicEditDescription} onChange={(e) => setEpicEditDescription(e.target.value)} />
+                                        </Form.Group>
+                                        <Row className="g-2">
+                                            <Col md={6}>
+                                                <Form.Group>
+                                                    <Form.Label>Start Date</Form.Label>
+                                                    <Form.Control type="date" value={epicEditStartDate} onChange={(e) => setEpicEditStartDate(e.target.value)} />
+                                                </Form.Group>
+                                            </Col>
+                                            <Col md={6}>
+                                                <Form.Group>
+                                                    <Form.Label>End Date</Form.Label>
+                                                    <Form.Control type="date" value={epicEditEndDate} onChange={(e) => setEpicEditEndDate(e.target.value)} />
+                                                </Form.Group>
+                                            </Col>
+                                        </Row>
+                                        <div className="d-flex gap-2 mt-3">
+                                            <Button variant="primary" size="sm" onClick={handleUpdateEpic} disabled={epicLoading}>Save</Button>
+                                            <Button variant="outline-danger" size="sm" onClick={handleDeleteEpic} disabled={epicLoading}>Delete</Button>
+                                        </div>
+
+                                        <hr className="my-3" />
+                                        <div className="d-flex align-items-center justify-content-between mb-2">
+                                            <h6 className="mb-0">Tasks in Epic</h6>
+                                            <Button variant="outline-primary" size="sm" onClick={() => setShowAssignTaskModal(true)}>Add Task</Button>
+                                        </div>
+                                        {epicTasksLoading ? (
+                                            <div className="text-center py-2"><Spinner animation="border" size="sm" /></div>
+                                        ) : epicTasks.length === 0 ? (
+                                            <div className="text-muted">No tasks assigned</div>
+                                        ) : (
+                                            <div className="d-flex flex-column gap-2">
+                                                {epicTasks.map(t => (
+                                                    <div key={t.id} className="d-flex align-items-center justify-content-between">
+                                                        <div className="text-truncate">
+                                                            <span className="fw-semibold">{t.title}</span>
+                                                            {t.statusColumn?.name && (
+                                                                <Badge bg="secondary" className="ms-2">{t.statusColumn.name}</Badge>
+                                                            )}
+                                                        </div>
+                                                        <Button variant="outline-secondary" size="sm" onClick={() => handleRemoveTaskFromEpic(t.id)}>Remove</Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                )}
+            </Row>
+
+            <Modal show={showAssignTaskModal} onHide={() => setShowAssignTaskModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Add Task to Epic</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <div className="d-flex gap-3 mb-3">
+                        <Form.Check
+                            type="radio"
+                            label="Add existing task"
+                            name="assign-mode"
+                            checked={assignMode === 'existing'}
+                            onChange={() => setAssignMode('existing')}
+                        />
+                        <Form.Check
+                            type="radio"
+                            label="Create new task"
+                            name="assign-mode"
+                            checked={assignMode === 'new'}
+                            onChange={() => setAssignMode('new')}
+                        />
+                    </div>
+
+                    {assignMode === 'existing' ? (
+                        <Form.Group>
+                            <Form.Label>Select Task</Form.Label>
+                            <Form.Select value={assignSelectedTaskId || ''} onChange={(e) => setAssignSelectedTaskId(e.target.value ? parseInt(e.target.value) : null)}>
+                                <option value="">Choose a task</option>
+                                {(() => {
+                                    const epicTaskIds = new Set(epicTasks.map(t => t.id));
+                                    const allSprintTasks = Object.values(sprintTasks).flat();
+                                    const pool = [...backlogTasks, ...allSprintTasks].filter(t => !epicTaskIds.has(t.id));
+                                    return pool.map(t => (
+                                        <option key={t.id} value={t.id}>{t.title}</option>
+                                    ));
+                                })()}
+                            </Form.Select>
+                        </Form.Group>
+                    ) : (
+                        <>
+                            <Form.Group className="mb-2">
+                                <Form.Label>Title</Form.Label>
+                                <Form.Control type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Task title" />
+                            </Form.Group>
+                            <Form.Group className="mb-2">
+                                <Form.Label>Description</Form.Label>
+                                <Form.Control as="textarea" rows={3} value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Description..." />
+                            </Form.Group>
+                            <Row className="g-2">
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Priority</Form.Label>
+                                        <Form.Select value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as any)}>
+                                            {['HIGH','MEDIUM','LOW'].map(p => (<option key={p} value={p}>{p}</option>))}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group>
+                                        <Form.Label>Assignee</Form.Label>
+                                        <Form.Select value={newTaskAssigneeId} onChange={(e) => setNewTaskAssigneeId(e.target.value)}>
+                                            <option value="">Unassigned</option>
+                                            {projectMembers.map(m => (<option key={m.userId} value={m.userId}>{m.displayName || m.email}</option>))}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                            <Row className="g-2 mt-0">
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label>Estimate Hours</Form.Label>
+                                        <Form.Control type="number" min="0" step="0.5" value={newTaskEstimatedHours} onChange={(e) => setNewTaskEstimatedHours(e.target.value)} placeholder="e.g. 4" />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label>Due Date</Form.Label>
+                                        <Form.Control type="date" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} min={newTaskSprintId ? (sprints.find(s => s.id === newTaskSprintId)?.startDate || undefined) : undefined} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label>Tags</Form.Label>
+                                        <Form.Control type="text" value={newTaskTags} onChange={(e) => setNewTaskTags(e.target.value)} placeholder="tag1, tag2" />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                            <Form.Group className="mt-2">
+                                <Form.Label>Sprint</Form.Label>
+                                <Form.Select value={newTaskSprintId ?? ''} onChange={(e) => setNewTaskSprintId(e.target.value ? parseInt(e.target.value) : null)}>
+                                    <option value="">None</option>
+                                    {sprints.filter(s => !s.isBacklog).map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                                </Form.Select>
+                            </Form.Group>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowAssignTaskModal(false)}>Cancel</Button>
+                    <Button
+                        variant="primary"
+                        onClick={assignMode === 'existing' ? handleAssignSelectedTaskToEpic : handleCreateTaskInEpic}
+                        disabled={assignMode === 'existing' ? !assignSelectedTaskId : !newTaskTitle.trim()}
+                    >
+                        Add
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
             <CreateSprintModal
                 show={showCreateSprint}
@@ -1120,6 +1686,42 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     onUpdate={loadData}
                 />
             )}
+
+            <Modal show={showCreateEpic} onHide={() => setShowCreateEpic(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Create Epic</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Title</Form.Label>
+                        <Form.Control type="text" value={newEpicTitle} onChange={(e) => setNewEpicTitle(e.target.value)} placeholder="Epic title" />
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Description</Form.Label>
+                        <Form.Control as="textarea" rows={3} value={newEpicDescription} onChange={(e) => setNewEpicDescription(e.target.value)} placeholder="Description..." />
+                    </Form.Group>
+                    <Row className="g-2">
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>Start Date</Form.Label>
+                                <Form.Control type="date" value={newEpicStartDate} onChange={(e) => setNewEpicStartDate(e.target.value)} />
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>End Date</Form.Label>
+                                <Form.Control type="date" value={newEpicEndDate} onChange={(e) => setNewEpicEndDate(e.target.value)} />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowCreateEpic(false)} disabled={creatingEpic}>Cancel</Button>
+                    <Button variant="primary" onClick={handleCreateEpic} disabled={creatingEpic}>
+                        {creatingEpic ? 'Creating...' : 'Create Epic'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </Container>
     );
 };
