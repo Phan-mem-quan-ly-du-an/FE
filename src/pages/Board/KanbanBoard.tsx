@@ -41,6 +41,7 @@ import {
   BoardResponse,
   BoardColumnResponse,
   TaskResponse,
+  reorderColumns,
 } from "../../apiCaller/boards";
 import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
@@ -354,27 +355,60 @@ const KanbanBoard: React.FC = () => {
 
   // ============= HANDLE DRAG & DROP =============
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
 
-    // Không có destination hoặc không di chuyển
+    if (!destination) {
+      return;
+    }
+
+    if (!board) {
+      return;
+    }
+
+    // Handle column reordering
+    if (type === "COLUMN") {
+      if (source.index === destination.index) {
+        return;
+      }
+
+      const originalColumns = board.columns;
+      const updatedColumns = Array.from(board.columns);
+      const [movedColumn] = updatedColumns.splice(source.index, 1);
+      updatedColumns.splice(destination.index, 0, movedColumn);
+
+      setBoard({
+        ...board,
+        columns: updatedColumns,
+      });
+
+      try {
+        await reorderColumns(board.id, updatedColumns.map(col => col.id));
+        toast.success("Column order updated", { autoClose: 1500 });
+      } catch (err: any) {
+        console.error("❌ Failed to reorder columns", err);
+        toast.error("Không thể sắp xếp lại column", { autoClose: 2000 });
+        setBoard(prev => (prev ? { ...prev, columns: originalColumns } : prev));
+      }
+
+      return;
+    }
+
+    // Không có sự thay đổi vị trí trong cùng một column
     if (
-      !destination ||
-      (source.droppableId === destination.droppableId &&
-        source.index === destination.index)
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
     ) {
       return;
     }
 
     console.log("🎯 Drag end:", { source, destination, draggableId });
 
-    // Parse IDs - Remove prefix if exists
+    // Parse task & column IDs
     const taskId = parseInt(draggableId.replace("task-", ""));
     const sourceColumnId = parseInt(source.droppableId);
     const destColumnId = parseInt(destination.droppableId);
 
     console.log("📦 Parsed IDs:", { taskId, sourceColumnId, destColumnId });
-
-    if (!board) return;
 
     // 🎯 OPTIMISTIC UPDATE - Cập nhật UI ngay lập tức
     const updatedColumns = board.columns.map((col) => {
@@ -975,142 +1009,163 @@ const KanbanBoard: React.FC = () => {
           onDragEnd={handleDragEnd}
           key={board.columns.map((c) => c.id).join("-")}
         >
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              overflowX: "auto",
-              paddingBottom: "16px",
-              // Custom scrollbar
-              scrollbarWidth: "thin",
-              scrollbarColor: "#888 #f1f1f1",
-            }}
-            className="kanban-board-container"
+          <Droppable
+            droppableId="board-columns"
+            direction="horizontal"
+            type="COLUMN"
           >
-            {board.columns.map((column) => (
+            {(provided) => (
               <div
-                key={`column-${column.id}`}
+                ref={provided.innerRef}
+                {...provided.droppableProps}
                 style={{
-                  minWidth: "320px",
-                  maxWidth: "320px",
-                  flexShrink: 0,
+                  display: "flex",
+                  gap: "16px",
+                  overflowX: "auto",
+                  paddingBottom: "16px",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#888 #f1f1f1",
                 }}
+                className="kanban-board-container"
               >
-                <Card className="h-100">
-                  {/* COLUMN HEADER */}
-                  <div
-                    className="card-header d-flex justify-content-between align-items-center"
-                    style={{ backgroundColor: column.color, color: "#fff" }}
+                {board.columns.map((column, columnIndex) => (
+                  <Draggable
+                    key={`column-${column.id}`}
+                    draggableId={`column-${column.id}`}
+                    index={columnIndex}
                   >
-                    <div className="d-flex align-items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={column.tasks.length > 0 && column.tasks.every(t => selectedTasks.includes(t.id))}
-                        onChange={() => toggleSelectAllInColumn(column.tasks)}
-                        className="form-check-input bg-white"
-                        style={{ cursor: 'pointer' }}
-                        title="Select all in column"
-                      />
-                      <div>
-                        <h5 className="mb-0" style={{ color: "#fff" }}>
-                          {column.name}
-                        </h5>
-                        <small style={{ color: "#f0f0f0" }}>
-                          {column.tasks.length} tasks
-                        </small>
-                      </div>
-                    </div>
-                    <Button
-                      color="link"
-                      size="sm"
-                      className="text-white p-0"
-                      onClick={() => openDeleteColumnModal(column)}
-                      >
-                      <i className="ri-delete-bin-line"></i>
-                      </Button>
-                  </div>
-
-                  {/* DROPPABLE AREA */}
-                  <Droppable droppableId={column.id.toString()}>
-                    {(provided, snapshot) => (
+                    {(columnProvided) => (
                       <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="card-body"
+                        ref={columnProvided.innerRef}
+                        {...columnProvided.draggableProps}
                         style={{
-                          minHeight: "500px",
-                          maxHeight: "70vh",
-                          overflowY: "auto",
-                          backgroundColor: snapshot.isDraggingOver
-                            ? "#f8f9fa"
-                            : "#fff",
+                          minWidth: "320px",
+                          maxWidth: "320px",
+                          flexShrink: 0,
+                          ...columnProvided.draggableProps.style,
                         }}
                       >
-                        {/* TASKS */}
-                        {(() => {
-                          const filteredTasks = filterTasks(column.tasks);
-                          return filteredTasks.length === 0 ? (
-                            <p className="text-muted text-center mt-4">
-                              {column.tasks.length === 0 ? "Chưa có task nào" : "Không có task phù hợp với bộ lọc"}
-                            </p>
-                          ) : (
-                            filteredTasks.map((task, index) => (
-                              <Draggable
-                                key={`task-${task.id}`}
-                                draggableId={`task-${task.id}`}
-                                index={index}
+                        <Card className="h-100">
+                          {/* COLUMN HEADER */}
+                          <div
+                            className="card-header d-flex justify-content-between align-items-center"
+                            style={{ backgroundColor: column.color, color: "#fff" }}
+                            {...columnProvided.dragHandleProps}
+                          >
+                            <div className="d-flex align-items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={column.tasks.length > 0 && column.tasks.every(t => selectedTasks.includes(t.id))}
+                                onChange={() => toggleSelectAllInColumn(column.tasks)}
+                                className="form-check-input bg-white"
+                                style={{ cursor: 'pointer' }}
+                                title="Select all in column"
+                              />
+                              <div>
+                                <h5 className="mb-0" style={{ color: "#fff" }}>
+                                  {column.name}
+                                </h5>
+                                <small style={{ color: "#f0f0f0" }}>
+                                  {column.tasks.length} tasks
+                                </small>
+                              </div>
+                            </div>
+                            <Button
+                              color="link"
+                              size="sm"
+                              className="text-white p-0"
+                              onClick={() => openDeleteColumnModal(column)}
                               >
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    style={{
-                                      ...provided.draggableProps.style,
-                                      marginBottom: "12px",
-                                    }}
-                                  >
-                                    <TaskCard
-                                      task={task}
-                                      isDragging={snapshot.isDragging}
-                                      projectMembers={projectMembers}
-                                      openAssigneeDropdown={openAssigneeDropdown}
-                                      setOpenAssigneeDropdown={setOpenAssigneeDropdown}
-                                      onAssigneeChange={handleAssigneeChange}
-                                      onTaskClick={(task) => {
-                                        setSelectedTask(task);
-                                        setShowTaskDetail(true);
-                                      }}
-                                      isSelected={selectedTasks.includes(task.id)}
-                                      onToggleSelect={toggleTaskSelection}
-                                      taskKey={getTaskKey(task)}
-                                      viewDensity={viewDensity}
-                                    />
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))
-                          );
-                        })()}
-                        {provided.placeholder}
+                              <i className="ri-delete-bin-line"></i>
+                              </Button>
+                          </div>
 
-                        {/* ADD TASK BUTTON */}
-                        <Button
-                          color="light"
-                          size="sm"
-                          className="w-100 mt-2"
-                          onClick={() => handleOpenAddTask(column.id)}
-                        >
-                          <i className="ri-add-line me-1"></i>
-                          Thêm Task
-                        </Button>
+                          {/* DROPPABLE AREA */}
+                          <Droppable droppableId={column.id.toString()} type="TASK">
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className="card-body"
+                                style={{
+                                  minHeight: "500px",
+                                  maxHeight: "70vh",
+                                  overflowY: "auto",
+                                  backgroundColor: snapshot.isDraggingOver
+                                    ? "#f8f9fa"
+                                    : "#fff",
+                                }}
+                              >
+                                {/* TASKS */}
+                                {(() => {
+                                  const filteredTasks = filterTasks(column.tasks);
+                                  return filteredTasks.length === 0 ? (
+                                    <p className="text-muted text-center mt-4">
+                                      {column.tasks.length === 0 ? "Chưa có task nào" : "Không có task phù hợp với bộ lọc"}
+                                    </p>
+                                  ) : (
+                                    filteredTasks.map((task, index) => (
+                                      <Draggable
+                                        key={`task-${task.id}`}
+                                        draggableId={`task-${task.id}`}
+                                        index={index}
+                                      >
+                                        {(provided, snapshot) => (
+                                          <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            style={{
+                                              ...provided.draggableProps.style,
+                                              marginBottom: "12px",
+                                            }}
+                                          >
+                                            <TaskCard
+                                              task={task}
+                                              isDragging={snapshot.isDragging}
+                                              projectMembers={projectMembers}
+                                              openAssigneeDropdown={openAssigneeDropdown}
+                                              setOpenAssigneeDropdown={setOpenAssigneeDropdown}
+                                              onAssigneeChange={handleAssigneeChange}
+                                              onTaskClick={(task) => {
+                                                setSelectedTask(task);
+                                                setShowTaskDetail(true);
+                                              }}
+                                              isSelected={selectedTasks.includes(task.id)}
+                                              onToggleSelect={toggleTaskSelection}
+                                              taskKey={getTaskKey(task)}
+                                              viewDensity={viewDensity}
+                                            />
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    ))
+                                  );
+                                })()}
+                                {provided.placeholder}
+
+                                {/* ADD TASK BUTTON */}
+                                <Button
+                                  color="light"
+                                  size="sm"
+                                  className="w-100 mt-2"
+                                  onClick={() => handleOpenAddTask(column.id)}
+                                >
+                                  <i className="ri-add-line me-1"></i>
+                                  Thêm Task
+                                </Button>
+                              </div>
+                            )}
+                          </Droppable>
+                        </Card>
                       </div>
                     )}
-                  </Droppable>
-                </Card>
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            ))}
-          </div>
+            )}
+          </Droppable>
         </DragDropContext>
 
         {/* MODAL ADD COLUMN */}
