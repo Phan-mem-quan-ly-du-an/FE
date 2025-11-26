@@ -110,7 +110,7 @@ const Section = () => {
                                         </div>
                                     </div>
                                     <div className="col-md">
-                                        <h3 className="fw-bold mb-1">{project.name}</h3>
+                                        <h3 className="fw-bold mb-1">Project: {project.name}</h3>
                                         <p className="text-muted mb-2">
                                             {project.description || t('NoDescriptionAvailable')}
                                         </p>
