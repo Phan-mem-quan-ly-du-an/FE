@@ -152,13 +152,11 @@ export const moveTask = async (
   projectId: string,
   taskId: number,
   columnId: number,
-  orderIndex?: number
+  orderIndex: number
 ): Promise<void> => {
-  await axiosClient.put(`/projects/${projectId}/tasks/${taskId}`, {
-    statusColumn: {
-      id: columnId
-    },
-    orderIndex: orderIndex || 0,
+  await axiosClient.patch(`/projects/${projectId}/tasks/${taskId}/move`, {
+    newColumnId: columnId,
+    newOrderIndex: orderIndex,
   });
 };
 
