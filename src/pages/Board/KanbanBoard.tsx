@@ -92,7 +92,6 @@ const KanbanBoard: React.FC = () => {
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
 
@@ -327,28 +326,23 @@ const KanbanBoard: React.FC = () => {
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    // If no filters selected, show all tasks
     if (filterAssignee.length === 0 && filterPriority.length === 0) {
       return tasks;
     }
 
     return tasks.filter(task => {
-      // Filter by assignee (if any assignee filter selected)
       if (filterAssignee.length > 0) {
         const taskAssignee = task.assigneeId || 'unassigned';
-        if (!filterAssignee.includes(taskAssignee)) {
-          return false; // Task doesn't match assignee filter
-        }
+        if (!filterAssignee.includes(taskAssignee)) return false;
       }
 
-      // Filter by priority (if any priority filter selected)
       if (filterPriority.length > 0) {
-        if (!task.priority || !filterPriority.includes(task.priority)) {
-          return false; // Task doesn't match priority filter
-        }
+        const p = (task.priority || '').toLowerCase();
+        const normalized = p === 'highest' ? 'high' : p;
+        if (!normalized || !filterPriority.includes(normalized)) return false;
       }
 
-      return true; // Task passes all active filters
+      return true;
     });
   };
 
@@ -1361,30 +1355,30 @@ const KanbanBoard: React.FC = () => {
                     Priority
                   </Label>
                   <div className="d-flex flex-column gap-2">
-                    {['HIGH', 'MEDIUM', 'LOW'].map(priority => (
-                      <FormGroup check key={priority}>
+                    {[
+                      { code: 'low', label: 'Low', badge: 'secondary' },
+                      { code: 'medium', label: 'Medium', badge: 'info' },
+                      { code: 'high', label: 'High', badge: 'warning' },
+                    ].map(opt => (
+                      <FormGroup check key={opt.code}>
                         <Label check>
                           <input
                             type="checkbox"
-                            checked={filterPriority.includes(priority)}
+                            checked={filterPriority.includes(opt.code)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setFilterPriority([...filterPriority, priority]);
+                                setFilterPriority([...filterPriority, opt.code]);
                               } else {
-                                setFilterPriority(filterPriority.filter(p => p !== priority));
+                                setFilterPriority(filterPriority.filter(p => p !== opt.code));
                               }
                             }}
                             className="me-2"
                           />
                           <Badge 
-                            color={
-                              priority === 'HIGH' ? 'warning' : 
-                              priority === 'MEDIUM' ? 'info' : 
-                              'secondary'
-                            }
+                            color={opt.badge as any}
                             className="me-2"
                           >
-                            {priority}
+                            {opt.label}
                           </Badge>
                         </Label>
                       </FormGroup>
@@ -1392,7 +1386,6 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </FormGroup>
               </Col>
-
               {/* Right Column */}
               <Col md={6}>
                 {/* Assignee Filter */}
@@ -1426,21 +1419,21 @@ const KanbanBoard: React.FC = () => {
               </Col>
             </Row>
           </ModalBody>
-          <ModalFooter>
-            <Button
-              color="light"
-              onClick={() => {
-                setFilterPriority([]);
-                setFilterAssignee([]);
-              }}
-            >
-              Clear All
-            </Button>
-            <Button color="primary" onClick={() => setShowFiltersModal(false)}>
-              Apply Filters
-            </Button>
-          </ModalFooter>
-        </Modal>
+            <ModalFooter>
+              <Button
+                color="light"
+                onClick={() => {
+                  setFilterPriority([]);
+                  setFilterAssignee([]);
+                }}
+              >
+                Clear All
+              </Button>
+              <Button color="primary" onClick={() => setShowFiltersModal(false)}>
+                Apply Filters
+              </Button>
+            </ModalFooter>
+          </Modal>
       </Container>
     </div>
   );

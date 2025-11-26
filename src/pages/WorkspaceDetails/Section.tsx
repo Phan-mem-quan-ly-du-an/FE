@@ -92,7 +92,7 @@ const Section = () => {
                                         </div>
                                     </div>
                                     <div className="col-md">
-                                        <h3 className="fw-bold mb-1">{workspace.name}</h3>
+                                        <h3 className="fw-bold mb-1">Workspace: {workspace.name}</h3>
                                         <p className="text-muted mb-2">
                                             {workspace.description || t('NoDescriptionAvailable')}
                                         </p>
