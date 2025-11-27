@@ -2,6 +2,8 @@
 import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, FormGroup, Label } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
+import { User } from 'lucide-react';
 import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import { sprintAPI } from '../../apiCaller/backlogSprint';
@@ -37,6 +39,7 @@ interface PageResponse<T> {
 interface BoardResponseColumn { id: number; name: string; position: number; }
 
 const TaskListView = () => {
+  const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -392,6 +395,14 @@ const TaskListView = () => {
             </Col>
             <Col md={8} className="text-end">
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                <Button color={getActiveFiltersCount() > 0 ? 'primary' : 'light'} size="sm" onClick={() => setShowFiltersModal(true)}>
+                  <i className="ri-filter-3-line me-1"></i>
+                  {t('Filters')}
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge color="light" className="ms-1" pill style={{ color: '#25a0e2' }}>{getActiveFiltersCount()}</Badge>
+                  )}
+                </Button>
+
                 <UncontrolledDropdown>
                   <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
                   <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
@@ -400,6 +411,16 @@ const TaskListView = () => {
                     {projectMembers.map(m => (
                       <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
                     ))}
+                  <DropdownToggle caret color="light" size="sm">
+                    <i className="ri-layout-line me-1"></i>{t('View')}
+                  </DropdownToggle>
+                  <DropdownMenu end>
+                    <DropdownItem onClick={() => setViewDensity('compact')} active={viewDensity === 'compact'}>
+                      <i className="ri-layout-row-line me-1"></i>{t('Compact')}
+                    </DropdownItem>
+                    <DropdownItem onClick={() => setViewDensity('comfortable')} active={viewDensity === 'comfortable'}>
+                      <i className="ri-layout-2-line me-1"></i>{t('Comfortable')}
+                    </DropdownItem>
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
@@ -504,8 +525,7 @@ const TaskListView = () => {
                   </UncontrolledDropdown>
                 )}
 
-                <Button color="danger" size="sm" outline onClick={clearAllFilters}><i className="ri-close-line me-1"></i>Clear</Button>
-                <Button color="light" size="sm" onClick={exportToCSV} title="Export to CSV">
+                <Button color="light" size="sm" onClick={exportToCSV} title={t('ExportToCSV')}>
                   <i className="ri-download-line"></i>
                 </Button>
 
@@ -660,7 +680,7 @@ const TaskListView = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <Table hover className="align-middle table-nowrap mb-0">
+                  <Table hover className={`align-middle table-nowrap mb-0 ${viewDensity === 'compact' ? 'table-sm' : ''}`}>
                     <thead className="table-light">
                       <tr>
                         <th style={{ width: '40px' }}>
@@ -676,7 +696,7 @@ const TaskListView = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {displayTasks.map(task => {
+                      {tasks.map(task => {
                         const member = getMemberInfo(task.assigneeId);
                         const sprint = sprints.find(s => s.id === task.sprintId);
                         return (

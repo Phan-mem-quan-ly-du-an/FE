@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ProjectRole } from '../../apiCaller/projectRoles';
 
 interface TransferProjectOwnershipModalProps {
@@ -7,6 +8,7 @@ interface TransferProjectOwnershipModalProps {
     onConfirm: () => void;
     targetMember: {
         userId: string;
+        email?: string;
     } | null;
     roles: ProjectRole[];
     selectedDowngradeRoleId: number | '';
@@ -24,6 +26,7 @@ export default function TransferProjectOwnershipModal({
     onRoleChange,
     isPending
 }: TransferProjectOwnershipModalProps) {
+    const { t } = useTranslation();
     if (!show) return null;
 
     return (
@@ -32,17 +35,16 @@ export default function TransferProjectOwnershipModal({
                 <div className="modal-dialog" role="document">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h5 className="modal-title">Transfer project ownership</h5>
-                            <button type="button" className="btn-close" aria-label="Close"
+                            <h5 className="modal-title">{t('TransferProjectOwnership')}</h5>
+                            <button type="button" className="btn-close" aria-label={t('Close')}
                                     onClick={onClose}/>
                         </div>
                         <div className="modal-body">
                             <p className="mb-2">
-                                Transfer ownership of the project to: <span
-                                className="font-monospace">{targetMember?.userId}</span>
+                                {t('TransferOwnershipTo')} <span>{targetMember?.email || targetMember?.userId}</span>
                             </p>
                             <div className="mb-3">
-                                <label className="form-label">New role for the former owner (within the project)</label>
+                                <label className="form-label">{t('NewRoleForFormerOwner')}</label>
                                 <select
                                     className="form-select"
                                     value={selectedDowngradeRoleId === '' ? '' : String(selectedDowngradeRoleId)}
@@ -50,7 +52,7 @@ export default function TransferProjectOwnershipModal({
                                         onRoleChange(e.target.value ? Number(e.target.value) : '')
                                     }
                                 >
-                                    <option value="">— Select a role —</option>
+                                    <option value="">{t('SelectRolePlaceholder')}</option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
                                             {r.name || r.code}
@@ -58,18 +60,18 @@ export default function TransferProjectOwnershipModal({
                                     ))}
                                 </select>
                                 <div className="form-text">
-                                    You must select a role to assign to the former owner after the transfer.
+                                    {t('MustSelectRoleForFormerOwner')}
                                 </div>
                             </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={onClose}
                                     disabled={isPending}>
-                                Cancel
+                                {t('Cancel')}
                             </button>
                             <button className="btn btn-primary" onClick={onConfirm}
                                     disabled={isPending}>
-                                {isPending ? 'Transferring...' : 'Confirm Transfer'}
+                                {isPending ? t('Transferring') : t('ConfirmTransfer')}
                             </button>
                         </div>
                     </div>
