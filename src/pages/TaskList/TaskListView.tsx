@@ -10,7 +10,6 @@ import { sprintAPI } from '../../apiCaller/backlogSprint';
 import CreateTaskModal from '../BacklogSprint/CreateTaskModal';
 import TaskDetailModal from '../BacklogSprint/TaskDetailModal';
 import './TaskList.scss';
-import { useTranslation } from 'react-i18next';
 
 interface Task {
   id: number;
@@ -428,6 +427,10 @@ const TaskListView = () => {
                     ))}
                     <DropdownItem divider />
                     <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
                   <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
                   <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
                     <DropdownItem onClick={() => setFilters(prev => ({ ...prev, assigneeIds: [] }))} active={filters.assigneeIds.length === 0}>All</DropdownItem>
@@ -435,6 +438,10 @@ const TaskListView = () => {
                     {projectMembers.map(m => (
                       <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
                     ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
                     <i className="ri-layout-line me-1"></i>{t('View')}
                   </DropdownToggle>
@@ -482,72 +489,6 @@ const TaskListView = () => {
                     <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
                   </DropdownMenu>
                 </UncontrolledDropdown>
-
-                <Button color={filters.includeArchived ? 'info' : 'light'} size="sm" onClick={toggleIncludeArchived}>Archived</Button>
-
-                <UncontrolledDropdown>
-                  <DropdownToggle caret color={groupBy !== 'none' && typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group By</DropdownToggle>
-                  <DropdownMenu end style={{ minWidth: '220px' }}>
-                    <DropdownItem onClick={() => { setGroupBy('none'); setGroupValue(undefined); }} active={groupBy === 'none'}>None</DropdownItem>
-                    <DropdownItem divider />
-                    <DropdownItem onClick={() => { setGroupBy('priority'); setGroupValue(undefined); }} active={groupBy === 'priority'}>Priority</DropdownItem>
-                    <DropdownItem onClick={() => { setGroupBy('status'); setGroupValue(undefined); }} active={groupBy === 'status'}>Status</DropdownItem>
-                    <DropdownItem onClick={() => { setGroupBy('assignee'); setGroupValue(undefined); }} active={groupBy === 'assignee'}>Assignee</DropdownItem>
-                    <DropdownItem onClick={() => { setGroupBy('sprint'); setGroupValue(undefined); }} active={groupBy === 'sprint'}>Sprint</DropdownItem>
-                  </DropdownMenu>
-                </UncontrolledDropdown>
-
-                {groupBy === 'priority' && (
-                  <UncontrolledDropdown>
-                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
-                    <DropdownMenu end style={{ minWidth: '220px' }}>
-                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
-                      <DropdownItem divider />
-                      <DropdownItem onClick={() => setGroupValue('HIGH')} active={groupValue === 'HIGH'}>HIGH</DropdownItem>
-                      <DropdownItem onClick={() => setGroupValue('MEDIUM')} active={groupValue === 'MEDIUM'}>MEDIUM</DropdownItem>
-                      <DropdownItem onClick={() => setGroupValue('LOW')} active={groupValue === 'LOW'}>LOW</DropdownItem>
-                    </DropdownMenu>
-                  </UncontrolledDropdown>
-                )}
-
-                {groupBy === 'status' && (
-                  <UncontrolledDropdown>
-                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
-                    <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
-                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
-                      <DropdownItem divider />
-                      {columns.map(c => (
-                        <DropdownItem key={c.id} onClick={() => setGroupValue(c.id)} active={groupValue === c.id}>{c.name}</DropdownItem>
-                      ))}
-                    </DropdownMenu>
-                  </UncontrolledDropdown>
-                )}
-
-                {groupBy === 'assignee' && (
-                  <UncontrolledDropdown>
-                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
-                    <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
-                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
-                      <DropdownItem divider />
-                      {projectMembers.map(m => (
-                        <DropdownItem key={m.userId} onClick={() => setGroupValue(m.userId)} active={groupValue === m.userId}>{m.displayName || m.email}</DropdownItem>
-                      ))}
-                    </DropdownMenu>
-                  </UncontrolledDropdown>
-                )}
-
-                {groupBy === 'sprint' && (
-                  <UncontrolledDropdown>
-                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
-                    <DropdownMenu end style={{ minWidth: '240px' }}>
-                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
-                      <DropdownItem divider />
-                      {sprints.map(s => (
-                        <DropdownItem key={s.id} onClick={() => setGroupValue(s.id)} active={groupValue === s.id}>{s.name}</DropdownItem>
-                      ))}
-                    </DropdownMenu>
-                  </UncontrolledDropdown>
-                )}
 
                 <Button color={filters.includeArchived ? 'info' : 'light'} size="sm" onClick={toggleIncludeArchived}>Archived</Button>
 

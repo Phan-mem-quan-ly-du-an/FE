@@ -474,6 +474,8 @@
     "CannotDetermineCompanyOrRoleId": "Cannot determine company or role ID",
     "LoadPermissionsError": "Failed to load permissions: {{status}} - {{text}}",
     "ErrorLoadingData": "Error loading data",
+  "ProjectPermissions.AssignRolePermissionDenied": "You don't have permission to view or assign permissions for this role.",
+  "LoadingPermissions": "Loading permissions...",
     "SaveFailed": "Save failed: {{status}} - {{text}}",
     "Saved": "Saved successfully",
     "ErrorSaving": "Error saving",

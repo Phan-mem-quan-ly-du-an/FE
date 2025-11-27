@@ -336,6 +336,8 @@ const List = ({workspaceId}: ListProps = {}) => {
                 onCreated={() => {
                     queryClient.invalidateQueries({ queryKey: ['projects', 'mine', companyId, workspaceId] });
                 }}
+                companyIdOverride={companyId!}
+                defaultWorkspaceId={workspaceId}
             />
             <EditProjectModal
                 open={editModal}
