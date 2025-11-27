@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { sprintAPI } from '../../apiCaller/backlogSprint';
 
 interface CreateSprintModalProps {
@@ -16,6 +17,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
   projectId,
   onSuccess
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     startDate: '',
@@ -30,17 +32,17 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
     
     // Validation 1: Sprint name is required
     if (!formData.name.trim()) {
-      toast.error('Sprint name is required');
+      toast.error(t('SprintNameRequired'));
       return;
     }
 
     // Validation 2: Sprint name length (3-100 characters)
     if (formData.name.trim().length < 3) {
-      toast.error('Sprint name must be at least 3 characters');
+      toast.error(t('SprintNameMinLength'));
       return;
     }
     if (formData.name.trim().length > 100) {
-      toast.error('Sprint name must not exceed 100 characters');
+      toast.error(t('SprintNameMaxLength'));
       return;
     }
 
@@ -48,7 +50,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
     if (formData.startDate || formData.endDate) {
       // If one date is provided, the other must be provided too
       if (!formData.startDate || !formData.endDate) {
-        toast.error('If you provide a date, both start date and end date are required');
+        toast.error(t('BothDatesRequired'));
         return;
       }
 
@@ -59,39 +61,39 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
       startDate.setHours(0, 0, 0, 0);
       
       if (startDate < today) {
-        toast.error('Start date cannot be in the past. Please select today or a future date.');
+        toast.error(t('StartDateCannotBePast'));
         return;
       }
 
       // Validation 5: End date must be after start date
       const endDate = new Date(formData.endDate);
       if (endDate <= startDate) {
-        toast.error('End date must be after start date');
+        toast.error(t('EndDateMustBeAfterStart'));
         return;
       }
 
       // Validation 6: Sprint duration validation (minimum 1 day, maximum 90 days)
       const durationInDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       if (durationInDays < 1) {
-        toast.error('Sprint duration must be at least 1 day');
+        toast.error(t('SprintDurationMin'));
         return;
       }
       if (durationInDays > 90) {
-        toast.error('Sprint duration cannot exceed 90 days (3 months)');
+        toast.error(t('SprintDurationMax'));
         return;
       }
 
       // Validation 7: Warn if sprint duration is unusual
       if (durationInDays < 7 || durationInDays > 30) {
         const proceed = window.confirm(
-          `Sprint duration is ${durationInDays} days. Typical sprints are 1-4 weeks (7-30 days). Do you want to continue?`
+          t('SprintDurationWarning', { days: durationInDays })
         );
         if (!proceed) return;
       }
 
       // Validation 8: If status is 'active', start date should be today
       if (formData.status === 'active' && startDate.getTime() !== today.getTime()) {
-        toast.warning('Active sprints should start today. Adjusting start date to today.');
+        toast.warning(t('ActiveSprintsShouldStartToday'));
         setFormData(prev => ({
           ...prev,
           startDate: today.toISOString().split('T')[0]
@@ -102,7 +104,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
     // Validation 9: If status is 'active', dates must be provided
     if (formData.status === 'active' && (!formData.startDate || !formData.endDate)) {
-      toast.error('Active sprints must have start and end dates. Please provide dates or set status to "Planned".');
+      toast.error(t('ActiveSprintsMustHaveDates'));
       return;
     }
 
@@ -122,12 +124,12 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
       }
 
       await sprintAPI.create(projectId, sprintData);
-      toast.success('Sprint created successfully');
+      toast.success(t('SprintCreatedSuccessfully'));
       onSuccess();
       handleClose();
     } catch (error: any) {
       console.error('Error creating sprint:', error);
-      toast.error(error.response?.data?.message || 'Failed to create sprint');
+      toast.error(error.response?.data?.message || t('FailedToCreateSprint'));
     } finally {
       setLoading(false);
     }
@@ -186,32 +188,32 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
   return (
     <Modal show={show} onHide={handleClose} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>Create New Sprint</Modal.Title>
+        <Modal.Title>{t('CreateNewSprint')}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
-            <Form.Label>Sprint Name *</Form.Label>
+            <Form.Label>{t('SprintName')} *</Form.Label>
             <div className="d-flex gap-2">
               <Form.Control
                 type="text"
-                placeholder="e.g., Sprint 1, Q1 Sprint, Feature Development Sprint"
+                placeholder={t('SprintNamePlaceholder')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
               <Button variant="outline-secondary" onClick={generateSprintName}>
-                Generate
+                {t('Generate')}
               </Button>
             </div>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
+            <Form.Label>{t('Description')}</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
-              placeholder="Describe the sprint goals and objectives..."
+              placeholder={t('SprintDescriptionPlaceholder')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -220,7 +222,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
           <div className="row">
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>Start Date {formData.status === 'active' && '*'}</Form.Label>
+                <Form.Label>{t('StartDate')} {formData.status === 'active' && '*'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.startDate}
@@ -228,13 +230,13 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
                   min={getTodayDate()}
                 />
                 <Form.Text className="text-muted">
-                  Optional for planning. Required for active sprints.
+                  {t('OptionalForPlanning')}
                 </Form.Text>
               </Form.Group>
             </div>
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>End Date {formData.status === 'active' && '*'}</Form.Label>
+                <Form.Label>{t('EndDate')} {formData.status === 'active' && '*'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.endDate}
@@ -242,7 +244,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
                   min={formData.startDate || getTodayDate()}
                 />
                 <Form.Text className="text-muted">
-                  Optional for planning. Required for active sprints.
+                  {t('OptionalForPlanning')}
                 </Form.Text>
               </Form.Group>
             </div>
@@ -250,17 +252,16 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
           {sprintDuration !== null && (
             <div className="alert alert-info mb-3 py-2" style={{ fontSize: '13px' }}>
-              <strong>Sprint Duration:</strong> {sprintDuration} day(s)
-              {sprintDuration < 7 && <span className="text-warning"> (⚠️ Shorter than typical 1-2 week sprint)</span>}
-              {sprintDuration > 30 && <span className="text-warning"> (⚠️ Longer than typical 4-week sprint)</span>}
+              <strong>{t('SprintDuration')}:</strong> {sprintDuration} {t('Days')}
+              {sprintDuration < 7 && <span className="text-warning">{t('ShorterThanTypical')}</span>}
+              {sprintDuration > 30 && <span className="text-warning">{t('LongerThanTypical')}</span>}
               {sprintDuration >= 7 && sprintDuration <= 30 && <span className="text-success"> ✓</span>}
             </div>
           )}
 
           {!formData.startDate && !formData.endDate && (
             <div className="alert alert-info mb-3 py-2" style={{ fontSize: '13px' }}>
-              💡 <strong>Tip:</strong> You can create a sprint without dates for planning purposes. 
-              Set the dates later when you're ready to start the sprint.
+              💡 <strong>{t('Tip')}:</strong> {t('TipCreateSprintWithoutDates')}
             </div>
           )}
 
@@ -270,11 +271,11 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
             onClick={generateDefaultDates}
             className="mb-3"
           >
-            Set 2-week sprint (default)
+            {t('Set2WeekSprint')}
           </Button>
 
           <Form.Group className="mb-3">
-            <Form.Label>Initial Status</Form.Label>
+            <Form.Label>{t('InitialStatus')}</Form.Label>
             <Form.Select
               value={formData.status}
               onChange={(e) => setFormData({ 
@@ -282,27 +283,27 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
                 status: e.target.value as any 
               })}
             >
-              <option value="planned">Planned (for future planning)</option>
-              <option value="active">Active (requires dates)</option>
+              <option value="planned">{t('PlannedForFuturePlanning')}</option>
+              <option value="active">{t('ActiveRequiresDates')}</option>
             </Form.Select>
             <Form.Text className="text-muted">
               {formData.status === 'planned' 
-                ? 'Perfect for planning sprints. You can set dates later when ready to start.' 
-                : 'Active sprints require start and end dates.'}
+                ? t('PerfectForPlanningSprints')
+                : t('ActiveSprintsRequireDates')}
             </Form.Text>
           </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
-          Cancel
+          {t('Cancel')}
         </Button>
         <Button 
           variant="primary" 
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? 'Creating...' : 'Create Sprint'}
+          {loading ? t('Creating') : t('CreateSprint')}
         </Button>
       </Modal.Footer>
     </Modal>

@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Button, Badge, Row, Col } from "reactstrap";
 import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Sprint {
   id: number;
@@ -26,6 +27,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
   totalTasks,
   completedTasks,
 }) => {
+  const { t } = useTranslation();
   if (!sprint) return null;
 
   const getStatusColor = (status: string) => {
@@ -90,7 +92,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
       <div className="modal-header bg-primary text-white">
         <h5 className="modal-title d-flex align-items-center gap-2">
           <Calendar size={20} />
-          Sprint Details
+          {t('SprintDetails')}
         </h5>
         <button
           type="button"
@@ -108,7 +110,12 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               className="d-flex align-items-center gap-1"
             >
               {getStatusIcon(sprint.status)}
-              {sprint.status.toUpperCase()}
+              {sprint.status === 'active' ? t('StatusActive') :
+               sprint.status === 'planned' ? t('StatusPlanned') :
+               sprint.status === 'completed' ? t('StatusCompleted') :
+               sprint.status === 'paused' ? t('StatusPaused') :
+               sprint.status === 'cancelled' ? t('StatusCancelled') :
+               String(sprint.status).toUpperCase()}
             </Badge>
           </div>
           {sprint.description && (
@@ -122,7 +129,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
             <div className="border rounded p-3">
               <div className="d-flex align-items-center gap-2 mb-2">
                 <Calendar size={18} className="text-primary" />
-                <strong>Start Date</strong>
+                <strong>{t('StartDate')}</strong>
               </div>
               {sprint.startDate ? (
                 <p className="mb-0 ms-4">
@@ -134,7 +141,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
                   })}
                 </p>
               ) : (
-                <p className="mb-0 ms-4 text-muted fst-italic">Not set</p>
+                <p className="mb-0 ms-4 text-muted fst-italic">{t('NotSet')}</p>
               )}
             </div>
           </Col>
@@ -142,7 +149,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
             <div className="border rounded p-3">
               <div className="d-flex align-items-center gap-2 mb-2">
                 <Calendar size={18} className="text-danger" />
-                <strong>End Date</strong>
+                <strong>{t('EndDate')}</strong>
               </div>
               {sprint.endDate ? (
                 <p className="mb-0 ms-4">
@@ -154,7 +161,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
                   })}
                 </p>
               ) : (
-                <p className="mb-0 ms-4 text-muted fst-italic">Not set</p>
+                <p className="mb-0 ms-4 text-muted fst-italic">{t('NotSet')}</p>
               )}
             </div>
           </Col>
@@ -167,10 +174,10 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               <div className="border rounded p-3 bg-light">
                 <div className="d-flex align-items-center gap-2 mb-2">
                   <Clock size={18} className="text-info" />
-                  <strong>Duration</strong>
+                  <strong>{t('SprintDuration')}</strong>
                 </div>
                 <p className="mb-0 ms-4 fs-5">
-                  {duration} {duration === 1 ? "day" : "days"}
+                  {duration} {duration === 1 ? t('Day') : t('Days')}
                 </p>
               </div>
             </Col>
@@ -184,7 +191,7 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
                         daysRemaining < 0 ? "text-danger" : "text-warning"
                       }
                     />
-                    <strong>Days Remaining</strong>
+                    <strong>{t('DaysRemaining')}</strong>
                   </div>
                   <p
                     className={`mb-0 ms-4 fs-5 ${
@@ -192,11 +199,11 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
                     }`}
                   >
                     {daysRemaining < 0
-                      ? `Overdue by ${Math.abs(daysRemaining)} ${
-                          Math.abs(daysRemaining) === 1 ? "day" : "days"
+                      ? `${t('OverdueBy')} ${Math.abs(daysRemaining)} ${
+                          Math.abs(daysRemaining) === 1 ? t('Day') : t('Days')
                         }`
                       : `${daysRemaining} ${
-                          daysRemaining === 1 ? "day" : "days"
+                          daysRemaining === 1 ? t('Day') : t('Days')
                         }`}
                   </p>
                 </div>
@@ -210,12 +217,12 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
           <div className="d-flex align-items-center justify-content-between mb-3">
             <div className="d-flex align-items-center gap-2">
               <CheckCircle size={18} className="text-success" />
-              <strong>Task Progress</strong>
+              <strong>{t('TaskProgress')}</strong>
             </div>
             <div className="text-end">
               <span className="fs-5 fw-bold text-primary">{progress}%</span>
               <div className="text-muted small">
-                {completedTasks} of {totalTasks} tasks completed
+                {t('TasksCompleted', { completed: completedTasks, total: totalTasks })}
               </div>
             </div>
           </div>
@@ -238,13 +245,13 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
           <Col md={4}>
             <div className="text-center border rounded p-3">
               <div className="fs-2 fw-bold text-primary">{totalTasks}</div>
-              <div className="text-muted small">Total Tasks</div>
+              <div className="text-muted small">{t('TotalTasks')}</div>
             </div>
           </Col>
           <Col md={4}>
             <div className="text-center border rounded p-3">
               <div className="fs-2 fw-bold text-success">{completedTasks}</div>
-              <div className="text-muted small">Completed</div>
+              <div className="text-muted small">{t('Completed')}</div>
             </div>
           </Col>
           <Col md={4}>
@@ -252,14 +259,14 @@ const SprintDetailModal: React.FC<SprintDetailModalProps> = ({
               <div className="fs-2 fw-bold text-warning">
                 {totalTasks - completedTasks}
               </div>
-              <div className="text-muted small">Remaining</div>
+              <div className="text-muted small">{t('Remaining')}</div>
             </div>
           </Col>
         </Row>
       </div>
       <div className="modal-footer">
         <Button color="secondary" onClick={toggle}>
-          Close
+          {t('Close')}
         </Button>
       </div>
     </Modal>

@@ -3,6 +3,7 @@ import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form, Progress
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw, ChevronDown, ChevronLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import CreateSprintModal from './CreateSprintModal';
 import EditSprintModal from './EditSprintModal';
 import CreateTaskModal from './CreateTaskModal';
@@ -78,6 +79,7 @@ interface BacklogSprintProps {
 }
 
 const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
+    const { t } = useTranslation();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
     const [sprintTasks, setSprintTasks] = useState<{ [sprintId: number]: Task[] }>({});
@@ -156,7 +158,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         loadBoardColumns();
         loadData();
         loadProjectMembers();
-    }, [projectId, showArchived]);
+    }, [projectId, showArchived, t]);
 
     const enrichTaskWithColor = (task: Task): Task => {
         if (task.statusColumn) {
@@ -180,16 +182,13 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         try {
             const members = await getProjectMembers(projectId);
             setProjectMembers([
-                { userId: 'unassigned', displayName: 'Unassigned', email: '' },
+                { userId: 'unassigned', displayName: t('Unassigned'), email: '' },
                 ...members
             ]);
         } catch (error) {
             console.error('Error loading project members:', error);
             setProjectMembers([
-                { userId: 'unassigned', displayName: 'Unassigned', email: '' },
-                { userId: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
-                { userId: 'user-2', displayName: 'Jane Smith', email: 'jane@example.com' },
-                { userId: 'user-3', displayName: 'Bob Johnson', email: 'bob@example.com' }
+                { userId: 'unassigned', displayName: t('Unassigned'), email: '' }
             ]);
         }
     };
@@ -566,29 +565,29 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
     const handleArchiveTask = async (task: Task, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm(`Are you sure you want to archive task "${task.title}"?`)) return;
+        if (!window.confirm(t('ArchiveTaskConfirm', { taskTitle: task.title }))) return;
 
         try {
             await taskAPI.archive(projectId, task.id);
-            toast.success('Task archived successfully');
+            toast.success(t('TaskArchivedSuccessfully'));
             loadData(); // Reload toàn bộ
         } catch (error) {
             console.error('Error archiving task:', error);
-            toast.error('Failed to archive task');
+            toast.error(t('FailedToArchiveTask'));
         }
     };
 
     const handleRestoreTask = async (task: Task, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm(`Are you sure you want to restore task "${task.title}"?`)) return;
+        if (!window.confirm(t('RestoreTaskConfirm', { taskTitle: task.title }))) return;
 
         try {
             await taskAPI.restore(projectId, task.id);
-            toast.success('Task restored successfully');
+            toast.success(t('TaskRestoredSuccessfully'));
             loadData(); // Reload toàn bộ
         } catch (error) {
             console.error('Error restoring task:', error);
-            toast.error('Failed to restore task');
+            toast.error(t('FailedToRestoreTask'));
         }
     };
 
@@ -924,16 +923,16 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
         if (sprint.status === 'active') {
             if (!window.confirm(
-                'Warning: This is an ACTIVE sprint!\n\n' +
-                'Deleting an active sprint will move all tasks back to the backlog.\n\n' +
-                'Are you sure you want to delete this sprint?'
+                t('DeleteSprintWarning') + '\n\n' +
+                t('DeleteSprintActiveMessage') + '\n\n' +
+                t('DeleteSprintConfirm')
             )) {
                 return;
             }
         } else {
             if (!window.confirm(
-                'Are you sure you want to delete this sprint?\n\n' +
-                'All tasks will be moved back to the backlog.'
+                t('DeleteSprintConfirm') + '\n\n' +
+                t('DeleteSprintPlannedMessage')
             )) {
                 return;
             }
@@ -941,11 +940,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
         try {
             await sprintAPI.delete(projectId, sprintId);
-            toast.success('Sprint deleted successfully');
+            toast.success(t('SprintDeletedSuccessfully'));
             loadData();
         } catch (error) {
             console.error('Error deleting sprint:', error);
-            toast.error('Failed to delete sprint');
+            toast.error(t('FailedToDeleteSprint'));
         }
     };
 
@@ -975,7 +974,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
             : statusColumns[0];
 
-        const currentAssignee = projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0];
+        const currentAssignee = projectMembers.length > 0 
+            ? (projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0])
+            : { userId: 'unassigned', displayName: t('Unassigned'), email: '' };
 
         const TaskContent = (
             <div className={`task-card ${isArchived ? 'archived-task' : ''}`}>
@@ -984,7 +985,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     <div className="d-flex gap-1 align-items-center">
                         {/* Priority Badge */}
                         <Badge bg={getPriorityColor(task.priority)}>
-                            {task.priority}
+                            {task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+                             task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+                             task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+                             task.priority}
                         </Badge>
 
                         {/* Nút Archive (chỉ task chưa archive) */}
@@ -994,7 +998,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 size="sm"
                                 className="p-0 text-muted"
                                 onClick={(e) => handleArchiveTask(task, e)}
-                                title="Archive this task"
+                                title={t('ArchiveThisTask')}
                                 style={{
                                     width: '20px',
                                     height: '20px',
@@ -1014,7 +1018,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 size="sm"
                                 className="p-0 text-success"
                                 onClick={(e) => handleRestoreTask(task, e)}
-                                title="Restore this task"
+                                title={t('RestoreThisTask')}
                                 style={{
                                     width: '20px',
                                     height: '20px',
@@ -1141,10 +1145,18 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                     }}
                                 >
                                     <CheckCircle size={10} className="me-1" />
-                                    {currentStatus.name}
+                                    {currentStatus.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                                     currentStatus.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                                     currentStatus.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
+                                     currentStatus.name}
                                 </Dropdown.Toggle>
                                 <Dropdown.Menu>
-                                    {statusColumns.map((status, idx) => (
+                                    {statusColumns.map((status, idx) => {
+                                        const statusDisplayName = status.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                                                                 status.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                                                                 status.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
+                                                                 status.name;
+                                        return (
                                         <Dropdown.Item
                                             key={`${status.name}-${idx}`}
                                             onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
@@ -1161,7 +1173,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         />
                                             {status.name}
                                         </Dropdown.Item>
-                                    ))}
+                                        );
+                                    })}
                                 </Dropdown.Menu>
                             </Dropdown>
 
@@ -1223,7 +1236,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     )}
                     {isArchived && task.archivedAt && (
                         <span className="task-meta text-muted">
-              <Archive size={12} /> Archived {new Date(task.archivedAt).toLocaleDateString()}
+              <Archive size={12} /> {t('Archived')} {new Date(task.archivedAt).toLocaleDateString()}
             </span>
                     )}
                 </div>
@@ -1253,7 +1266,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     if (loading) {
         return (
             <Container fluid className="backlog-sprint-page">
-                <div className="text-center py-5">Loading...</div>
+                <div className="text-center py-5">{t('Loading')}</div>
             </Container>
         );
     }
@@ -1277,14 +1290,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             <Row className="mb-3 align-items-center page-header">
                 <Col xs="auto">
                     <Button variant="primary" onClick={() => setShowCreateSprint(true)}>
-                        <Plus size={16} className="me-1" /> Create Sprint
+                        <Plus size={16} className="me-1" /> {t('CreateSprint')}
                     </Button>
                 </Col>
                 <Col xs="auto" className="ms-auto">
                     <Form.Check
                         type="switch"
                         id="show-archived-toggle"
-                        label={`Show Archived Tasks (${archivedTasks.length})`}
+                        label={`${t('ShowArchivedTasks')} (${archivedTasks.length})`}
                         checked={showArchived}
                         onChange={(e) => setShowArchived(e.target.checked)}
                     />
@@ -1393,7 +1406,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         <Accordion.Header className="sprint-accordion-header">
                             <div className="d-flex align-items-center justify-content-between w-100 pe-3">
                                 <div className="d-flex align-items-center gap-3">
-                                    <h5 className="mb-0">Backlog</h5>
+                                    <h5 className="mb-0">{t('Backlog')}</h5>
                                     <Badge bg="secondary" className="task-count-badge">
                                         {filteredBacklogTasks.length} {filteredBacklogTasks.length === 1 ? 'task' : 'tasks'}
                                     </Badge>
@@ -1407,9 +1420,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                             setCreateTaskSprintId(null);
                                             setShowCreateTask(true);
                                         }}
-                                        title="Add a new task to backlog"
+                                        title={t('AddNewTaskToBacklog')}
                                     >
-                                        <Plus size={14} /> Add Task
+                                        <Plus size={14} /> {t('AddTask')}
                                     </Button>
                                 </div>
                             </div>
@@ -1461,7 +1474,12 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                             <div className="d-flex align-items-center gap-3">
                                                 <h5 className="mb-0">{sprint.name}</h5>
                                                 <Badge bg={getStatusColor(sprint.status)} className="sprint-badge">
-                                                    {sprint.status.toUpperCase()}
+                                                    {sprint.status === 'active' ? t('StatusActive') :
+                                                     sprint.status === 'planned' ? t('StatusPlanned') :
+                                                     sprint.status === 'completed' ? t('StatusCompleted') :
+                                                     sprint.status === 'paused' ? t('StatusPaused') :
+                                                     sprint.status === 'cancelled' ? t('StatusCancelled') :
+                                                     String(sprint.status).toUpperCase()}
                                                 </Badge>
                                                 {sprint.startDate && sprint.endDate && (
                                                     <span className="text-muted small">
@@ -1469,11 +1487,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                           </span>
                                                 )}
                                                 {!sprint.startDate && !sprint.endDate && (
-                                                    <span className="text-muted small fst-italic">No dates set
+                                                    <span className="text-muted small fst-italic">{t('NoDatesSet')}
                           </span>
                                                 )}
                                                 <Badge bg="secondary" className="task-count-badge">
-                                                    {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+                                                    {tasks.length} {tasks.length === 1 ? t('Task') : t('Tasks')}
                                                 </Badge>
                                             </div>
                                             <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -1488,11 +1506,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                         disabled={sprints.some(s => s.status === 'active' && s.id !== sprint.id)}
                                                         title={
                                                             sprints.some(s => s.status === 'active' && s.id !== sprint.id)
-                                                                ? "Complete the active sprint first"
-                                                                : "Start this sprint"
+                                                                ? t('CompleteActiveSprintFirst')
+                                                                : t('StartThisSprint')
                                                         }
                                                     >
-                                                        <Play size={14} /> Start
+                                                        <Play size={14} /> {t('Start')}
                                                     </Button>
                                                 )}
                                                 {sprint.status === 'active' && (
@@ -1503,9 +1521,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                             e.stopPropagation();
                                                             handleCompleteSprint(sprint.id);
                                                         }}
-                                                        title="Complete this sprint"
+                                                        title={t('CompleteThisSprint')}
                                                     >
-                                                        <Check size={14} /> Complete
+                                                        <Check size={14} /> {t('Complete')}
                                                     </Button>
                                                 )}
                                                 <Button
@@ -1516,7 +1534,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                         setCreateTaskSprintId(sprint.id);
                                                         setShowCreateTask(true);
                                                     }}
-                                                    title="Add a new task"
+                                                    title={t('AddNewTask')}
                                                 >
                                                     <Plus size={14} />
                                                 </Button>
@@ -1533,14 +1551,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                             }}
                                                         >
                                                             <i className="ri-edit-line me-2"></i>
-                                                            Edit Sprint
+                                                            {t('EditSprint')}
                                                         </Dropdown.Item>
                                                         <Dropdown.Item
                                                             onClick={() => handleDeleteSprint(sprint.id)}
                                                             className="text-danger"
                                                         >
                                                             <i className="ri-delete-bin-line me-2"></i>
-                                                            Delete Sprint
+                                                            {t('DeleteSprint')}
                                                         </Dropdown.Item>
                                                     </Dropdown.Menu>
                                                 </Dropdown>
@@ -1557,7 +1575,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                 >
                                                     {tasks.length === 0 ? (
                                                         <div className="empty-state">
-                                                            No tasks in this sprint. Drag tasks here to start planning.
+                                                            {t('NoTasksInSprint')}
                                                         </div>
                                                     ) : (
                                                         tasks.map((task, index) => renderTask(task, index))
@@ -1580,7 +1598,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                     <div className="d-flex align-items-center gap-3">
                                         <h5 className="mb-0">
                                             <Archive size={18} className="me-2" />
-                                            Archived Tasks
+                                            {t('ArchivedTasks')}
                                         </h5>
                                         <Badge bg="secondary" className="task-count-badge">
                                                     {filteredArchivedTasks.length} {filteredArchivedTasks.length === 1 ? 'task' : 'tasks'}

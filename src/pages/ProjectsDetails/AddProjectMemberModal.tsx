@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
 import { getCompanyMembers, CompanyMember } from '../../apiCaller/companyMembers';
 import { getProjectRoles, ProjectRole } from '../../apiCaller/projectRoles';
 import { addProjectMember } from '../../apiCaller/projectMembers';
@@ -21,6 +22,7 @@ type Entry = {
 };
 
 export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, workspaceId, projectId, companyId, onAdd }) => {
+    const { t } = useTranslation();
     const [emailsText, setEmailsText] = useState('');
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<CompanyMember[]>([]);
@@ -55,7 +57,7 @@ export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, work
                 email,
                 userId: match?.userId,
                 roleId: undefined,
-                error: match ? null : 'Không tìm thấy email trong công ty',
+                error: match ? null : t('EmailNotFoundInCompany'),
             };
         });
         setEntries(resolved);
@@ -85,11 +87,11 @@ export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, work
 
     return (
         <Modal isOpen={isOpen} toggle={() => setIsOpen(false)} centered size="lg">
-            <ModalHeader toggle={() => setIsOpen(false)}>Add members</ModalHeader>
+            <ModalHeader toggle={() => setIsOpen(false)}>{t('AddMembers')}</ModalHeader>
             <ModalBody>
                 <Row className="g-3">
                     <Col md={12}>
-                        <Label className="form-label">Emails (one per line)</Label>
+                        <Label className="form-label">{t('EmailsOnePerLine')}</Label>
                         <Input
                             type="textarea"
                             rows={5}
@@ -97,23 +99,23 @@ export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, work
                             onChange={(e) => setEmailsText(e.target.value)}
                             placeholder="name@example.com\nother@example.com"
                         />
-                        <div className="form-text">Paste or type multiple emails — one per line.</div>
+                        <div className="form-text">{t('PasteOrTypeMultipleEmails')}</div>
                     </Col>
                     <Col md={12}>
-                        <Label className="form-label">Assign role per email</Label>
+                        <Label className="form-label">{t('AssignRolePerEmail')}</Label>
                         <div className="table-responsive table-card">
                             <table className="table align-middle table-nowrap mb-0">
                                 <thead className="table-light">
                                     <tr>
-                                        <th style={{ width: '45%' }}>Email</th>
-                                        <th style={{ width: '35%' }}>Role</th>
+                                        <th style={{ width: '45%' }}>{t('Email')}</th>
+                                        <th style={{ width: '35%' }}>{t('Role')}</th>
                                         <th style={{ width: '20%' }}></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                 {entries.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="text-center text-muted">Chưa có email</td>
+                                        <td colSpan={3} className="text-center text-muted">{t('NoEmailYet')}</td>
                                     </tr>
                                 )}
                                 {entries.map((e, idx) => (
@@ -131,14 +133,14 @@ export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, work
                                                     setEntries(prev => prev.map((x, i) => i === idx ? { ...x, roleId: v } : x));
                                                 }}
                                             >
-                                                <option value="">Select role</option>
+                                                <option value="">{t('SelectRole')}</option>
                                                 {roles.map(r => (
                                                     <option key={r.id} value={r.id}>{r.name || r.code}</option>
                                                 ))}
                                             </select>
                                         </td>
                                         <td className="text-end">
-                                            <Button color="light" size="sm" onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}>Remove</Button>
+                                            <Button color="light" size="sm" onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}>{t('Remove')}</Button>
                                         </td>
                                     </tr>
                                 ))}
@@ -147,8 +149,8 @@ export const AddProjectMemberModal: React.FC<Props> = ({ isOpen, setIsOpen, work
                         </div>
                     </Col>
                     <Col md={12} className="d-flex justify-content-end gap-2">
-                        <Button color="secondary" onClick={() => setIsOpen(false)} disabled={submitting}>Cancel</Button>
-                        <Button color="primary" onClick={handleInvite} disabled={!canSubmit || submitting}>{submitting ? 'Inviting...' : 'Invite'}</Button>
+                        <Button color="secondary" onClick={() => setIsOpen(false)} disabled={submitting}>{t('Cancel')}</Button>
+                        <Button color="primary" onClick={handleInvite} disabled={!canSubmit || submitting}>{submitting ? t('Inviting') : t('Invite')}</Button>
                     </Col>
                 </Row>
             </ModalBody>
