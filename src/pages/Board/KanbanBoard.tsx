@@ -48,7 +48,7 @@ import {
   BoardColumnResponse,
   TaskResponse,
 } from "../../apiCaller/boards";
-import { sprintAPI } from "../../apiCaller/backlogSprint";
+import { sprintAPI, taskAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
@@ -96,6 +96,9 @@ const KanbanBoard: React.FC = () => {
   ]);
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
+  // All tasks across project (for stats like List)
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
@@ -120,6 +123,14 @@ const KanbanBoard: React.FC = () => {
   // Delete column modal states
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [deletingColumn, setDeletingColumn] = useState<BoardColumnResponse | null>(null);
+
+  const stats = React.useMemo(() => {
+    const total = allTasks.length;
+    const highPriority = allTasks.filter(t => (t.priority || '').toString().toUpperCase() === 'HIGH').length;
+    const assigned = allTasks.filter(t => t.assigneeId).length;
+    const unassigned = total - assigned;
+    return { total, highPriority, assigned, unassigned };
+  }, [allTasks]);
 
   // ============= HELPER FUNCTIONS =============
   // Convert TaskResponse to Task format for TaskDetailModal
@@ -327,9 +338,20 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
+  const loadAllTasks = async () => {
+    if (!projectId) return;
+    try {
+      const res = await taskAPI.listByProject(projectId, true);
+      setAllTasks(res.content || []);
+    } catch (err) {
+      console.error('Error loading all tasks for stats:', err);
+    }
+  };
+
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
+    loadAllTasks();
   }, [projectId]);
 
   // ============= FILTER TASKS =============
@@ -893,7 +915,7 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </div>
                 <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
+                  <h4 className="fs-22 fw-semibold mb-0">{stats.total}</h4>
                 </div>
               </CardBody>
             </Card>
@@ -914,7 +936,7 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </div>
                 <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}</h4>
+                  <h4 className="fs-22 fw-semibold mb-0">{stats.highPriority}</h4>
                 </div>
               </CardBody>
             </Card>
@@ -935,7 +957,7 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </div>
                 <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}</h4>
+                  <h4 className="fs-22 fw-semibold mb-0">{stats.assigned}</h4>
                 </div>
               </CardBody>
             </Card>
@@ -956,7 +978,7 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </div>
                 <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => !t.assigneeId).length}</h4>
+                  <h4 className="fs-22 fw-semibold mb-0">{stats.unassigned}</h4>
                 </div>
               </CardBody>
             </Card>
