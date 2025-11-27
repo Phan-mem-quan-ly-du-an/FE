@@ -41,15 +41,15 @@ const TeamTab: React.FC = () => {
 
   const { data: roles } = useQuery<ProjectRole[]>({ queryKey: ['project-roles', projectId], queryFn: () => getProjectRoles(projectId!), enabled: !!projectId });
 
-  const { mutate: transferOwnership, isPending: isTransferring } = useMutation({
+    const { mutate: transferOwnership, isPending: isTransferring } = useMutation({
     mutationFn: transferProjectOwnership,
     onSuccess: () => {
       refetchMembers();
-      toast.success('Ownership transferred successfully');
+      toast.success(t('OwnershipTransferredSuccessfully'));
       setTransferOwnershipModal(false);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to transfer ownership');
+      toast.error(error.message || t('FailedToTransferOwnership'));
     },
   });
 
@@ -58,10 +58,10 @@ const TeamTab: React.FC = () => {
       removeProjectMember(projectId, memberUserId),
     onSuccess: () => {
       refetchMembers();
-      toast.success('Member removed successfully');
+      toast.success(t('MemberRemovedSuccessfully'));
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to remove member');
+      toast.error(error.message || t('FailedToRemoveMember'));
     },
   });
 
@@ -99,7 +99,7 @@ const TeamTab: React.FC = () => {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
         <Spinner color="primary" />
-        <span className="ms-2">Loading members...</span>
+        <span className="ms-2">{t('LoadingMembers')}</span>
       </div>
     );
   }
@@ -116,7 +116,7 @@ const TeamTab: React.FC = () => {
 
   const handleTransferOwnership = () => {
     if (!selectedMember || !selectedDowngradeRoleId) {
-      toast.error('Please select a member and a downgrade role');
+      toast.error(t('PleaseSelectMemberAndDowngradeRole'));
       return;
     }
     transferOwnership({ projectId: projectId!, targetUserId: selectedMember.userId, ownerDowngradeRoleId: selectedDowngradeRoleId });
@@ -124,7 +124,7 @@ const TeamTab: React.FC = () => {
 
   const handleRemoveMember = (member: ProjectMember) => {
     if (!projectId || !member?.userId) return;
-    const confirmed = window.confirm('Are you sure you want to remove this member?');
+    const confirmed = window.confirm(t('AreYouSureRemoveMember'));
     if (!confirmed) return;
     removeMember({ projectId: projectId!, memberUserId: member.userId });
   };
@@ -132,9 +132,9 @@ const TeamTab: React.FC = () => {
   return (
     <Card>
       <CardHeader className="d-flex justify-content-between">
-        <h5 className="card-title mb-0">{t('Team Members')}</h5>
+        <h5 className="card-title mb-0">{t('TeamMembers')}</h5>
         <Button color="primary" onClick={() => setAddMemberModal(true)}>
-          <i className="ri-add-line align-middle me-1" /> {t('Add Member')}
+          <i className="ri-add-line align-middle me-1" /> {t('AddMember')}
         </Button>
       </CardHeader>
       <CardBody>
@@ -192,7 +192,7 @@ const TeamTab: React.FC = () => {
                     </td>
                     <td>
                       <Dropdown isOpen={openDropdownId === member.userId} toggle={() => toggleDropdown(member.userId)}>
-                        <DropdownToggle tag="button" className="btn btn-ghost-secondary btn-icon btn-sm" title="More options">
+                        <DropdownToggle tag="button" className="btn btn-ghost-secondary btn-icon btn-sm" title={t('MoreOptions')}>
                           <i className="ri-more-2-fill fs-16"></i>
                         </DropdownToggle>
                       <DropdownMenu strategy="fixed">
@@ -202,7 +202,7 @@ const TeamTab: React.FC = () => {
                             setAssignRoleModal(true);
                           }}
                           disabled={(member as any).owner}>
-                          <i className="ri-user-settings-line me-2"></i> {t('Assign Role')}
+                          <i className="ri-user-settings-line me-2"></i> {t('AssignRole')}
                         </DropdownItem>
                         <DropdownItem
                           onClick={() => {
@@ -210,7 +210,7 @@ const TeamTab: React.FC = () => {
                             setTransferOwnershipModal(true);
                           }}
                           disabled={(member as any).owner}>
-                          <i className="ri-exchange-line me-2"></i> {t('Transfer Ownership')}
+                          <i className="ri-exchange-line me-2"></i> {t('TransferOwnership')}
                         </DropdownItem>
                         <DropdownItem divider />
                         <DropdownItem

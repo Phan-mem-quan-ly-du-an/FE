@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import {
   Container,
   Row,
@@ -21,6 +22,10 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
+  UncontrolledDropdown,
+  InputGroup,
+  InputGroupText,
+  Input,
 } from "reactstrap";
 import {
   DragDropContext,
@@ -45,6 +50,7 @@ import {
 } from "../../apiCaller/boards";
 import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
+import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
@@ -54,6 +60,7 @@ import "../../assets/scss/pages/KanbanBoard.scss";
 const KanbanBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // ============= STATE =============
   const [board, setBoard] = useState<BoardResponse | null>(null);
@@ -93,8 +100,12 @@ const KanbanBoard: React.FC = () => {
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
+  const [filterEpic, setFilterEpic] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  // Epics list
+  const [epics, setEpics] = useState<EpicDto[]>([]);
 
   // Bulk selection states
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
@@ -102,9 +113,10 @@ const KanbanBoard: React.FC = () => {
   // View density state
   const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable'>('comfortable');
 
+  // Search query
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   // Toolbar dropdown states
-  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
-  const [viewDensityOpen, setViewDensityOpen] = useState(false);
 
   // Task detail modal states
   const [showTaskDetail, setShowTaskDetail] = useState(false);
@@ -135,6 +147,7 @@ const KanbanBoard: React.FC = () => {
     let count = 0;
     if (filterAssignee.length > 0) count++;
     if (filterPriority.length > 0) count++;
+    if (filterEpic.length > 0) count++;
     return count;
   };
 
@@ -320,18 +333,35 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
+  const loadEpics = async () => {
+    if (!projectId) return;
+    try {
+      const response = await getEpicsByProject(projectId, 0, 100);
+      setEpics(response.content || []);
+    } catch (err) {
+      console.error('Failed to load epics:', err);
+    }
+  };
+
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
+    loadEpics();
   }, [projectId]);
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    if (filterAssignee.length === 0 && filterPriority.length === 0) {
-      return tasks;
-    }
+    const q = (searchQuery || '').trim().toLowerCase();
 
-    return tasks.filter(task => {
+    const applyQuery = (task: TaskResponse) => {
+      if (!q) return true;
+      const titleMatch = (task.title || '').toLowerCase().includes(q);
+      const idMatch = String(task.id || '').toLowerCase().includes(q);
+      const keyMatch = getTaskKey(task).toLowerCase().includes(q);
+      return titleMatch || idMatch || keyMatch;
+    };
+
+    const applyFilters = (task: TaskResponse) => {
       if (filterAssignee.length > 0) {
         const taskAssignee = task.assigneeId || 'unassigned';
         if (!filterAssignee.includes(taskAssignee)) return false;
@@ -343,8 +373,15 @@ const KanbanBoard: React.FC = () => {
         if (!normalized || !filterPriority.includes(normalized)) return false;
       }
 
+      if (filterEpic.length > 0) {
+        console.log('Filtering epic - task:', task.title, 'epicId:', task.epicId, 'filterEpic:', filterEpic);
+        if (!task.epicId || !filterEpic.includes(task.epicId)) return false;
+      }
+
       return true;
-    });
+    };
+
+    return tasks.filter(task => applyQuery(task) && applyFilters(task));
   };
 
   // ============= HANDLE DRAG & DROP =============
@@ -726,53 +763,55 @@ const KanbanBoard: React.FC = () => {
   // Warning nếu không có active sprint
   if (!board.activeSprintId) {
     return (
-      <div className="page-content" style={{ paddingTop: "1rem" }}>
-        <Container fluid>
-          <Alert color="warning" className="mb-3">
-            <h5 className="alert-heading">
-              <i className="ri-information-line me-2"></i>
-              No Active Sprint
-            </h5>
-            <p className="mb-0">
-              Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
-              <strong>Sprint</strong> tab và set một sprint thành{" "}
-              <strong>"Active"</strong> để xem tasks trong Board.
-            </p>
-          </Alert>
-        </Container>
-      </div>
+      <>
+        <Alert color="warning" className="mb-3">
+          <h5 className="alert-heading">
+            <i className="ri-information-line me-2"></i>
+            No Active Sprint
+          </h5>
+          <p className="mb-0">
+            Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
+            <strong>Sprint</strong> tab và set một sprint thành{" "}
+            <strong>"Active"</strong> để xem tasks trong Board.
+          </p>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: "1rem" }}>
-      <Container fluid>
+    <>
         {/* HEADER - Compact */}
-        <Row className="mb-2">
+        <Row className="align-items-center mb-3">
           <Col>
             <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h5 className="mb-1">{board.name}</h5>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted small">
-                    {board.description || ""}
-                  </span>
-                  {board.activeSprintId ? (
-                    <Badge color="success" className="ms-2">
-                      <i className="ri-play-circle-line me-1"></i>
-                      {board.activeSprintName}
-                    </Badge>
-                  ) : (
-                    <Badge color="secondary" className="ms-2">
-                      <i className="ri-information-line me-1"></i>
-                      No active sprint
-                    </Badge>
-                  )}
-                </div>
+              <div style={{ maxWidth: 420, width: '100%' }}>
+                <InputGroup>
+                  <InputGroupText>
+                    <i className="ri-search-line"></i>
+                  </InputGroupText>
+                  <Input
+                    type="text"
+                    placeholder={t('SearchTasksPlaceholder')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
               </div>
 
               {/* ACTION BUTTONS */}
-              <div className="d-flex gap-2">
+              <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                {board.activeSprintId ? (
+                  <Badge color="success" className="me-1">
+                    <i className="ri-play-circle-line me-1"></i>
+                    {board.activeSprintName}
+                  </Badge>
+                ) : (
+                  <Badge color="secondary" className="me-1">
+                    <i className="ri-information-line me-1"></i>
+                    No active sprint
+                  </Badge>
+                )}
                 {board.activeSprintId && (
                   <>
                     {/* Sprint Detail Button */}
@@ -783,7 +822,7 @@ const KanbanBoard: React.FC = () => {
                       className="d-flex align-items-center"
                     >
                       <Eye size={14} className="me-1" />
-                      Sprint Detail
+                      {t('SprintDetail')}
                     </Button>
 
                     {/* Edit Sprint Button */}
@@ -794,7 +833,7 @@ const KanbanBoard: React.FC = () => {
                       className="d-flex align-items-center"
                     >
                       <Edit size={14} className="me-1" />
-                      Edit Sprint
+                      {t('EditSprint')}
                     </Button>
 
                     {/* Complete Sprint Button */}
@@ -808,12 +847,12 @@ const KanbanBoard: React.FC = () => {
                       {isCompletingSprint ? (
                         <>
                           <Spinner size="sm" className="me-1" />
-                          Completing...
+                          {t('Completing')}
                         </>
                       ) : (
                         <>
                           <Check size={14} className="me-1" />
-                          Complete Sprint
+                          {t('CompleteSprint')}
                         </>
                       )}
                     </Button>
@@ -822,33 +861,31 @@ const KanbanBoard: React.FC = () => {
 
                 {/* Bulk Actions Bar */}
                 {selectedTasks.length > 0 && (
-                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded">
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded flex-wrap">
                     <CheckSquare size={18} className="text-primary" />
-                    <span className="fw-medium">{selectedTasks.length} selected</span>
-                    <Dropdown isOpen={bulkActionsOpen} toggle={() => setBulkActionsOpen(!bulkActionsOpen)}>
+                    <span className="fw-medium">{selectedTasks.length} {t('Selected')}</span>
+                    <UncontrolledDropdown>
                       <DropdownToggle caret color="primary" size="sm">
-                        Bulk Assign
+                        {t('BulkAssign')}
                       </DropdownToggle>
                       <DropdownMenu>
                         {projectMembers.map(member => (
                           <DropdownItem
                             key={member.userId}
-                            onClick={() => {
-                              bulkAssign(member.userId);
-                              setBulkActionsOpen(false);
-                            }}
+                            onClick={() => bulkAssign(member.userId)}
                           >
                             {member.displayName}
                           </DropdownItem>
                         ))}
                       </DropdownMenu>
-                    </Dropdown>
+                    </UncontrolledDropdown>
                     <Button
-                      color="light"
+                      color="secondary"
+                      outline
                       size="sm"
                       onClick={() => setSelectedTasks([])}
                     >
-                      Cancel
+                      {t('Clear')}
                     </Button>
                   </div>
                 )}
@@ -860,7 +897,7 @@ const KanbanBoard: React.FC = () => {
                   onClick={() => setShowFiltersModal(true)}
                 >
                   <i className="ri-filter-line me-1"></i>
-                  Filters
+                  {t('Filters')}
                   {getActiveFiltersCount() > 0 && (
                     <Badge color="primary" className="ms-1" pill>
                       {getActiveFiltersCount()}
@@ -869,31 +906,25 @@ const KanbanBoard: React.FC = () => {
                 </Button>
 
                 {/* View Density Dropdown */}
-                <Dropdown isOpen={viewDensityOpen} toggle={() => setViewDensityOpen(!viewDensityOpen)}>
+                <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
                     <Layers size={14} className="me-1" />
-                    {viewDensity === 'compact' ? 'Compact' : 'Comfortable'}
+                    {viewDensity === 'compact' ? t('Compact') : t('Comfortable')}
                   </DropdownToggle>
                   <DropdownMenu>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('comfortable');
-                      setViewDensityOpen(false);
-                    }}>
-                      Comfortable
+                    <DropdownItem onClick={() => setViewDensity('comfortable')}>
+                      {t('Comfortable')}
                     </DropdownItem>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('compact');
-                      setViewDensityOpen(false);
-                    }}>
-                      Compact
+                    <DropdownItem onClick={() => setViewDensity('compact')}>
+                      {t('Compact')}
                     </DropdownItem>
                   </DropdownMenu>
-                </Dropdown>
+                </UncontrolledDropdown>
 
                 {/* Export CSV Button */}
                 <Button color="light" size="sm" onClick={exportToCSV}>
                   <Download size={14} className="me-1" />
-                  Export
+                  {t('Export')}
                 </Button>
 
                 {/* Add Column Button */}
@@ -924,7 +955,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Total Tasks</h6>
+                    <h6 className="mb-0 text-muted">{t('TotalTasks')}</h6>
                     <h4 className="mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
                   </div>
                 </div>
@@ -943,7 +974,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">High Priority</h6>
+                    <h6 className="mb-0 text-muted">{t('HighPriority')}</h6>
                     <h4 className="mb-0">
                       {board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}
                     </h4>
@@ -964,7 +995,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Completed</h6>
+                    <h6 className="mb-0 text-muted">{t('Completed')}</h6>
                     <h4 className="mb-0">
                       {board.columns
                         .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
@@ -987,7 +1018,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Assigned</h6>
+                    <h6 className="mb-0 text-muted">{t('Assigned')}</h6>
                     <h4 className="mb-0">
                       {board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}
                     </h4>
@@ -1003,163 +1034,144 @@ const KanbanBoard: React.FC = () => {
           onDragEnd={handleDragEnd}
           key={board.columns.map((c) => c.id).join("-")}
         >
-          <Droppable
-            droppableId="board-columns"
-            direction="horizontal"
-            type="COLUMN"
+          <div
+            style={{
+              display: "flex",
+              gap: "16px",
+              overflowX: "auto",
+              paddingBottom: "8px",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#888 #f1f1f1",
+            }}
+            className="kanban-board-container"
           >
-            {(provided) => (
+            {board.columns.map((column) => (
               <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
+                key={`column-${column.id}`}
                 style={{
-                  display: "flex",
-                  gap: "16px",
-                  overflowX: "auto",
-                  paddingBottom: "16px",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#888 #f1f1f1",
+                  minWidth: "320px",
+                  maxWidth: "320px",
+                  flexShrink: 0,
                 }}
-                className="kanban-board-container"
               >
-                {board.columns.map((column, columnIndex) => (
-                  <Draggable
-                    key={`column-${column.id}`}
-                    draggableId={`column-${column.id}`}
-                    index={columnIndex}
+                <Card className="h-100">
+                  {/* COLUMN HEADER */}
+                  <div
+                    className="card-header d-flex justify-content-between align-items-center"
+                    style={{ backgroundColor: column.color, color: "#fff" }}
                   >
-                    {(columnProvided) => (
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={column.tasks.length > 0 && column.tasks.every(t => selectedTasks.includes(t.id))}
+                        onChange={() => toggleSelectAllInColumn(column.tasks)}
+                        className="form-check-input bg-white"
+                        style={{ cursor: 'pointer' }}
+                        title={t('SelectAllInColumn')}
+                      />
+                      <div>
+                        <h5 className="mb-0" style={{ color: "#fff" }}>
+                          {column.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                           column.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                           column.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
+                           column.name}
+                        </h5>
+                        <small style={{ color: "#f0f0f0" }}>
+                          {column.tasks.length} {column.tasks.length === 1 ? t('Task') : t('Tasks')}
+                        </small>
+                      </div>
+                    </div>
+                    <Button
+                      color="link"
+                      size="sm"
+                      className="text-white p-0"
+                      onClick={() => openDeleteColumnModal(column)}
+                      >
+                      <i className="ri-delete-bin-line"></i>
+                      </Button>
+                  </div>
+
+                  {/* DROPPABLE AREA */}
+                  <Droppable droppableId={column.id.toString()}>
+                    {(provided, snapshot) => (
                       <div
-                        ref={columnProvided.innerRef}
-                        {...columnProvided.draggableProps}
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="card-body"
                         style={{
-                          minWidth: "320px",
-                          maxWidth: "320px",
-                          flexShrink: 0,
-                          ...columnProvided.draggableProps.style,
+                          minHeight: "500px",
+                          maxHeight: "70vh",
+                          overflowY: "auto",
+                          backgroundColor: snapshot.isDraggingOver
+                            ? "#f8f9fa"
+                            : "#fff",
                         }}
                       >
-                        <Card className="h-100">
-                          {/* COLUMN HEADER */}
-                          <div
-                            className="card-header d-flex justify-content-between align-items-center"
-                            style={{ backgroundColor: column.color, color: "#fff" }}
-                            {...columnProvided.dragHandleProps}
-                          >
-                            <div className="d-flex align-items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={column.tasks.length > 0 && column.tasks.every(t => selectedTasks.includes(t.id))}
-                                onChange={() => toggleSelectAllInColumn(column.tasks)}
-                                className="form-check-input bg-white"
-                                style={{ cursor: 'pointer' }}
-                                title="Select all in column"
-                              />
-                              <div>
-                                <h5 className="mb-0" style={{ color: "#fff" }}>
-                                  {column.name}
-                                </h5>
-                                <small style={{ color: "#f0f0f0" }}>
-                                  {column.tasks.length} tasks
-                                </small>
-                              </div>
-                            </div>
-                            <Button
-                              color="link"
-                              size="sm"
-                              className="text-white p-0"
-                              onClick={() => openDeleteColumnModal(column)}
+                        {/* TASKS */}
+                        {(() => {
+                          const filteredTasks = filterTasks(column.tasks);
+                          return filteredTasks.length === 0 ? (
+                            <p className="text-muted text-center mt-4">
+                              {column.tasks.length === 0 ? t('NoTasksInBacklog') : t('NoTasksMatchFilter')}
+                            </p>
+                          ) : (
+                            filteredTasks.map((task, index) => (
+                              <Draggable
+                                key={`task-${task.id}`}
+                                draggableId={`task-${task.id}`}
+                                index={index}
                               >
-                              <i className="ri-delete-bin-line"></i>
-                              </Button>
-                          </div>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={{
+                                      ...provided.draggableProps.style,
+                                      marginBottom: "12px",
+                                    }}
+                                  >
+                                    <TaskCard
+                                      task={task}
+                                      isDragging={snapshot.isDragging}
+                                      projectMembers={projectMembers}
+                                      openAssigneeDropdown={openAssigneeDropdown}
+                                      setOpenAssigneeDropdown={setOpenAssigneeDropdown}
+                                      onAssigneeChange={handleAssigneeChange}
+                                      onTaskClick={(task) => {
+                                        setSelectedTask(task);
+                                        setShowTaskDetail(true);
+                                      }}
+                                      isSelected={selectedTasks.includes(task.id)}
+                                      onToggleSelect={toggleTaskSelection}
+                                      taskKey={getTaskKey(task)}
+                                      viewDensity={viewDensity}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))
+                          );
+                        })()}
+                        {provided.placeholder}
 
-                          {/* DROPPABLE AREA */}
-                          <Droppable droppableId={column.id.toString()} type="TASK">
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className="card-body"
-                                style={{
-                                  minHeight: "500px",
-                                  maxHeight: "70vh",
-                                  overflowY: "auto",
-                                  backgroundColor: snapshot.isDraggingOver
-                                    ? "#f8f9fa"
-                                    : "#fff",
-                                }}
-                              >
-                                {/* TASKS */}
-                                {(() => {
-                                  const filteredTasks = filterTasks(column.tasks);
-                                  return filteredTasks.length === 0 ? (
-                                    <p className="text-muted text-center mt-4">
-                                      {column.tasks.length === 0 ? "Chưa có task nào" : "Không có task phù hợp với bộ lọc"}
-                                    </p>
-                                  ) : (
-                                    filteredTasks.map((task, index) => (
-                                      <Draggable
-                                        key={`task-${task.id}`}
-                                        draggableId={`task-${task.id}`}
-                                        index={index}
-                                      >
-                                        {(provided, snapshot) => (
-                                          <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            style={{
-                                              ...provided.draggableProps.style,
-                                              marginBottom: "12px",
-                                            }}
-                                          >
-                                            <TaskCard
-                                              task={task}
-                                              isDragging={snapshot.isDragging}
-                                              projectMembers={projectMembers}
-                                              openAssigneeDropdown={openAssigneeDropdown}
-                                              setOpenAssigneeDropdown={setOpenAssigneeDropdown}
-                                              onAssigneeChange={handleAssigneeChange}
-                                              onTaskClick={(task) => {
-                                                setSelectedTask(task);
-                                                setShowTaskDetail(true);
-                                              }}
-                                              isSelected={selectedTasks.includes(task.id)}
-                                              onToggleSelect={toggleTaskSelection}
-                                              taskKey={getTaskKey(task)}
-                                              viewDensity={viewDensity}
-                                            />
-                                          </div>
-                                        )}
-                                      </Draggable>
-                                    ))
-                                  );
-                                })()}
-                                {provided.placeholder}
-
-                                {/* ADD TASK BUTTON */}
-                                <Button
-                                  color="light"
-                                  size="sm"
-                                  className="w-100 mt-2"
-                                  onClick={() => handleOpenAddTask(column.id)}
-                                >
-                                  <i className="ri-add-line me-1"></i>
-                                  Thêm Task
-                                </Button>
-                              </div>
-                            )}
-                          </Droppable>
-                        </Card>
+                        {/* ADD TASK BUTTON */}
+                        <Button
+                          color="light"
+                          size="sm"
+                          className="w-100 mt-2"
+                          onClick={() => handleOpenAddTask(column.id)}
+                        >
+                          <i className="ri-add-line me-1"></i>
+                          {t('AddTask')}
+                        </Button>
                       </div>
                     )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+                  </Droppable>
+                </Card>
               </div>
-            )}
-          </Droppable>
+            ))}
+          </div>
         </DragDropContext>
 
         {/* MODAL ADD COLUMN */}
@@ -1215,7 +1227,7 @@ const KanbanBoard: React.FC = () => {
           size="lg"
         >
           <div className="modal-header">
-            <h5 className="modal-title">Create New Task</h5>
+            <h5 className="modal-title">{t('CreateNewTask')}</h5>
             <button
               type="button"
               className="btn-close"
@@ -1225,7 +1237,7 @@ const KanbanBoard: React.FC = () => {
           <div className="modal-body">
             <Form>
               <div className="mb-3">
-                <label className="form-label">Task Title *</label>
+                <label className="form-label">{t('TaskTitle')} *</label>
                 <input
                   type="text"
                   className="form-control"
@@ -1233,13 +1245,13 @@ const KanbanBoard: React.FC = () => {
                   onChange={(e) =>
                     setNewTaskForm({ ...newTaskForm, title: e.target.value })
                   }
-                  placeholder="e.g., Implement user authentication"
+                  placeholder={t('TaskTitlePlaceholder')}
                   autoFocus
                 />
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Description</label>
+                <label className="form-label">{t('Description')}</label>
                 <textarea
                   className="form-control"
                   rows={4}
@@ -1250,14 +1262,14 @@ const KanbanBoard: React.FC = () => {
                       description: e.target.value,
                     })
                   }
-                  placeholder="Describe the task in detail..."
+                  placeholder={t('TaskDescriptionPlaceholder')}
                 ></textarea>
               </div>
 
               <div className="row">
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label">Priority</label>
+                    <label className="form-label">{t('Priority')}</label>
                     <select
                       className="form-select"
                       value={newTaskForm.priority}
@@ -1271,20 +1283,20 @@ const KanbanBoard: React.FC = () => {
                         })
                       }
                     >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
+                      <option value="LOW">{t('PriorityLowLabel')}</option>
+                      <option value="MEDIUM">{t('PriorityMediumLabel')}</option>
+                      <option value="HIGH">{t('PriorityHighLabel')}</option>
                     </select>
                   </div>
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label">Estimated Hours</label>
+                    <label className="form-label">{t('EstimatedHours')}</label>
                     <input
                       type="number"
                       className="form-control"
                       min="0"
-                      placeholder="e.g., 8"
+                      placeholder={t('EstimatedHoursPlaceholder')}
                       value={newTaskForm.estimatedHours}
                       onChange={(e) =>
                         setNewTaskForm({
@@ -1298,7 +1310,7 @@ const KanbanBoard: React.FC = () => {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Due Date</label>
+                <label className="form-label">{t('DueDate')}</label>
                 <input
                   type="date"
                   className="form-control"
@@ -1310,18 +1322,18 @@ const KanbanBoard: React.FC = () => {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Tags</label>
+                <label className="form-label">{t('Tags')}</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="frontend, api, bug-fix (comma separated)"
+                  placeholder={t('TagsPlaceholder')}
                   value={newTaskForm.tags}
                   onChange={(e) =>
                     setNewTaskForm({ ...newTaskForm, tags: e.target.value })
                   }
                 />
                 <small className="text-muted">
-                  Separate multiple tags with commas
+                  {t('SeparateMultipleTags')}
                 </small>
               </div>
             </Form>
@@ -1331,14 +1343,14 @@ const KanbanBoard: React.FC = () => {
               color="secondary"
               onClick={() => setShowAddTaskModal(false)}
             >
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               color="primary"
               onClick={handleAddTask}
               disabled={!newTaskForm.title.trim() || isCreatingTask}
             >
-              {isCreatingTask ? "Creating..." : "Create Task"}
+              {isCreatingTask ? t('Creating') : t('CreateTask')}
             </Button>
           </div>
         </Modal>
@@ -1397,7 +1409,7 @@ const KanbanBoard: React.FC = () => {
         <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
           <ModalHeader toggle={() => setShowFiltersModal(false)}>
             <i className="ri-filter-line me-2"></i>
-            Filters
+            {t('Filters')}
           </ModalHeader>
           <ModalBody>
             <Row>
@@ -1407,7 +1419,7 @@ const KanbanBoard: React.FC = () => {
                 <FormGroup>
                   <Label className="fw-semibold">
                     <i className="ri-price-tag-3-line me-2"></i>
-                    Priority
+                    {t('Priority')}
                   </Label>
                   <div className="d-flex flex-column gap-2">
                     {[
@@ -1447,9 +1459,9 @@ const KanbanBoard: React.FC = () => {
                 <FormGroup>
                   <Label className="fw-semibold">
                     <i className="ri-user-line me-2"></i>
-                    Assignee
+                    {t('Assignee')}
                   </Label>
-                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                     {projectMembers.map(member => (
                       <FormGroup check key={member.userId}>
                         <Label check>
@@ -1471,26 +1483,58 @@ const KanbanBoard: React.FC = () => {
                     ))}
                   </div>
                 </FormGroup>
+
+                {/* Epic Filter */}
+                <FormGroup className="mt-3">
+                  <Label className="fw-semibold">
+                    Epic
+                  </Label>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {epics.length === 0 ? (
+                      <p className="text-muted small">No epics available</p>
+                    ) : (
+                      epics.map(epic => (
+                        <FormGroup check key={epic.id}>
+                          <Label check>
+                            <input
+                              type="checkbox"
+                              checked={filterEpic.includes(epic.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFilterEpic([...filterEpic, epic.id]);
+                                } else {
+                                  setFilterEpic(filterEpic.filter(e => e !== epic.id));
+                                }
+                              }}
+                              className="me-2"
+                            />
+                            {epic.title}
+                          </Label>
+                        </FormGroup>
+                      ))
+                    )}
+                  </div>
+                </FormGroup>
               </Col>
             </Row>
           </ModalBody>
-            <ModalFooter>
-              <Button
-                color="light"
-                onClick={() => {
-                  setFilterPriority([]);
-                  setFilterAssignee([]);
-                }}
-              >
-                Clear All
-              </Button>
-              <Button color="primary" onClick={() => setShowFiltersModal(false)}>
-                Apply Filters
-              </Button>
-            </ModalFooter>
-          </Modal>
-      </Container>
-    </div>
+          <ModalFooter>
+            <Button
+              color="light"
+              onClick={() => {
+                setFilterPriority([]);
+                setFilterAssignee([]);
+                setFilterEpic([]);
+              }}
+            >
+              {t('ClearAll')}
+            </Button>
+            <Button color="primary" onClick={() => setShowFiltersModal(false)}>
+              {t('ApplyFilters')}
+            </Button>
+          </ModalFooter>
+        </Modal>
+    </>
   );
 };
 
@@ -1528,6 +1572,7 @@ const TaskCard: React.FC<TaskCardProps & {
   taskKey,
   viewDensity = 'comfortable',
 }) => {
+  const { t } = useTranslation();
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
       case "HIGH":
@@ -1601,10 +1646,10 @@ const TaskCard: React.FC<TaskCardProps & {
           </p>
         )}
 
-        {/* Labels/Tags - hide in compact mode */}
-        {viewDensity === 'comfortable' && task.tags && (
+        {/* Labels/Tags and Epic - hide in compact mode */}
+        {viewDensity === 'comfortable' && (task.tags || task.epicTitle) && (
           <div className="mb-2" onClick={() => onTaskClick(task)}>
-            {task.tags.split(',').map((tag, idx) => (
+            {task.tags && task.tags.split(',').map((tag, idx) => (
               <Badge 
                 key={idx} 
                 className="me-1 mb-1" 
@@ -1620,6 +1665,19 @@ const TaskCard: React.FC<TaskCardProps & {
                 {tag.trim()}
               </Badge>
             ))}
+            {task.epicTitle && (
+              <Badge 
+                color="info"
+                className="me-1 mb-1" 
+                style={{ 
+                  fontSize: '10px',
+                  fontWeight: '500',
+                  padding: '4px 8px'
+                }}
+              >
+                {task.epicTitle}
+              </Badge>
+            )}
           </div>
         )}
 
@@ -1628,7 +1686,10 @@ const TaskCard: React.FC<TaskCardProps & {
           <div onClick={() => onTaskClick(task)}>
             {task.priority && (
               <Badge color={getPriorityColor(task.priority)} className="me-1" style={{ fontSize: '10px' }}>
-                {task.priority}
+                {task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+                 task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+                 task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+                 task.priority}
               </Badge>
             )}
             {task.estimatedHours && (
@@ -1660,7 +1721,7 @@ const TaskCard: React.FC<TaskCardProps & {
                   fontSize: "12px",
                   fontWeight: "bold",
                 }}
-                title={currentAssignee?.displayName || "Unassigned"}
+                title={currentAssignee?.displayName || t('Unassigned')}
               >
                 {task.assigneeId ? (
                   currentAssignee?.email?.charAt(0).toUpperCase() || "?"
@@ -1686,7 +1747,7 @@ const TaskCard: React.FC<TaskCardProps & {
               >
                 {projectMembers.length === 1 ? (
                   <DropdownItem disabled className="text-muted">
-                    <small>Loading members...</small>
+                    <small>{t('LoadingMembers')}</small>
                   </DropdownItem>
                 ) : (
                   projectMembers.map((member) => (

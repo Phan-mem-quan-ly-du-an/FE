@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, ListGroup, Badge, Spinner } from 'react-bootstrap';
 import { Upload, FileText, Image, Film, Music, Archive, X, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { taskAttachmentAPI, TaskAttachment } from '../../apiCaller/taskAttachments';
 
 interface AttachmentsTabProps {
@@ -10,6 +11,7 @@ interface AttachmentsTabProps {
 }
 
 const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) => {
+  const { t } = useTranslation();
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -34,7 +36,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
       setAttachments(data);
     } catch (error) {
       console.error('Error loading attachments:', error);
-      toast.error('Failed to load attachments');
+      toast.error(t('FailedToLoadAttachments'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +50,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
     
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
+      toast.error(t('FileSizeMustBeLessThan5MB'));
       return;
     }
 
@@ -56,28 +58,28 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
       setUploading(true);
       const uploaded = await taskAttachmentAPI.upload(projectId, taskId, file);
       setAttachments(prev => [uploaded, ...prev]);
-      toast.success('File uploaded successfully');
+      toast.success(t('FileUploadedSuccessfully'));
       e.target.value = ''; // Reset input
     } catch (error: any) {
       console.error('Error uploading file:', error);
-      toast.error(error.response?.data?.message || 'Failed to upload file');
+      toast.error(error.response?.data?.message || t('FailedToUploadFile'));
     } finally {
       setUploading(false);
     }
   };
 
   const handleDelete = async (attachmentId: number) => {
-    if (!window.confirm('Are you sure you want to delete this file?')) {
+    if (!window.confirm(t('DeleteFileConfirm'))) {
       return;
     }
 
     try {
       await taskAttachmentAPI.delete(projectId, taskId, attachmentId);
       setAttachments(prev => prev.filter(a => a.id !== attachmentId));
-      toast.success('File deleted successfully');
+      toast.success(t('FileDeletedSuccessfully'));
     } catch (error) {
       console.error('Error deleting file:', error);
-      toast.error('Failed to delete file');
+      toast.error(t('FailedToDeleteFile'));
     }
   };
 
@@ -99,10 +101,10 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
       
-      toast.success('File downloaded successfully');
+      toast.success(t('FileDownloadedSuccessfully'));
     } catch (error) {
       console.error('Error downloading file:', error);
-      toast.error('Failed to download file');
+      toast.error(t('FailedToDownloadFile'));
     }
   };
 
@@ -115,9 +117,9 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return `0 ${t('Bytes')}`;
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [t('Bytes'), t('KB'), t('MB'), t('GB')];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
@@ -137,7 +139,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
     return (
       <div className="text-center py-5">
         <Spinner animation="border" variant="primary" />
-        <p className="mt-3">Loading attachments...</p>
+        <p className="mt-3">{t('LoadingAttachments')}</p>
       </div>
     );
   }
@@ -148,7 +150,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
       <div className="mb-3">
         <label htmlFor="file-upload" className="btn btn-primary">
           <Upload size={18} className="me-2" />
-          {uploading ? 'Uploading...' : 'Upload File'}
+          {uploading ? t('Uploading') : t('UploadFile')}
         </label>
         <input
           id="file-upload"
@@ -158,7 +160,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
           disabled={uploading}
         />
         <small className="d-block text-muted mt-2">
-          Maximum file size: 5MB
+          {t('MaximumFileSize')}: 5MB
         </small>
       </div>
 
@@ -166,7 +168,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
       {attachments.length === 0 ? (
         <div className="text-center py-4 text-muted">
           <FileText size={48} className="mb-3 opacity-50" />
-          <p>No attachments yet</p>
+          <p>{t('NoAttachmentsYet')}</p>
         </div>
       ) : (
         <ListGroup>
@@ -191,7 +193,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
                   </Badge>
                 </div>
                 <small className="text-muted">
-                  Uploaded {formatDate(attachment.uploadedAt)}
+                  {t('Uploaded')} {formatDate(attachment.uploadedAt)}
                 </small>
               </div>
               <div className="d-flex gap-2">
@@ -202,7 +204,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
                     e.stopPropagation();
                     handleDownload(attachment);
                   }}
-                  title="Download file"
+                  title={t('DownloadFile')}
                 >
                   <Download size={16} />
                 </Button>
@@ -210,7 +212,7 @@ const AttachmentsTab: React.FC<AttachmentsTabProps> = ({ projectId, taskId }) =>
                   variant="outline-danger"
                   size="sm"
                   onClick={() => handleDelete(attachment.id)}
-                  title="Delete"
+                  title={t('Delete')}
                 >
                   <X size={16} />
                 </Button>

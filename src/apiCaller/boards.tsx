@@ -16,6 +16,8 @@ export interface TaskResponse {
   estimatedHours?: number;
   assigneeId?: string | null; // Allow null for unassigned
   sprintId?: string;
+  epicId?: number | null;
+  epicTitle?: string;
   tags?: string;
   orderIndex: number;
   projectId: string;

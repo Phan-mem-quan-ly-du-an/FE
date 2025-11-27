@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button } from 'reactstrap';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ProjectMember } from '../../apiCaller/projectMembers';
 import { assignProjectMemberRole } from '../../apiCaller/projectMembers';
@@ -24,6 +25,7 @@ export default function AssignProjectRoleModal({
     onSuccess,
     onError,
 }: AssignProjectRoleModalProps) {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
 
     const { data: roles = [] } = useQuery<ProjectRole[]>({
@@ -46,28 +48,28 @@ export default function AssignProjectRoleModal({
             roleId: member?.roleId?.toString() || '',
         },
         validationSchema: Yup.object({
-            roleId: Yup.string().required('Please select a role'),
+            roleId: Yup.string().required(t('PleaseSelectRole')),
         }),
         onSubmit: (values) => {
             if (!member) return;
             if ((member as any).owner) {
-                onError?.('Cannot assign a role to the owner. Please use the transfer ownership feature.');
+                onError?.(t('CannotAssignRoleToOwnerProject'));
                 return;
             }
             if (!values.roleId) {
-                onError?.('Please select a role');
+                onError?.(t('PleaseSelectRole'));
                 return;
             }
             assignRoleMutation.mutate(
                 { projectId, memberId: member.userId, roleId: parseInt(values.roleId) },
                 {
                     onSuccess: () => {
-                        onSuccess?.('Role updated successfully');
+                        onSuccess?.(t('RoleUpdatedSuccessfully'));
                         validation.resetForm();
                         onClose();
                     },
                     onError: (error: any) => {
-                        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update role';
+                        const errorMessage = error?.response?.data?.message || error?.message || t('FailedToUpdateRole');
                         onError?.(errorMessage);
                     },
                 }
@@ -89,7 +91,7 @@ export default function AssignProjectRoleModal({
     return (
         <Modal id="assignProjectRoleModal" isOpen={show} toggle={onClose} centered>
             <ModalHeader className="bg-light p-3" toggle={onClose}>
-                Assign Role
+                {t('AssignRole')}
             </ModalHeader>
             <Form className="tablelist-form" onSubmit={(e: any) => {
                 e.preventDefault();
@@ -99,7 +101,7 @@ export default function AssignProjectRoleModal({
                 <ModalBody>
                     {isOwner && (
                         <div className="alert alert-warning">
-                            Cannot assign a role to the owner. Please use the transfer ownership feature.
+                            {t('CannotAssignRoleToOwnerProject')}
                         </div>
                     )}
 
@@ -107,11 +109,11 @@ export default function AssignProjectRoleModal({
                         <table className="table table-bordered align-middle">
                             <tbody>
                                 <tr>
-                                    <th style={{ width: 180 }}>Member (userId)</th>
-                                    <td className="font-monospace">{member.userId}</td>
+                                    <th style={{ width: 180 }}>{t('Email')}</th>
+                                    <td>{member.email || member.userId}</td>
                                 </tr>
                                 <tr>
-                                    <th>Current Role ID</th>
+                                    <th>{t('CurrentRoleID')}</th>
                                     <td>{isOwner ? 'OWNER' : (member.roleId ?? '—')}</td>
                                 </tr>
                             </tbody>
@@ -119,7 +121,7 @@ export default function AssignProjectRoleModal({
                     </div>
 
                     <div className="mb-3">
-                        <Label htmlFor="role-field" className="form-label">Role</Label>
+                        <Label htmlFor="role-field" className="form-label">{t('Role')}</Label>
                         <Input
                             name="roleId"
                             id="role-field"
@@ -131,7 +133,7 @@ export default function AssignProjectRoleModal({
                             value={validation.values.roleId || ''}
                             invalid={validation.touched.roleId && !!validation.errors.roleId}
                         >
-                            <option value="">Select a role</option>
+                            <option value="">{t('SelectRole')}</option>
                             {roles.map((role: ProjectRole) => (
                                 <option key={role.id} value={role.id}>
                                     {role.name || role.code}
@@ -143,13 +145,13 @@ export default function AssignProjectRoleModal({
                         ) : null}
                     </div>
 
-                    <div className="text-muted small">Select a role and click Save to assign it to the member.</div>
+                    <div className="text-muted small">{t('SelectRoleAndSave')}</div>
                 </ModalBody>
                 <div className="modal-footer">
                     <div className="hstack gap-2 justify-content-end">
-                        <Button type="button" className="btn btn-light" onClick={onClose}>Close</Button>
+                        <Button type="button" className="btn btn-light" onClick={onClose}>{t('Close')}</Button>
                         <Button type="submit" className="btn btn-primary" disabled={assignRoleMutation.isPending || isOwner}>
-                            {assignRoleMutation.isPending ? 'Saving...' : 'Save'}
+                            {assignRoleMutation.isPending ? t('Saving') : t('Save')}
                         </Button>
                     </div>
                 </div>
