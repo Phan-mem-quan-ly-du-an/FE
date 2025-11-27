@@ -144,8 +144,9 @@
       .task-count-badge {
         font-size: 10px;
         padding: 3px 7px;
-        background-color: #dfe1e6;
-        color: #5e6c84;
+        background-color: #ffffff;
+        color: #000000;
+        border: 1px solid #000000;
       }
 
       .btn {
@@ -259,7 +260,7 @@
       }
     }
 
-    .task-actions-right {
+  .task-actions-right {
       display: flex;
       flex-direction: row;
       gap: 3px;
@@ -408,6 +409,43 @@
         background-color: #f4f5f7;
         border-color: #b3bac5;
       }
+    }
+  }
+
+  .epic-detail-actions {
+    .btn {
+      background-color: #ffffff;
+    }
+    .add-task.btn-outline-primary {
+      color: #0d6efd;
+      border: none;
+      background-color: rgba(47, 111, 230, 0.12);
+      &:hover {
+        background-color: rgba(47, 111, 230, 0.24);
+      }
+    }
+    .save-epic.btn-outline-success {
+      color: #10b981;
+      border-color: #10b981;
+      background-color: rgba(16, 185, 129, 0.12);
+      &:hover {
+        background-color: rgba(16, 185, 129, 0.24);
+      }
+    }
+    .delete-epic.btn-outline-danger {
+      color: #dc3545;
+      border-color: #dc3545;
+      background-color: rgba(220, 53, 69, 0.12);
+      &:hover {
+        background-color: rgba(220, 53, 69, 0.24);
+      }
+    }
+    .btn-remove-epic-task {
+      font-size: 12px;
+      padding: 2px 6px;
+    }
+    .btn:hover {
+      opacity: 0.98;
     }
   }
 }
