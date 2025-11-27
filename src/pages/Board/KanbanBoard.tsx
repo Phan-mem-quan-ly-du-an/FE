@@ -7,6 +7,7 @@ import {
   Row,
   Col,
   Card,
+  CardBody,
   Button,
   Badge,
   Modal,
@@ -745,17 +746,6 @@ const KanbanBoard: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
-                {board.activeSprintId ? (
-                  <Badge color="success" className="me-1">
-                    <i className="ri-play-circle-line me-1"></i>
-                    {board.activeSprintName}
-                  </Badge>
-                ) : (
-                  <Badge color="secondary" className="me-1">
-                    <i className="ri-information-line me-1"></i>
-                    No active sprint
-                  </Badge>
-                )}
                 {board.activeSprintId && (
                   <>
                     {/* Sprint Detail Button */}
@@ -887,88 +877,88 @@ const KanbanBoard: React.FC = () => {
 
         {/* Statistics Cards */}
         <Row className="mb-3">
-          <Col md={3}>
-            <Card className="border-0 shadow-sm">
-              <div className="card-body p-3">
+          <Col xl={3} md={6}>
+            <Card className="card-animate">
+              <CardBody>
                 <div className="d-flex align-items-center">
+                  <div className="flex-grow-1">
+                    <p className="text-uppercase fw-medium text-muted mb-0">{t('TotalTasks')}</p>
+                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm rounded-circle bg-primary bg-gradient">
-                      <span className="avatar-title">
-                        <i className="ri-task-line fs-4"></i>
-                      </span>
+                    <div className="avatar-sm">
+                      <div className="avatar-title bg-primary-subtle text-primary rounded fs-3">
+                        <i className="ri-task-line"></i>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">{t('TotalTasks')}</h6>
-                    <h4 className="mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
-                  </div>
                 </div>
-              </div>
+                <div className="d-flex align-items-end justify-content-between mt-2">
+                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
+                </div>
+              </CardBody>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="border-0 shadow-sm">
-              <div className="card-body p-3">
+          <Col xl={3} md={6}>
+            <Card className="card-animate">
+              <CardBody>
                 <div className="d-flex align-items-center">
+                  <div className="flex-grow-1">
+                    <p className="text-uppercase fw-medium text-muted mb-0">{t('HighPriority')}</p>
+                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm rounded-circle bg-warning bg-gradient">
-                      <span className="avatar-title">
-                        <i className="ri-alert-line fs-4"></i>
-                      </span>
+                    <div className="avatar-sm">
+                      <div className="avatar-title bg-danger-subtle text-danger rounded fs-3">
+                        <i className="ri-alert-line"></i>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">{t('HighPriority')}</h6>
-                    <h4 className="mb-0">
-                      {board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}
-                    </h4>
-                  </div>
                 </div>
-              </div>
+                <div className="d-flex align-items-end justify-content-between mt-2">
+                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}</h4>
+                </div>
+              </CardBody>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="border-0 shadow-sm">
-              <div className="card-body p-3">
+          <Col xl={3} md={6}>
+            <Card className="card-animate">
+              <CardBody>
                 <div className="d-flex align-items-center">
+                  <div className="flex-grow-1">
+                    <p className="text-uppercase fw-medium text-muted mb-0">{t('Assigned')}</p>
+                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm rounded-circle bg-success bg-gradient">
-                      <span className="avatar-title">
-                        <i className="ri-check-double-line fs-4"></i>
-                      </span>
+                    <div className="avatar-sm">
+                      <div className="avatar-title bg-success-subtle text-success rounded fs-3">
+                        <i className="ri-user-line"></i>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">{t('Completed')}</h6>
-                    <h4 className="mb-0">
-                      {board.columns
-                        .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
-                        .reduce((sum, col) => sum + col.tasks.length, 0)}
-                    </h4>
-                  </div>
                 </div>
-              </div>
+                <div className="d-flex align-items-end justify-content-between mt-2">
+                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}</h4>
+                </div>
+              </CardBody>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="border-0 shadow-sm">
-              <div className="card-body p-3">
+          <Col xl={3} md={6}>
+            <Card className="card-animate">
+              <CardBody>
                 <div className="d-flex align-items-center">
+                  <div className="flex-grow-1">
+                    <p className="text-uppercase fw-medium text-muted mb-0">{t('Unassigned')}</p>
+                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm rounded-circle bg-info bg-gradient">
-                      <span className="avatar-title">
-                        <i className="ri-user-follow-line fs-4"></i>
-                      </span>
+                    <div className="avatar-sm">
+                      <div className="avatar-title bg-warning-subtle text-warning rounded fs-3">
+                        <i className="ri-user-unfollow-line"></i>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">{t('Assigned')}</h6>
-                    <h4 className="mb-0">
-                      {board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}
-                    </h4>
-                  </div>
                 </div>
-              </div>
+                <div className="d-flex align-items-end justify-content-between mt-2">
+                  <h4 className="fs-22 fw-semibold mb-0">{board.columns.flatMap(col => col.tasks).filter(t => !t.assigneeId).length}</h4>
+                </div>
+              </CardBody>
             </Card>
           </Col>
         </Row>
