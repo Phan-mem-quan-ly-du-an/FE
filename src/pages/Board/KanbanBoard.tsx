@@ -1605,7 +1605,18 @@ const TaskCard: React.FC<TaskCardProps & {
         {viewDensity === 'comfortable' && task.tags && (
           <div className="mb-2" onClick={() => onTaskClick(task)}>
             {task.tags.split(',').map((tag, idx) => (
-              <Badge key={idx} color="light" className="me-1 mb-1" style={{ fontSize: '10px' }}>
+              <Badge 
+                key={idx} 
+                className="me-1 mb-1" 
+                style={{ 
+                  fontSize: '11px',
+                  backgroundColor: '#e0e7ff',
+                  color: '#4338ca',
+                  border: '1px solid #c7d2fe',
+                  fontWeight: '500',
+                  padding: '4px 8px'
+                }}
+              >
                 {tag.trim()}
               </Badge>
             ))}
