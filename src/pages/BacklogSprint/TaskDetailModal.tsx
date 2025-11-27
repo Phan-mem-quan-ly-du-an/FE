@@ -3,6 +3,7 @@ import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import AttachmentsTab from './AttachmentsTab';
 import '../../assets/scss/pages/TaskDetailModal.scss';
@@ -25,6 +26,7 @@ interface Task {
   };
   createdAt?: string;
   updatedAt?: string;
+  epicId?: number | null;
 }
 
 interface StatusColumn {
@@ -52,6 +54,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [formData, setFormData] = useState<Task>(task);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const [epics, setEpics] = useState<{ id: number; title: string }[]>([]);
 
   // Mock data - Replace with actual API calls
   const [statusColumns] = useState<StatusColumn[]>([
@@ -89,7 +92,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     const anyTask: any = task as any;
     const normalizedTask: Task = {
       ...task,
-      assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined
+      assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined,
+      epicId: anyTask.epicId ?? task.epicId ?? null
     };
     setFormData(normalizedTask);
   }, [task]);
@@ -125,6 +129,23 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     });
   };
 
+  useEffect(() => {
+    const loadEpics = async () => {
+      try {
+        const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics`).get();
+        const data = res?.data?.data || res?.data || [];
+        setEpics(Array.isArray(data) ? data : (data.content || []));
+      } catch {
+        setEpics([]);
+      }
+    };
+    if (show) loadEpics();
+  }, [projectId, show]);
+
+  const handleEpicChange = (epicId: number | null) => {
+    setFormData({ ...formData, epicId });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -149,11 +170,22 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         estimatedHours: formData.estimatedHours,
         tags: formData.tags,
         orderIndex: formData.orderIndex,
-        statusColumn: formData.statusColumn
+        statusColumn: formData.statusColumn,
+        // Do not rely on generic update for epic; patch epic via dedicated endpoint
       };
       
       await taskAPI.update(projectId, task.id, apiPayload);
-      toast.success(t('TaskUpdatedSuccessfully'));
+
+      // Patch epic if changed
+      const previousEpicId = (task as any).epicId ?? null;
+      const currentEpicId = formData.epicId ?? null;
+      if (previousEpicId !== currentEpicId) {
+        await new ApiCaller()
+          .setUrl(`/projects/${projectId}/tasks/${task.id}/epic`)
+          .setQueryParams({ epicId: currentEpicId ?? '' })
+          .patch({ data: {} });
+      }
+      toast.success('Task updated successfully');
       onUpdate();
       onHide();
     } catch (error: any) {
@@ -365,7 +397,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </div>
               </div>
 
-              <div className="row">
+              <div className="row inline-four">
                 <div className="col-md-6">
                   <Form.Group className="mb-3">
                     <Form.Label>{t('EstimatedHours')}</Form.Label>
@@ -378,6 +410,23 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         estimatedHours: e.target.value ? parseInt(e.target.value) : undefined 
                       })}
                     />
+                  </Form.Group>
+                </div>
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Epic</Form.Label>
+                    <Form.Select
+                      value={formData.epicId ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleEpicChange(v === '' ? null : parseInt(v));
+                      }}
+                    >
+                      <option value="">None</option>
+                      {epics.map(epic => (
+                        <option key={epic.id} value={epic.id}>{epic.title}</option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </div>
               </div>

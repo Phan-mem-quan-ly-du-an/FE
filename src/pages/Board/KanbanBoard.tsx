@@ -22,6 +22,10 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
+  UncontrolledDropdown,
+  InputGroup,
+  InputGroupText,
+  Input,
 } from "reactstrap";
 import {
   DragDropContext,
@@ -103,9 +107,10 @@ const KanbanBoard: React.FC = () => {
   // View density state
   const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable'>('comfortable');
 
+  // Search query
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   // Toolbar dropdown states
-  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
-  const [viewDensityOpen, setViewDensityOpen] = useState(false);
 
   // Task detail modal states
   const [showTaskDetail, setShowTaskDetail] = useState(false);
@@ -328,11 +333,17 @@ const KanbanBoard: React.FC = () => {
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    if (filterAssignee.length === 0 && filterPriority.length === 0) {
-      return tasks;
-    }
+    const q = (searchQuery || '').trim().toLowerCase();
 
-    return tasks.filter(task => {
+    const applyQuery = (task: TaskResponse) => {
+      if (!q) return true;
+      const titleMatch = (task.title || '').toLowerCase().includes(q);
+      const idMatch = String(task.id || '').toLowerCase().includes(q);
+      const keyMatch = getTaskKey(task).toLowerCase().includes(q);
+      return titleMatch || idMatch || keyMatch;
+    };
+
+    const applyFilters = (task: TaskResponse) => {
       if (filterAssignee.length > 0) {
         const taskAssignee = task.assigneeId || 'unassigned';
         if (!filterAssignee.includes(taskAssignee)) return false;
@@ -345,7 +356,9 @@ const KanbanBoard: React.FC = () => {
       }
 
       return true;
-    });
+    };
+
+    return tasks.filter(task => applyQuery(task) && applyFilters(task));
   };
 
   // ============= HANDLE DRAG & DROP =============
@@ -694,53 +707,55 @@ const KanbanBoard: React.FC = () => {
   // Warning nếu không có active sprint
   if (!board.activeSprintId) {
     return (
-      <div className="page-content" style={{ paddingTop: "1rem" }}>
-        <Container fluid>
-          <Alert color="warning" className="mb-3">
-            <h5 className="alert-heading">
-              <i className="ri-information-line me-2"></i>
-              No Active Sprint
-            </h5>
-            <p className="mb-0">
-              Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
-              <strong>Sprint</strong> tab và set một sprint thành{" "}
-              <strong>"Active"</strong> để xem tasks trong Board.
-            </p>
-          </Alert>
-        </Container>
-      </div>
+      <>
+        <Alert color="warning" className="mb-3">
+          <h5 className="alert-heading">
+            <i className="ri-information-line me-2"></i>
+            No Active Sprint
+          </h5>
+          <p className="mb-0">
+            Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
+            <strong>Sprint</strong> tab và set một sprint thành{" "}
+            <strong>"Active"</strong> để xem tasks trong Board.
+          </p>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: "1rem" }}>
-      <Container fluid>
+    <>
         {/* HEADER - Compact */}
-        <Row className="mb-2">
+        <Row className="align-items-center mb-3">
           <Col>
             <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h5 className="mb-1">{board.name}</h5>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted small">
-                    {board.description || ""}
-                  </span>
-                  {board.activeSprintId ? (
-                    <Badge color="success" className="ms-2">
-                      <i className="ri-play-circle-line me-1"></i>
-                      {board.activeSprintName}
-                    </Badge>
-                  ) : (
-                    <Badge color="secondary" className="ms-2">
-                      <i className="ri-information-line me-1"></i>
-                      No active sprint
-                    </Badge>
-                  )}
-                </div>
+              <div style={{ maxWidth: 420, width: '100%' }}>
+                <InputGroup>
+                  <InputGroupText>
+                    <i className="ri-search-line"></i>
+                  </InputGroupText>
+                  <Input
+                    type="text"
+                    placeholder={t('SearchTasksPlaceholder')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
               </div>
 
               {/* ACTION BUTTONS */}
-              <div className="d-flex gap-2">
+              <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                {board.activeSprintId ? (
+                  <Badge color="success" className="me-1">
+                    <i className="ri-play-circle-line me-1"></i>
+                    {board.activeSprintName}
+                  </Badge>
+                ) : (
+                  <Badge color="secondary" className="me-1">
+                    <i className="ri-information-line me-1"></i>
+                    No active sprint
+                  </Badge>
+                )}
                 {board.activeSprintId && (
                   <>
                     {/* Sprint Detail Button */}
@@ -790,10 +805,10 @@ const KanbanBoard: React.FC = () => {
 
                 {/* Bulk Actions Bar */}
                 {selectedTasks.length > 0 && (
-                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded">
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded flex-wrap">
                     <CheckSquare size={18} className="text-primary" />
                     <span className="fw-medium">{selectedTasks.length} {t('Selected')}</span>
-                    <Dropdown isOpen={bulkActionsOpen} toggle={() => setBulkActionsOpen(!bulkActionsOpen)}>
+                    <UncontrolledDropdown>
                       <DropdownToggle caret color="primary" size="sm">
                         {t('BulkAssign')}
                       </DropdownToggle>
@@ -801,22 +816,20 @@ const KanbanBoard: React.FC = () => {
                         {projectMembers.map(member => (
                           <DropdownItem
                             key={member.userId}
-                            onClick={() => {
-                              bulkAssign(member.userId);
-                              setBulkActionsOpen(false);
-                            }}
+                            onClick={() => bulkAssign(member.userId)}
                           >
                             {member.displayName}
                           </DropdownItem>
                         ))}
                       </DropdownMenu>
-                    </Dropdown>
+                    </UncontrolledDropdown>
                     <Button
-                      color="light"
+                      color="secondary"
+                      outline
                       size="sm"
                       onClick={() => setSelectedTasks([])}
                     >
-                      {t('Cancel')}
+                      {t('Clear')}
                     </Button>
                   </div>
                 )}
@@ -837,26 +850,20 @@ const KanbanBoard: React.FC = () => {
                 </Button>
 
                 {/* View Density Dropdown */}
-                <Dropdown isOpen={viewDensityOpen} toggle={() => setViewDensityOpen(!viewDensityOpen)}>
+                <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
                     <Layers size={14} className="me-1" />
                     {viewDensity === 'compact' ? t('Compact') : t('Comfortable')}
                   </DropdownToggle>
                   <DropdownMenu>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('comfortable');
-                      setViewDensityOpen(false);
-                    }}>
+                    <DropdownItem onClick={() => setViewDensity('comfortable')}>
                       {t('Comfortable')}
                     </DropdownItem>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('compact');
-                      setViewDensityOpen(false);
-                    }}>
+                    <DropdownItem onClick={() => setViewDensity('compact')}>
                       {t('Compact')}
                     </DropdownItem>
                   </DropdownMenu>
-                </Dropdown>
+                </UncontrolledDropdown>
 
                 {/* Export CSV Button */}
                 <Button color="light" size="sm" onClick={exportToCSV}>
@@ -976,8 +983,7 @@ const KanbanBoard: React.FC = () => {
               display: "flex",
               gap: "16px",
               overflowX: "auto",
-              paddingBottom: "16px",
-              // Custom scrollbar
+              paddingBottom: "8px",
               scrollbarWidth: "thin",
               scrollbarColor: "#888 #f1f1f1",
             }}
@@ -1439,8 +1445,7 @@ const KanbanBoard: React.FC = () => {
             </Button>
           </ModalFooter>
         </Modal>
-      </Container>
-    </div>
+    </>
   );
 };
 

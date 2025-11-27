@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form, ProgressBar, Card, Modal, Spinner } from 'react-bootstrap';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw } from 'lucide-react';
+import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw, ChevronDown, ChevronLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import CreateSprintModal from './CreateSprintModal';
@@ -28,6 +28,7 @@ interface Task {
     tags?: string;
     orderIndex: number;
     archivedAt?: string | null;
+    epicId?: number | null;
     statusColumn?: {
         id: number;
         name: string;
@@ -92,8 +93,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     const [showTaskDetail, setShowTaskDetail] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [createTaskSprintId, setCreateTaskSprintId] = useState<number | null>(null);
-    const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
-    const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' } | null>(null);
+    const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([
+        { userId: 'unassigned', displayName: 'Unassigned', email: '' }
+    ]);
+    const [openDropdown, setOpenDropdown] = useState<{ taskId: number; type: 'status' | 'assignee' | 'epic' } | null>(null);
     const [showArchived, setShowArchived] = useState(false);
     const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([
         { id: 1, name: 'TO DO', color: '#840417ff' },
@@ -101,6 +104,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         { id: 3, name: 'DONE', color: '#10b981' }
     ]);
     const [epics, setEpics] = useState<Epic[]>([]);
+    const [expandedEpicIds, setExpandedEpicIds] = useState<number[]>([]);
     const [showCreateEpic, setShowCreateEpic] = useState(false);
     const [creatingEpic, setCreatingEpic] = useState(false);
     const [newEpicTitle, setNewEpicTitle] = useState('');
@@ -313,9 +317,16 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         }
     };
 
-    const handleSelectEpic = (epicId: number) => {
-        setSelectedEpicId(epicId);
+    const toggleEpicFilter = (epicId: number) => {
+        setSelectedEpicId(prev => (prev === epicId ? null : epicId));
+    };
+
+    const openEpicDetail = (epicId: number) => {
         loadEpicDetail(epicId);
+    };
+
+    const toggleEpicExpand = (epicId: number) => {
+        setExpandedEpicIds(prev => prev.includes(epicId) ? prev.filter(id => id !== epicId) : [...prev, epicId]);
     };
 
     const handleUpdateEpic = async () => {
@@ -702,6 +713,27 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         }
     };
 
+    const handleEpicChange = async (task: Task, epicId: number | null, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const previousEpicId = task.epicId ?? null;
+
+        setOpenDropdown(null);
+
+        updateTaskLocally(task.id, { epicId });
+
+        try {
+            await new ApiCaller()
+                .setUrl(`/projects/${projectId}/tasks/${task.id}/epic`)
+                .setQueryParams({ epicId: epicId ?? '' })
+                .patch({ data: {} });
+            toast.success(epicId ? 'Epic assigned' : 'Epic removed', { autoClose: 1500 });
+        } catch (error: any) {
+            console.error('Error updating epic:', error);
+            toast.error(error?.response?.data?.message || 'Failed to update epic');
+            updateTaskLocally(task.id, { epicId: previousEpicId });
+        }
+    };
+
     const onDragEnd = async (result: DropResult) => {
         const { source, destination, draggableId } = result;
 
@@ -1039,6 +1071,54 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
                     {!isArchived && (
                         <div className="task-actions-right" onClick={(e) => e.stopPropagation()}>
+                            {/* Epic Dropdown - left of Status */}
+                            <Dropdown
+                                className="d-inline-block"
+                                drop="down"
+                                show={openDropdown?.taskId === task.id && openDropdown?.type === 'epic'}
+                                onToggle={(isOpen) => {
+                                    if (isOpen) {
+                                        setOpenDropdown({ taskId: task.id, type: 'epic' });
+                                    } else {
+                                        setOpenDropdown(null);
+                                    }
+                                }}
+                            >
+                                <Dropdown.Toggle
+                                    variant="light"
+                                    size="sm"
+                                    id={`epic-dropdown-${task.id}`}
+                                    className="task-action-btn"
+                                    style={{
+                                        fontSize: '10px',
+                                        padding: '2px 6px',
+                                        backgroundColor: task.epicId ? '#eae6ff' : '#f4f5f7',
+                                        color: task.epicId ? '#5e4db2' : '#5e6c84',
+                                        border: task.epicId ? '1px solid #c0b6f2' : '1px solid #dfe1e6',
+                                    }}
+                                >
+                                    {task.epicId ? (epics.find(e => e.id === task.epicId)?.title || 'Epic') : 'Epic'}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                    <Dropdown.Item
+                                        active={!task.epicId}
+                                        onClick={(e) => handleEpicChange(task, null, e)}
+                                    >
+                                        None
+                                    </Dropdown.Item>
+                                    {epics.map((epic) => (
+                                        <Dropdown.Item
+                                            key={`epic-${epic.id}`}
+                                            active={task.epicId === epic.id}
+                                            onClick={(e) => handleEpicChange(task, epic.id, e)}
+                                        >
+                                            {epic.title}
+                                        </Dropdown.Item>
+                                    ))}
+                                </Dropdown.Menu>
+                            </Dropdown>
+
+                            {/* Status Dropdown */}
                             <Dropdown
                                 className="d-inline-block"
                                 drop="down"
@@ -1046,6 +1126,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 onToggle={(isOpen) => {
                                     if (isOpen) {
                                         setOpenDropdown({ taskId: task.id, type: 'status' });
+                                        
                                     } else {
                                         setOpenDropdown(null);
                                     }
@@ -1081,16 +1162,16 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                             onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
                                             active={currentStatus.name === status.name}
                                         >
-                      <span
-                          className="d-inline-block me-2"
-                          style={{
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              backgroundColor: status.color
-                          }}
-                      />
-                                            {statusDisplayName}
+                                        <span
+                                            className="d-inline-block me-2"
+                                            style={{
+                                                width: '10px',
+                                                height: '10px',
+                                                borderRadius: '50%',
+                                                backgroundColor: status.color
+                                            }}
+                                        />
+                                            {status.name}
                                         </Dropdown.Item>
                                         );
                                     })}
@@ -1190,6 +1271,20 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         );
     }
 
+    const filteredBacklogTasks = selectedEpicId
+        ? backlogTasks.filter(t => t.epicId === selectedEpicId)
+        : backlogTasks;
+
+    const filteredSprintTasks: { [sprintId: number]: Task[] } = selectedEpicId
+        ? Object.fromEntries(
+            Object.entries(sprintTasks).map(([sid, list]) => [Number(sid), list.filter(t => t.epicId === selectedEpicId)])
+          )
+        : sprintTasks;
+
+    const filteredArchivedTasks = selectedEpicId
+        ? archivedTasks.filter(t => t.epicId === selectedEpicId)
+        : archivedTasks;
+
     return (
         <Container fluid className="backlog-sprint-page">
             <Row className="mb-3 align-items-center page-header">
@@ -1211,7 +1306,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     <Form.Check
                         type="switch"
                         id="show-epics-toggle"
-                        label={`${showEpicSidebar ? 'Hide' : 'Show'} Epics`}
+                        label={`${showEpicSidebar ? t('HideEpics') : t('ShowEpics')}`}
                         checked={showEpicSidebar}
                         onChange={(e) => {
                             setShowEpicSidebar(e.target.checked);
@@ -1222,12 +1317,12 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             </Row>
             <Row>
                 {showEpicSidebar && (
-                    <Col md={3} className="mb-3">
+                    <Col md={2} className="mb-3">
                         <Card>
                             <Card.Body>
-                                <h6 className="mb-3">Epics</h6>
+                                <h6 className="mb-3">{t('Epics')}</h6>
                                 {epics.length === 0 ? (
-                                    <div className="text-muted">No epics</div>
+                                    <div className="text-muted">{t('NoEpics')}</div>
                                 ) : (
                                     <div className="d-flex flex-column gap-3">
                                         {epics.map(e => {
@@ -1236,17 +1331,59 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                             const percent = typeof e.progressPercent === 'number'
                                                 ? Math.round(e.progressPercent)
                                                 : (total && done ? Math.round((done / Math.max(total, 1)) * 100) : 0);
+                                            const isExpanded = expandedEpicIds.includes(e.id);
                                         return (
-                                            <div key={e.id}>
-                                                <div className="d-flex align-items-center justify-content-between mb-1">
-                                                    <Button variant="link" className="p-0 fw-semibold text-truncate" title={e.title} onClick={() => handleSelectEpic(e.id)}>
-                                                        {e.title}
-                                                    </Button>
-                                                    <span className="small text-muted">{percent}%</span>
+                                            <div
+                                                key={e.id}
+                                                className={`epic-card ${selectedEpicId === e.id ? 'selected' : ''}`}
+                                                onClick={() => toggleEpicFilter(e.id)}
+                                                role="button"
+                                            >
+                                                <div className="d-flex align-items-start justify-content-between mb-1">
+                                                    <div className="fw-semibold text-truncate" title={e.title}>{e.title}</div>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="small text-muted">{percent}%</span>
+                                                        <Button
+                                                            type="button"
+                                                            variant="link"
+                                                            size="sm"
+                                                            className="p-0 epic-card-menu"
+                                                            title={isExpanded ? t('HideInfo') : t('ShowInfo')}
+                                                            onMouseDown={(ev) => ev.stopPropagation()}
+                                                            onClick={(ev) => { ev.stopPropagation(); toggleEpicExpand(e.id); }}
+                                                        >
+                                                            {isExpanded ? <ChevronDown size={16} /> : <ChevronLeft size={16} />}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                                 <ProgressBar now={percent} variant={percent >= 100 ? 'success' : 'info'} style={{ height: 6 }} />
                                                 {typeof total === 'number' && typeof done === 'number' && (
                                                     <div className="small text-muted mt-1">{done} / {total}</div>
+                                                )}
+                                                {isExpanded && (
+                                                    <div className="epic-card-details">
+                                                        <div className="dates small">
+                                                            <div>
+                                                                {t('Start')}: {e.startDate ? new Date(e.startDate).toLocaleDateString() : t('NA')}
+                                                            </div>
+                                                            <div>
+                                                                {t('End')}: {e.endDate ? new Date(e.endDate).toLocaleDateString() : t('NA')}
+                                                            </div>
+                                                        </div>
+                                                        <div className="actions mt-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="link"
+                                                                size="sm"
+                                                                className="p-0 epic-card-menu"
+                                                                title={t('ViewEpicDetails')}
+                                                                onMouseDown={(ev) => ev.stopPropagation()}
+                                                                onClick={(ev) => { ev.stopPropagation(); openEpicDetail(e.id); }}
+                                                            >
+                                                                {t('ViewEpicDetails')}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
@@ -1255,14 +1392,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 )}
                                 <div className="mt-3">
                                     <Button variant="outline-primary" size="sm" onClick={() => setShowCreateEpic(true)}>
-                                        <Plus size={14} className="me-1" /> Add Epic
+                                        <Plus size={14} className="me-1" /> {t('AddEpic')}
                                     </Button>
                                 </div>
                             </Card.Body>
                         </Card>
                     </Col>
                 )}
-                <Col md={showEpicSidebar ? (selectedEpic ? 6 : 9) : (selectedEpic ? 8 : 12)}>
+                <Col md={showEpicSidebar ? (selectedEpic ? 7 : 10) : (selectedEpic ? 8 : 12)}>
                     <DragDropContext onDragEnd={onDragEnd}>
                         <Accordion defaultActiveKey="backlog" alwaysOpen className="mb-3">
                     <Accordion.Item eventKey="backlog" className="sprint-accordion-item">
@@ -1271,7 +1408,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 <div className="d-flex align-items-center gap-3">
                                     <h5 className="mb-0">{t('Backlog')}</h5>
                                     <Badge bg="secondary" className="task-count-badge">
-                                        {backlogTasks.length} {backlogTasks.length === 1 ? t('Task') : t('Tasks')}
+                                        {filteredBacklogTasks.length} {t(filteredBacklogTasks.length === 1 ? 'Task' : 'Tasks')}
                                     </Badge>
                                 </div>
                                 <div className="d-flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -1298,10 +1435,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         {...provided.droppableProps}
                                         className={`tasks-list ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
                                     >
-                                        {backlogTasks.length === 0 ? (
+                                        {filteredBacklogTasks.length === 0 ? (
                                             <div className="empty-state">{t('NoTasksInBacklog')}</div>
                                         ) : (
-                                            backlogTasks.map((task, index) => renderTask(task, index))
+                                            filteredBacklogTasks.map((task, index) => renderTask(task, index))
                                         )}
                                         {provided.placeholder}
                                     </div>
@@ -1328,7 +1465,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             return 0;
                         })
                         .map((sprint, index) => {
-                            const tasks = sprintTasks[sprint.id] || [];
+                            const tasks = filteredSprintTasks[sprint.id] || [];
 
                             return (
                                 <Accordion.Item eventKey={index.toString()} key={sprint.id} className="mb-3 sprint-accordion-item">
@@ -1464,14 +1601,14 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                             {t('ArchivedTasks')}
                                         </h5>
                                         <Badge bg="secondary" className="task-count-badge">
-                                            {archivedTasks.length} {archivedTasks.length === 1 ? t('Task') : t('Tasks')}
+                                                    {filteredArchivedTasks.length} {filteredArchivedTasks.length === 1 ? 'task' : 'tasks'}
                                         </Badge>
                                     </div>
                                 </div>
                             </Accordion.Header>
                             <Accordion.Body className="sprint-accordion-body">
                                 <div className="tasks-list archived-tasks-list">
-                                    {archivedTasks.map((task, index) => renderTask(task, index, true))}
+                                    {filteredArchivedTasks.map((task, index) => renderTask(task, index, true))}
                                 </div>
                             </Accordion.Body>
                         </Accordion.Item>
@@ -1484,8 +1621,8 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         <Card>
                             <Card.Body>
                                 <div className="d-flex align-items-center justify-content-between mb-2">
-                                    <h6 className="mb-0">Epic Detail</h6>
-                                    <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedEpic(null); setSelectedEpicId(null); }}>Close</Button>
+                                    <h6 className="mb-0">{t('EpicDetail')}</h6>
+                                    <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedEpic(null); }}>Close</Button>
                                 </div>
                                 {epicLoading && (
                                     <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
@@ -1514,31 +1651,31 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                 </Form.Group>
                                             </Col>
                                         </Row>
-                                        <div className="d-flex gap-2 mt-3">
-                                            <Button variant="primary" size="sm" onClick={handleUpdateEpic} disabled={epicLoading}>Save</Button>
-                                            <Button variant="outline-danger" size="sm" onClick={handleDeleteEpic} disabled={epicLoading}>Delete</Button>
+                                        <div className="d-flex gap-2 mt-3 epic-detail-actions">
+                                            <Button variant="outline-primary" size="sm" className="add-task" onClick={() => setShowAssignTaskModal(true)}>{t('AddTask')}</Button>
+                                            <Button variant="outline-success" size="sm" className="save-epic" onClick={handleUpdateEpic} disabled={epicLoading}>{t('Save')}</Button>
+                                            <Button variant="outline-danger" size="sm" className="delete-epic" onClick={handleDeleteEpic} disabled={epicLoading}>{t('Delete')}</Button>
                                         </div>
 
                                         <hr className="my-3" />
-                                        <div className="d-flex align-items-center justify-content-between mb-2">
-                                            <h6 className="mb-0">Tasks in Epic</h6>
-                                            <Button variant="outline-primary" size="sm" onClick={() => setShowAssignTaskModal(true)}>Add Task</Button>
-                                        </div>
+                                        
                                         {epicTasksLoading ? (
                                             <div className="text-center py-2"><Spinner animation="border" size="sm" /></div>
                                         ) : epicTasks.length === 0 ? (
-                                            <div className="text-muted">No tasks assigned</div>
+                                            <div className="text-muted">{t('NoTasksAssigned')}</div>
                                         ) : (
                                             <div className="d-flex flex-column gap-2">
-                                                {epicTasks.map(t => (
-                                                    <div key={t.id} className="d-flex align-items-center justify-content-between">
+                                                {epicTasks.map(taskItem => (
+                                                    <div key={taskItem.id} className="d-flex align-items-center justify-content-between">
                                                         <div className="text-truncate">
-                                                            <span className="fw-semibold">{t.title}</span>
-                                                            {t.statusColumn?.name && (
-                                                                <Badge bg="secondary" className="ms-2">{t.statusColumn.name}</Badge>
+                                                            <Button variant="link" className="p-0 fw-semibold text-truncate" onClick={() => { setSelectedTask(taskItem); setShowTaskDetail(true); }} title={taskItem.title}>
+                                                                {taskItem.title}
+                                                            </Button>
+                                                            {taskItem.statusColumn?.name && (
+                                                                <Badge bg="secondary" className="ms-2">{taskItem.statusColumn.name}</Badge>
                                                             )}
                                                         </div>
-                                                        <Button variant="outline-secondary" size="sm" onClick={() => handleRemoveTaskFromEpic(t.id)}>Remove</Button>
+                                                        <Button variant="outline-secondary" size="sm" className="btn-remove-epic-task" onClick={() => handleRemoveTaskFromEpic(taskItem.id)}>{t('Remove')}</Button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1553,7 +1690,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
             <Modal show={showAssignTaskModal} onHide={() => setShowAssignTaskModal(false)} centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>Add Task to Epic</Modal.Title>
+                    <Modal.Title>{t('AddTaskToEpic')}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <div className="d-flex gap-3 mb-3">
@@ -1648,7 +1785,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     )}
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowAssignTaskModal(false)}>Cancel</Button>
+                    <Button variant="secondary" onClick={() => setShowAssignTaskModal(false)}>{t('Cancel')}</Button>
                     <Button
                         variant="primary"
                         onClick={assignMode === 'existing' ? handleAssignSelectedTaskToEpic : handleCreateTaskInEpic}
@@ -1705,7 +1842,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
             <Modal show={showCreateEpic} onHide={() => setShowCreateEpic(false)} centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>Create Epic</Modal.Title>
+                    <Modal.Title>{t('CreateEpic')}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form.Group className="mb-3">
@@ -1719,22 +1856,22 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     <Row className="g-2">
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Start Date</Form.Label>
+                                                    <Form.Label>{t('StartDate')}</Form.Label>
                                 <Form.Control type="date" value={newEpicStartDate} onChange={(e) => setNewEpicStartDate(e.target.value)} />
                             </Form.Group>
                         </Col>
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>End Date</Form.Label>
+                                                    <Form.Label>{t('EndDate')}</Form.Label>
                                 <Form.Control type="date" value={newEpicEndDate} onChange={(e) => setNewEpicEndDate(e.target.value)} />
                             </Form.Group>
                         </Col>
                     </Row>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowCreateEpic(false)} disabled={creatingEpic}>Cancel</Button>
+                    <Button variant="secondary" onClick={() => setShowCreateEpic(false)} disabled={creatingEpic}>{t('Cancel')}</Button>
                     <Button variant="primary" onClick={handleCreateEpic} disabled={creatingEpic}>
-                        {creatingEpic ? 'Creating...' : 'Create Epic'}
+                        {creatingEpic ? t('Creating') : t('CreateEpic')}
                     </Button>
                 </Modal.Footer>
             </Modal>
