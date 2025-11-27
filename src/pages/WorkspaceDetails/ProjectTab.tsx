@@ -26,8 +26,8 @@ import EditProjectModal from '../ProjectList/EditProjectModal';
 import CreateProjectModal from '../ProjectList/CreateProjectModal';
 
 const ProjectTab: React.FC = () => {
-    const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
     const { t } = useTranslation();
+    const { companyId, workspaceId } = useParams<{ companyId: string, workspaceId: string }>();
     const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
     const [deleteModal, setDeleteModal] = useState<boolean>(false);
     const [editModal, setEditModal] = useState<boolean>(false);
@@ -62,14 +62,14 @@ const ProjectTab: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['workspace-projects', workspaceId] });
             setDeleteModal(false);
-            toast.success(t('ProjectDeletedSuccessfully') || 'Project deleted successfully');
+            toast.success(t('ProjectDeletedSuccessfully'));
         },
         onError: (err: unknown) => {
             console.error('Error deleting project:', err);
             if (isForbiddenError(err)) {
                 toast.error(t('ProjectPermissions.DeleteProjectDenied') || 'Bạn không có quyền xóa dự án này.');
             } else {
-                toast.error(t('FailedToDeleteProject') || 'Failed to delete project');
+                toast.error(t('FailedDeleteProject'));
             }
         }
     });
@@ -98,7 +98,7 @@ const ProjectTab: React.FC = () => {
         return (
             <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
                 <Spinner color="primary" />
-                <span className="ms-2">{t('LoadingProjects') || 'Loading projects...'}</span>
+                <span className="ms-2">{t('LoadingProjects')}</span>
             </div>
         );
     }
@@ -107,8 +107,8 @@ const ProjectTab: React.FC = () => {
         const forbidden = isForbiddenError(error);
         return (
             <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
-                <i className="ri-error-warning-line me-2"></i>
-                {forbidden ? (t('WorkspacePermissions.ViewProjectsDenied') || 'Bạn không có quyền xem dự án của workspace này.') : (t('FailedToLoadProjects') || 'Failed to load projects')}
+                <i className="ri-error-warning-line me-2" />
+                {forbidden ? (t('WorkspacePermissions.ViewProjectsDenied') || 'Bạn không có quyền xem dự án của workspace này.') : t('FailedLoadProjects')}
             </div>
         );
     }
@@ -141,21 +141,21 @@ const ProjectTab: React.FC = () => {
                 <Card>
                     <CardHeader>
                         <div className="d-flex justify-content-between align-items-center">
-                            <h5 className="mb-0">{t('Projects') || 'Projects'}</h5>
+                            <h5 className="mb-0">{t('WorkspaceProjects')}</h5>
                             <div className="d-flex gap-2">
                                 <Button color="success" size="sm" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
+                                    <i className="ri-add-line me-1" /> {t('AddProject')}
                                 </Button>
                             </div>
                         </div>
                     </CardHeader>
                     <CardBody>
                         <div className="text-center py-5">
-                            <i className="ri-folder-open-line fs-1 text-muted"></i>
-                            <p className="text-muted mt-2">{t('NoProjectsInWorkspace') || 'No projects in this workspace yet.'}</p>
+                            <i className="ri-folder-open-line fs-1 text-muted" />
+                            <p className="text-muted mt-2">{t('NoProjectsInWorkspace')}</p>
                             <div className="mt-3">
                                 <Button color="success" onClick={handleCreateProject}>
-                                    <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
+                                    <i className="ri-add-line me-1" /> {t('AddProject')}
                                 </Button>
                             </div>
                         </div>
@@ -193,7 +193,7 @@ const ProjectTab: React.FC = () => {
                                                 className="avatar-title rounded p-2"
                                                 style={{ backgroundColor: getProjectColor(project) }}
                                             >
-                                              <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
+                                                <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
                                             </span>
                                         </div>
                                     </div>
@@ -209,13 +209,13 @@ const ProjectTab: React.FC = () => {
                                                 </Link>
                                             </h5>
                                             {project.archivedAt ? (
-                                                <Badge color="secondary" className="badge-soft-secondary">{t('Archived') || 'Archived'}</Badge>
+                                                <Badge color="secondary" className="badge-soft-secondary">{t('ProjectArchived')}</Badge>
                                             ) : (
-                                                <Badge color="success" className="badge-soft-success">{t('Active') || 'Active'}</Badge>
+                                                <Badge color="success" className="badge-soft-success">{t('ProjectActive')}</Badge>
                                             )}
                                         </div>
                                         <p className="text-muted text-truncate-two-lines mb-3">
-                                            {project.description || t('NoDescription') || 'No description'}
+                                            {project.description || t('NoDescriptionAvailable')}
                                         </p>
                                     </div>
                                 </div>
@@ -235,93 +235,93 @@ const ProjectTab: React.FC = () => {
                     </Card>
                 </Col>
             ))}
-                    </div>
+        </div>
     );
 
     const renderListView = () => (
-                    <div className="table-responsive">
-                        <Table className="table-nowrap align-middle mb-0">
-                            <thead className="table-light">
-                                <tr>
-                    <th scope="col">{t('Name') || 'Name'}</th>
-                    <th scope="col">{t('Description') || 'Description'}</th>
-                    <th scope="col">{t('Status') || 'Status'}</th>
-                    <th scope="col">{t('CreatedAt') || 'Created At'}</th>
-                    <th scope="col">{t('Actions') || 'Actions'}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                {projects.map((project, index) => (
-                                    <tr key={project.id}>
-                                        <td>
-                            <div className="d-flex align-items-center">
-                                <div className="avatar-sm me-2">
+        <div className="table-responsive">
+            <Table className="table-nowrap align-middle mb-0">
+                <thead className="table-light">
+                    <tr>
+                        <th scope="col">{t('ProjectName')}</th>
+                        <th scope="col">{t('ProjectDescription')}</th>
+                        <th scope="col">{t('ProjectStatus')}</th>
+                        <th scope="col">{t('ProjectCreatedAt')}</th>
+                        <th scope="col">{t('ProjectActions')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {projects.map((project, index) => (
+                        <tr key={project.id}>
+                            <td>
+                                <div className="d-flex align-items-center">
+                                    <div className="avatar-sm me-2">
                                         <span
                                             className="avatar-title rounded p-1"
                                             style={{ backgroundColor: getProjectColor(project) }}
                                         >
                                             <img src={getProjectImage(index)} alt="" className="img-fluid p-1" />
                                         </span>
+                                    </div>
+                                    <Link 
+                                        to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                        state={{ companyId: workspace?.companyId || companyId }}
+                                        className="fw-semibold link-primary"
+                                    >
+                                        {project.name}
+                                    </Link>
                                 </div>
-                                            <Link 
-                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                state={{ companyId: workspace?.companyId || companyId }}
-                                                className="fw-semibold link-primary"
-                                            >
-                                                {project.name}
-                                            </Link>
-                            </div>
-                                        </td>
-                                        <td className="text-muted">
-                            {project.description || t('NoDescription') || 'No description'}
-                                        </td>
-                                        <td>
-                                            {project.archivedAt ? (
-                                <Badge color="secondary">{t('Archived') || 'Archived'}</Badge>
-                                            ) : (
-                                <Badge color="success">{t('Active') || 'Active'}</Badge>
-                                            )}
-                                        </td>
-                                        <td>{new Date(project.createdAt).toLocaleDateString()}</td>
-                                        <td>
-                            <div className="hstack gap-3 flex-wrap">
-                                            <Link 
-                                                to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
-                                                state={{ companyId: workspace?.companyId || companyId }}
-                                    className="link-success fs-15"
-                                    title={t('View') || 'View'}
-                                >
-                                    <i className="ri-eye-line"></i>
-                                </Link>
-                                <Link
-                                    to="#"
-                                    className="link-primary fs-15"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onClickEdit(project);
-                                    }}
-                                    title={t('Edit') || 'Edit'}
-                                >
-                                    <i className="ri-pencil-line"></i>
-                                </Link>
-                                <Link
-                                    to="#"
-                                    className="link-danger fs-15"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onClickDelete(project);
-                                    }}
-                                    title={t('Delete') || 'Delete'}
-                                >
-                                    <i className="ri-delete-bin-line"></i>
-                                            </Link>
-                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </div>
+                            </td>
+                            <td className="text-muted">
+                                {project.description || t('NoDescriptionAvailable')}
+                            </td>
+                            <td>
+                                {project.archivedAt ? (
+                                    <Badge color="secondary">{t('ProjectArchived')}</Badge>
+                                ) : (
+                                    <Badge color="success">{t('ProjectActive')}</Badge>
+                                )}
+                            </td>
+                            <td>{new Date(project.createdAt).toLocaleDateString()}</td>
+                            <td>
+                                <div className="hstack gap-3 flex-wrap">
+                                    <Link 
+                                        to={`/companies/${workspace?.companyId || companyId || ''}/projects/${project.id}`}
+                                        state={{ companyId: workspace?.companyId || companyId }}
+                                        className="link-success fs-15"
+                                        title={t('View')}
+                                    >
+                                        <i className="ri-eye-line" />
+                                    </Link>
+                                    <Link
+                                        to="#"
+                                        className="link-primary fs-15"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onClickEdit(project);
+                                        }}
+                                        title={t('Edit')}
+                                    >
+                                        <i className="ri-pencil-line" />
+                                    </Link>
+                                    <Link
+                                        to="#"
+                                        className="link-danger fs-15"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onClickDelete(project);
+                                        }}
+                                        title={t('Delete')}
+                                    >
+                                        <i className="ri-delete-bin-line" />
+                                    </Link>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </Table>
+        </div>
     );
 
     return (
@@ -351,7 +351,7 @@ const ProjectTab: React.FC = () => {
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">{t('Projects') || 'Projects'}</h5>
+                        <h5 className="mb-0">{t('WorkspaceProjects')}</h5>
                         <div className="d-flex gap-2">
                             <div className="btn-group" role="group">
                                 <Button
@@ -360,7 +360,7 @@ const ProjectTab: React.FC = () => {
                                     className="btn-icon"
                                     size="sm"
                                 >
-                                    <i className="ri-grid-fill"></i>
+                                    <i className="ri-grid-fill" />
                                 </Button>
                                 <Button
                                     color={viewMode === 'list' ? 'primary' : 'light'}
@@ -368,11 +368,11 @@ const ProjectTab: React.FC = () => {
                                     className="btn-icon"
                                     size="sm"
                                 >
-                                    <i className="ri-list-check"></i>
+                                    <i className="ri-list-check" />
                                 </Button>
                             </div>
                             <Button color="success" size="sm" onClick={handleCreateProject}>
-                                <i className="ri-add-line me-1"></i> {t('AddProject') || 'Add Project'}
+                                <i className="ri-add-line me-1" /> {t('AddProject')}
                             </Button>
                         </div>
                     </div>

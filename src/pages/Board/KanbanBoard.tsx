@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import {
   Container,
   Row,
@@ -53,6 +54,7 @@ import "../../assets/scss/pages/KanbanBoard.scss";
 const KanbanBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // ============= STATE =============
   const [board, setBoard] = useState<BoardResponse | null>(null);
@@ -749,7 +751,7 @@ const KanbanBoard: React.FC = () => {
                       className="d-flex align-items-center"
                     >
                       <Eye size={14} className="me-1" />
-                      Sprint Detail
+                      {t('SprintDetail')}
                     </Button>
 
                     {/* Edit Sprint Button */}
@@ -760,7 +762,7 @@ const KanbanBoard: React.FC = () => {
                       className="d-flex align-items-center"
                     >
                       <Edit size={14} className="me-1" />
-                      Edit Sprint
+                      {t('EditSprint')}
                     </Button>
 
                     {/* Complete Sprint Button */}
@@ -774,12 +776,12 @@ const KanbanBoard: React.FC = () => {
                       {isCompletingSprint ? (
                         <>
                           <Spinner size="sm" className="me-1" />
-                          Completing...
+                          {t('Completing')}
                         </>
                       ) : (
                         <>
                           <Check size={14} className="me-1" />
-                          Complete Sprint
+                          {t('CompleteSprint')}
                         </>
                       )}
                     </Button>
@@ -790,10 +792,10 @@ const KanbanBoard: React.FC = () => {
                 {selectedTasks.length > 0 && (
                   <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded">
                     <CheckSquare size={18} className="text-primary" />
-                    <span className="fw-medium">{selectedTasks.length} selected</span>
+                    <span className="fw-medium">{selectedTasks.length} {t('Selected')}</span>
                     <Dropdown isOpen={bulkActionsOpen} toggle={() => setBulkActionsOpen(!bulkActionsOpen)}>
                       <DropdownToggle caret color="primary" size="sm">
-                        Bulk Assign
+                        {t('BulkAssign')}
                       </DropdownToggle>
                       <DropdownMenu>
                         {projectMembers.map(member => (
@@ -814,7 +816,7 @@ const KanbanBoard: React.FC = () => {
                       size="sm"
                       onClick={() => setSelectedTasks([])}
                     >
-                      Cancel
+                      {t('Cancel')}
                     </Button>
                   </div>
                 )}
@@ -826,7 +828,7 @@ const KanbanBoard: React.FC = () => {
                   onClick={() => setShowFiltersModal(true)}
                 >
                   <i className="ri-filter-line me-1"></i>
-                  Filters
+                  {t('Filters')}
                   {getActiveFiltersCount() > 0 && (
                     <Badge color="primary" className="ms-1" pill>
                       {getActiveFiltersCount()}
@@ -838,20 +840,20 @@ const KanbanBoard: React.FC = () => {
                 <Dropdown isOpen={viewDensityOpen} toggle={() => setViewDensityOpen(!viewDensityOpen)}>
                   <DropdownToggle caret color="light" size="sm">
                     <Layers size={14} className="me-1" />
-                    {viewDensity === 'compact' ? 'Compact' : 'Comfortable'}
+                    {viewDensity === 'compact' ? t('Compact') : t('Comfortable')}
                   </DropdownToggle>
                   <DropdownMenu>
                     <DropdownItem onClick={() => {
                       setViewDensity('comfortable');
                       setViewDensityOpen(false);
                     }}>
-                      Comfortable
+                      {t('Comfortable')}
                     </DropdownItem>
                     <DropdownItem onClick={() => {
                       setViewDensity('compact');
                       setViewDensityOpen(false);
                     }}>
-                      Compact
+                      {t('Compact')}
                     </DropdownItem>
                   </DropdownMenu>
                 </Dropdown>
@@ -859,7 +861,7 @@ const KanbanBoard: React.FC = () => {
                 {/* Export CSV Button */}
                 <Button color="light" size="sm" onClick={exportToCSV}>
                   <Download size={14} className="me-1" />
-                  Export
+                  {t('Export')}
                 </Button>
 
                 {/* Add Column Button */}
@@ -890,7 +892,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Total Tasks</h6>
+                    <h6 className="mb-0 text-muted">{t('TotalTasks')}</h6>
                     <h4 className="mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
                   </div>
                 </div>
@@ -909,7 +911,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">High Priority</h6>
+                    <h6 className="mb-0 text-muted">{t('HighPriority')}</h6>
                     <h4 className="mb-0">
                       {board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}
                     </h4>
@@ -930,7 +932,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Completed</h6>
+                    <h6 className="mb-0 text-muted">{t('Completed')}</h6>
                     <h4 className="mb-0">
                       {board.columns
                         .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
@@ -953,7 +955,7 @@ const KanbanBoard: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-grow-1 ms-3">
-                    <h6 className="mb-0 text-muted">Assigned</h6>
+                    <h6 className="mb-0 text-muted">{t('Assigned')}</h6>
                     <h4 className="mb-0">
                       {board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}
                     </h4>
@@ -1003,14 +1005,17 @@ const KanbanBoard: React.FC = () => {
                         onChange={() => toggleSelectAllInColumn(column.tasks)}
                         className="form-check-input bg-white"
                         style={{ cursor: 'pointer' }}
-                        title="Select all in column"
+                        title={t('SelectAllInColumn')}
                       />
                       <div>
                         <h5 className="mb-0" style={{ color: "#fff" }}>
-                          {column.name}
+                          {column.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                           column.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                           column.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
+                           column.name}
                         </h5>
                         <small style={{ color: "#f0f0f0" }}>
-                          {column.tasks.length} tasks
+                          {column.tasks.length} {column.tasks.length === 1 ? t('Task') : t('Tasks')}
                         </small>
                       </div>
                     </div>
@@ -1045,7 +1050,7 @@ const KanbanBoard: React.FC = () => {
                           const filteredTasks = filterTasks(column.tasks);
                           return filteredTasks.length === 0 ? (
                             <p className="text-muted text-center mt-4">
-                              {column.tasks.length === 0 ? "Chưa có task nào" : "Không có task phù hợp với bộ lọc"}
+                              {column.tasks.length === 0 ? t('NoTasksInBacklog') : t('NoTasksMatchFilter')}
                             </p>
                           ) : (
                             filteredTasks.map((task, index) => (
@@ -1096,7 +1101,7 @@ const KanbanBoard: React.FC = () => {
                           onClick={() => handleOpenAddTask(column.id)}
                         >
                           <i className="ri-add-line me-1"></i>
-                          Thêm Task
+                          {t('AddTask')}
                         </Button>
                       </div>
                     )}
@@ -1160,7 +1165,7 @@ const KanbanBoard: React.FC = () => {
           size="lg"
         >
           <div className="modal-header">
-            <h5 className="modal-title">Create New Task</h5>
+            <h5 className="modal-title">{t('CreateNewTask')}</h5>
             <button
               type="button"
               className="btn-close"
@@ -1170,7 +1175,7 @@ const KanbanBoard: React.FC = () => {
           <div className="modal-body">
             <Form>
               <div className="mb-3">
-                <label className="form-label">Task Title *</label>
+                <label className="form-label">{t('TaskTitle')} *</label>
                 <input
                   type="text"
                   className="form-control"
@@ -1178,13 +1183,13 @@ const KanbanBoard: React.FC = () => {
                   onChange={(e) =>
                     setNewTaskForm({ ...newTaskForm, title: e.target.value })
                   }
-                  placeholder="e.g., Implement user authentication"
+                  placeholder={t('TaskTitlePlaceholder')}
                   autoFocus
                 />
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Description</label>
+                <label className="form-label">{t('Description')}</label>
                 <textarea
                   className="form-control"
                   rows={4}
@@ -1195,14 +1200,14 @@ const KanbanBoard: React.FC = () => {
                       description: e.target.value,
                     })
                   }
-                  placeholder="Describe the task in detail..."
+                  placeholder={t('TaskDescriptionPlaceholder')}
                 ></textarea>
               </div>
 
               <div className="row">
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label">Priority</label>
+                    <label className="form-label">{t('Priority')}</label>
                     <select
                       className="form-select"
                       value={newTaskForm.priority}
@@ -1216,20 +1221,20 @@ const KanbanBoard: React.FC = () => {
                         })
                       }
                     >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
+                      <option value="LOW">{t('PriorityLowLabel')}</option>
+                      <option value="MEDIUM">{t('PriorityMediumLabel')}</option>
+                      <option value="HIGH">{t('PriorityHighLabel')}</option>
                     </select>
                   </div>
                 </div>
                 <div className="col-md-6">
                   <div className="mb-3">
-                    <label className="form-label">Estimated Hours</label>
+                    <label className="form-label">{t('EstimatedHours')}</label>
                     <input
                       type="number"
                       className="form-control"
                       min="0"
-                      placeholder="e.g., 8"
+                      placeholder={t('EstimatedHoursPlaceholder')}
                       value={newTaskForm.estimatedHours}
                       onChange={(e) =>
                         setNewTaskForm({
@@ -1243,7 +1248,7 @@ const KanbanBoard: React.FC = () => {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Due Date</label>
+                <label className="form-label">{t('DueDate')}</label>
                 <input
                   type="date"
                   className="form-control"
@@ -1255,18 +1260,18 @@ const KanbanBoard: React.FC = () => {
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Tags</label>
+                <label className="form-label">{t('Tags')}</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="frontend, api, bug-fix (comma separated)"
+                  placeholder={t('TagsPlaceholder')}
                   value={newTaskForm.tags}
                   onChange={(e) =>
                     setNewTaskForm({ ...newTaskForm, tags: e.target.value })
                   }
                 />
                 <small className="text-muted">
-                  Separate multiple tags with commas
+                  {t('SeparateMultipleTags')}
                 </small>
               </div>
             </Form>
@@ -1276,14 +1281,14 @@ const KanbanBoard: React.FC = () => {
               color="secondary"
               onClick={() => setShowAddTaskModal(false)}
             >
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               color="primary"
               onClick={handleAddTask}
               disabled={!newTaskForm.title.trim() || isCreatingTask}
             >
-              {isCreatingTask ? "Creating..." : "Create Task"}
+              {isCreatingTask ? t('Creating') : t('CreateTask')}
             </Button>
           </div>
         </Modal>
@@ -1342,7 +1347,7 @@ const KanbanBoard: React.FC = () => {
         <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
           <ModalHeader toggle={() => setShowFiltersModal(false)}>
             <i className="ri-filter-line me-2"></i>
-            Filters
+            {t('Filters')}
           </ModalHeader>
           <ModalBody>
             <Row>
@@ -1352,7 +1357,7 @@ const KanbanBoard: React.FC = () => {
                 <FormGroup>
                   <Label className="fw-semibold">
                     <i className="ri-price-tag-3-line me-2"></i>
-                    Priority
+                    {t('Priority')}
                   </Label>
                   <div className="d-flex flex-column gap-2">
                     {[
@@ -1392,7 +1397,7 @@ const KanbanBoard: React.FC = () => {
                 <FormGroup>
                   <Label className="fw-semibold">
                     <i className="ri-user-line me-2"></i>
-                    Assignee
+                    {t('Assignee')}
                   </Label>
                   <div className="d-flex flex-column gap-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                     {projectMembers.map(member => (
@@ -1419,21 +1424,21 @@ const KanbanBoard: React.FC = () => {
               </Col>
             </Row>
           </ModalBody>
-            <ModalFooter>
-              <Button
-                color="light"
-                onClick={() => {
-                  setFilterPriority([]);
-                  setFilterAssignee([]);
-                }}
-              >
-                Clear All
-              </Button>
-              <Button color="primary" onClick={() => setShowFiltersModal(false)}>
-                Apply Filters
-              </Button>
-            </ModalFooter>
-          </Modal>
+          <ModalFooter>
+            <Button
+              color="light"
+              onClick={() => {
+                setFilterPriority([]);
+                setFilterAssignee([]);
+              }}
+            >
+              {t('ClearAll')}
+            </Button>
+            <Button color="primary" onClick={() => setShowFiltersModal(false)}>
+              {t('ApplyFilters')}
+            </Button>
+          </ModalFooter>
+        </Modal>
       </Container>
     </div>
   );
@@ -1473,6 +1478,7 @@ const TaskCard: React.FC<TaskCardProps & {
   taskKey,
   viewDensity = 'comfortable',
 }) => {
+  const { t } = useTranslation();
   const getPriorityColor = (priority?: string) => {
     switch (priority?.toUpperCase()) {
       case "HIGH":
@@ -1562,7 +1568,10 @@ const TaskCard: React.FC<TaskCardProps & {
           <div onClick={() => onTaskClick(task)}>
             {task.priority && (
               <Badge color={getPriorityColor(task.priority)} className="me-1" style={{ fontSize: '10px' }}>
-                {task.priority}
+                {task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+                 task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+                 task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+                 task.priority}
               </Badge>
             )}
             {task.estimatedHours && (
@@ -1594,7 +1603,7 @@ const TaskCard: React.FC<TaskCardProps & {
                   fontSize: "12px",
                   fontWeight: "bold",
                 }}
-                title={currentAssignee?.displayName || "Unassigned"}
+                title={currentAssignee?.displayName || t('Unassigned')}
               >
                 {task.assigneeId ? (
                   currentAssignee?.email?.charAt(0).toUpperCase() || "?"
@@ -1620,7 +1629,7 @@ const TaskCard: React.FC<TaskCardProps & {
               >
                 {projectMembers.length === 1 ? (
                   <DropdownItem disabled className="text-muted">
-                    <small>Loading members...</small>
+                    <small>{t('LoadingMembers')}</small>
                   </DropdownItem>
                 ) : (
                   projectMembers.map((member) => (

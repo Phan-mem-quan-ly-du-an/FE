@@ -194,7 +194,7 @@ const Section = () => {
                                             onClick={() => toggleTab('3')}
                                             href="#"
                                         >
-                                            Board
+                                            {t('Board')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
@@ -203,7 +203,7 @@ const Section = () => {
                                             onClick={() => toggleTab('4')}
                                             href="#"
                                         >
-                                            List
+                                            {t('List')}
                                         </NavLink>
                                     </NavItem>
                                     <NavItem>
