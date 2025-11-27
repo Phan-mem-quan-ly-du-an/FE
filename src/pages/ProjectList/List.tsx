@@ -222,7 +222,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                                                 <h5 className="mb-0 fs-15 me-2">
                                                     <span className="text-dark">{item.label}</span>
                                                 </h5>
-                                                <Badge color="success" className="badge-soft-success">Active</Badge>
+                                                <Badge color="success" className="badge-soft-success">{t('ProjectActive')}</Badge>
                                             </div>
                                             <p className="text-muted text-truncate-two-lines mb-3">{item.caption}</p>
                                         </div>
@@ -282,7 +282,7 @@ const List = ({workspaceId}: ListProps = {}) => {
                                 </td>
                                 <td className="text-muted">{item.caption}</td>
                                 <td>
-                                    <Badge color="success">Active</Badge>
+                                    <Badge color="success">{t('ProjectActive')}</Badge>
                                 </td>
                                 <td>{item.date}</td>
                                 <td>
