@@ -47,9 +47,11 @@ import {
   BoardResponse,
   BoardColumnResponse,
   TaskResponse,
+  reorderColumns,
 } from "../../apiCaller/boards";
-import { sprintAPI, taskAPI } from "../../apiCaller/backlogSprint";
+import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
+import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
@@ -102,8 +104,12 @@ const KanbanBoard: React.FC = () => {
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
+  const [filterEpic, setFilterEpic] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  // Epics list
+  const [epics, setEpics] = useState<EpicDto[]>([]);
 
   // Bulk selection states
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
@@ -153,6 +159,7 @@ const KanbanBoard: React.FC = () => {
     let count = 0;
     if (filterAssignee.length > 0) count++;
     if (filterPriority.length > 0) count++;
+    if (filterEpic.length > 0) count++;
     return count;
   };
 
@@ -338,20 +345,9 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
-  const loadAllTasks = async () => {
-    if (!projectId) return;
-    try {
-      const res = await taskAPI.listByProject(projectId, true);
-      setAllTasks(res.content || []);
-    } catch (err) {
-      console.error('Error loading all tasks for stats:', err);
-    }
-  };
-
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
-    loadAllTasks();
   }, [projectId]);
 
   // ============= FILTER TASKS =============
@@ -376,6 +372,11 @@ const KanbanBoard: React.FC = () => {
         const p = (task.priority || '').toLowerCase();
         const normalized = p === 'highest' ? 'high' : p;
         if (!normalized || !filterPriority.includes(normalized)) return false;
+      }
+
+      if (filterEpic.length > 0) {
+        console.log('Filtering epic - task:', task.title, 'epicId:', task.epicId, 'filterEpic:', filterEpic);
+        if (!task.epicId || !filterEpic.includes(task.epicId)) return false;
       }
 
       return true;
@@ -768,6 +769,17 @@ const KanbanBoard: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                {board.activeSprintId ? (
+                  <Badge color="success" className="me-1">
+                    <i className="ri-play-circle-line me-1"></i>
+                    {board.activeSprintName}
+                  </Badge>
+                ) : (
+                  <Badge color="secondary" className="me-1">
+                    <i className="ri-information-line me-1"></i>
+                    No active sprint
+                  </Badge>
+                )}
                 {board.activeSprintId && (
                   <>
                     {/* Sprint Detail Button */}
@@ -899,88 +911,88 @@ const KanbanBoard: React.FC = () => {
 
         {/* Statistics Cards */}
         <Row className="mb-3">
-          <Col xl={3} md={6}>
-            <Card className="card-animate">
-              <CardBody>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
                 <div className="d-flex align-items-center">
-                  <div className="flex-grow-1">
-                    <p className="text-uppercase fw-medium text-muted mb-0">{t('TotalTasks')}</p>
-                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm">
-                      <div className="avatar-title bg-primary-subtle text-primary rounded fs-3">
-                        <i className="ri-task-line"></i>
-                      </div>
+                    <div className="avatar-sm rounded-circle bg-primary bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-task-line fs-4"></i>
+                      </span>
                     </div>
                   </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">{t('TotalTasks')}</h6>
+                    <h4 className="mb-0">{board.columns.reduce((sum, col) => sum + col.tasks.length, 0)}</h4>
+                  </div>
                 </div>
-                <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{stats.total}</h4>
-                </div>
-              </CardBody>
+              </div>
             </Card>
           </Col>
-          <Col xl={3} md={6}>
-            <Card className="card-animate">
-              <CardBody>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
                 <div className="d-flex align-items-center">
-                  <div className="flex-grow-1">
-                    <p className="text-uppercase fw-medium text-muted mb-0">{t('HighPriority')}</p>
-                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm">
-                      <div className="avatar-title bg-danger-subtle text-danger rounded fs-3">
-                        <i className="ri-alert-line"></i>
-                      </div>
+                    <div className="avatar-sm rounded-circle bg-warning bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-alert-line fs-4"></i>
+                      </span>
                     </div>
                   </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">{t('HighPriority')}</h6>
+                    <h4 className="mb-0">
+                      {board.columns.flatMap(col => col.tasks).filter(t => t.priority === 'HIGH').length}
+                    </h4>
+                  </div>
                 </div>
-                <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{stats.highPriority}</h4>
-                </div>
-              </CardBody>
+              </div>
             </Card>
           </Col>
-          <Col xl={3} md={6}>
-            <Card className="card-animate">
-              <CardBody>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
                 <div className="d-flex align-items-center">
-                  <div className="flex-grow-1">
-                    <p className="text-uppercase fw-medium text-muted mb-0">{t('Assigned')}</p>
-                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm">
-                      <div className="avatar-title bg-success-subtle text-success rounded fs-3">
-                        <i className="ri-user-line"></i>
-                      </div>
+                    <div className="avatar-sm rounded-circle bg-success bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-check-double-line fs-4"></i>
+                      </span>
                     </div>
                   </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">{t('Completed')}</h6>
+                    <h4 className="mb-0">
+                      {board.columns
+                        .filter(col => col.name.toUpperCase() === 'DONE' || col.name.toUpperCase() === 'COMPLETED')
+                        .reduce((sum, col) => sum + col.tasks.length, 0)}
+                    </h4>
+                  </div>
                 </div>
-                <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{stats.assigned}</h4>
-                </div>
-              </CardBody>
+              </div>
             </Card>
           </Col>
-          <Col xl={3} md={6}>
-            <Card className="card-animate">
-              <CardBody>
+          <Col md={3}>
+            <Card className="border-0 shadow-sm">
+              <div className="card-body p-3">
                 <div className="d-flex align-items-center">
-                  <div className="flex-grow-1">
-                    <p className="text-uppercase fw-medium text-muted mb-0">{t('Unassigned')}</p>
-                  </div>
                   <div className="flex-shrink-0">
-                    <div className="avatar-sm">
-                      <div className="avatar-title bg-warning-subtle text-warning rounded fs-3">
-                        <i className="ri-user-unfollow-line"></i>
-                      </div>
+                    <div className="avatar-sm rounded-circle bg-info bg-gradient">
+                      <span className="avatar-title">
+                        <i className="ri-user-follow-line fs-4"></i>
+                      </span>
                     </div>
                   </div>
+                  <div className="flex-grow-1 ms-3">
+                    <h6 className="mb-0 text-muted">{t('Assigned')}</h6>
+                    <h4 className="mb-0">
+                      {board.columns.flatMap(col => col.tasks).filter(t => t.assigneeId).length}
+                    </h4>
+                  </div>
                 </div>
-                <div className="d-flex align-items-end justify-content-between mt-2">
-                  <h4 className="fs-22 fw-semibold mb-0">{stats.unassigned}</h4>
-                </div>
-              </CardBody>
+              </div>
             </Card>
           </Col>
         </Row>
@@ -1439,6 +1451,38 @@ const KanbanBoard: React.FC = () => {
                     ))}
                   </div>
                 </FormGroup>
+
+                {/* Epic Filter */}
+                <FormGroup className="mt-3">
+                  <Label className="fw-semibold">
+                    Epic
+                  </Label>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {epics.length === 0 ? (
+                      <p className="text-muted small">No epics available</p>
+                    ) : (
+                      epics.map(epic => (
+                        <FormGroup check key={epic.id}>
+                          <Label check>
+                            <input
+                              type="checkbox"
+                              checked={filterEpic.includes(epic.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFilterEpic([...filterEpic, epic.id]);
+                                } else {
+                                  setFilterEpic(filterEpic.filter(e => e !== epic.id));
+                                }
+                              }}
+                              className="me-2"
+                            />
+                            {epic.title}
+                          </Label>
+                        </FormGroup>
+                      ))
+                    )}
+                  </div>
+                </FormGroup>
               </Col>
             </Row>
           </ModalBody>
@@ -1448,6 +1492,7 @@ const KanbanBoard: React.FC = () => {
               onClick={() => {
                 setFilterPriority([]);
                 setFilterAssignee([]);
+                setFilterEpic([]);
               }}
             >
               {t('ClearAll')}
@@ -1577,6 +1622,19 @@ const TaskCard: React.FC<TaskCardProps & {
                 {tag.trim()}
               </Badge>
             ))}
+            {task.epicTitle && (
+              <Badge
+                color="info"
+                className="me-1 mb-1"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: '500',
+                  padding: '4px 8px'
+                }}
+              >
+                {task.epicTitle}
+              </Badge>
+            )}
           </div>
         )}
 
