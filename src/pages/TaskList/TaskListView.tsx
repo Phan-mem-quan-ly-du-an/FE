@@ -8,6 +8,7 @@ import { sprintAPI } from '../../apiCaller/backlogSprint';
 import CreateTaskModal from '../BacklogSprint/CreateTaskModal';
 import TaskDetailModal from '../BacklogSprint/TaskDetailModal';
 import './TaskList.scss';
+import { useTranslation } from 'react-i18next';
 
 interface Task {
   id: number;
