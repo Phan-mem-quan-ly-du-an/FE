@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
 import { useTranslation } from 'react-i18next';
+import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
 import { toast } from 'react-toastify';
 import { getCompanyMembers, CompanyMember } from '../../apiCaller/companyMembers';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
@@ -48,7 +48,7 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                 }
             }
         })();
-    }, [show, companyId, workspaceId]);
+    }, [show, companyId, workspaceId]); // Added dependencies to comply with hooks rules, though intended logic might rely only on show
 
     useEffect(() => {
         const rows = emailsText
@@ -62,16 +62,25 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                 email,
                 userId: match?.userId,
                 roleId: undefined,
-                error: match ? null : 'Không tìm thấy email trong công ty',
+                error: match ? null : t('EmailNotFoundInCompany'),
             };
         });
         setEntries(resolved);
-    }, [emailsText, members]);
+    }, [emailsText, members, t]);
 
     const canSubmit = useMemo(() => {
         if (entries.length === 0) return false;
         return entries.every(e => !!e.userId && !!e.roleId && !e.error);
     }, [entries]);
+
+    const handleRoleChange = (idx: number, value: string) => {
+        const v = value ? Number(value) : undefined;
+        setEntries(prev => prev.map((x, i) => i === idx ? { ...x, roleId: v } : x));
+    };
+
+    const handleRemoveEntry = (idx: number) => {
+        setEntries(prev => prev.filter((_, i) => i !== idx));
+    };
 
     async function handleInvite() {
         if (!canSubmit) return;
@@ -97,11 +106,11 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
 
     return (
         <Modal isOpen={show} toggle={onClose} centered size="lg">
-            <ModalHeader toggle={onClose}>Add members</ModalHeader>
+            <ModalHeader toggle={onClose}>{t('InviteMembersTitle')}</ModalHeader>
             <ModalBody>
                 <Row className="g-3">
                     <Col md={12}>
-                        <Label className="form-label">Emails (one per line)</Label>
+                        <Label className="form-label">{t('EnterEmailAddresses')}</Label>
                         <Input
                             type="textarea"
                             rows={5}
@@ -109,27 +118,27 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                             onChange={(e) => setEmailsText(e.target.value)}
                             placeholder="name@example.com\nother@example.com"
                         />
-                        <div className="form-text">Paste or type multiple emails — one per line.</div>
+                        <div className="form-text">{t('EnterEmailAddressesOnePerLine')}</div>
                     </Col>
                     <Col md={12}>
-                        <Label className="form-label">Assign role per email</Label>
+                        <Label className="form-label">{t('AssignRolePerEmail')}</Label>
                         <div className="table-responsive table-card">
                             <table className="table align-middle table-nowrap mb-0">
                                 <thead className="table-light">
                                     <tr>
-                                        <th style={{ width: '45%' }}>Email</th>
-                                        <th style={{ width: '35%' }}>Role</th>
-                                        <th style={{ width: '20%' }}></th>
+                                        <th style={{ inlineSize: '45%' }}>{t('WorkspaceMemberEmail')}</th>
+                                        <th style={{ inlineSize: '35%' }}>{t('MemberRole')}</th>
+                                        <th style={{ inlineSize: '20%' }} />
                                     </tr>
                                 </thead>
                                 <tbody>
                                 {entries.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="text-center text-muted">Chưa có email</td>
+                                        <td colSpan={3} className="text-center text-muted">{t('NoEmailsEntered')}</td>
                                     </tr>
                                 )}
                                 {entries.map((e, idx) => (
-                                    <tr key={idx}>
+                                    <tr key={e.email + entries.length}>
                                         <td>
                                             <div>{e.email}</div>
                                             {e.error && <FormFeedback className="d-block">{e.error}</FormFeedback>}
@@ -138,19 +147,16 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                                             <select
                                                 className="form-select"
                                                 value={e.roleId ?? ''}
-                                                onChange={(ev) => {
-                                                    const v = ev.target.value ? Number(ev.target.value) : undefined;
-                                                    setEntries(prev => prev.map((x, i) => i === idx ? { ...x, roleId: v } : x));
-                                                }}
+                                                onChange={(ev) => handleRoleChange(idx, ev.target.value)}
                                             >
-                                                <option value="">Select role</option>
+                                                <option value="">{t('SelectWorkspaceRole')}</option>
                                                 {roles.map(r => (
                                                     <option key={r.id} value={r.id}>{r.name || r.code}</option>
                                                 ))}
                                             </select>
                                         </td>
                                         <td className="text-end">
-                                            <Button color="light" size="sm" onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}>Remove</Button>
+                                            <Button color="light" size="sm" onClick={() => handleRemoveEntry(idx)}>{t('Remove')}</Button>
                                         </td>
                                     </tr>
                                 ))}
@@ -159,8 +165,8 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                         </div>
                     </Col>
                     <Col md={12} className="d-flex justify-content-end gap-2">
-                        <Button color="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
-                        <Button color="primary" onClick={handleInvite} disabled={!canSubmit || submitting}>{submitting ? 'Inviting...' : 'Invite'}</Button>
+                        <Button color="secondary" onClick={onClose} disabled={submitting}>{t('Cancel')}</Button>
+                        <Button color="primary" onClick={handleInvite} disabled={!canSubmit || submitting}>{submitting ? t('Inviting') : t('InviteMembersButton')}</Button>
                     </Col>
                 </Row>
             </ModalBody>
@@ -169,6 +175,3 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
 };
 
 export default AddWorkspaceMemberModal;
-
-
-

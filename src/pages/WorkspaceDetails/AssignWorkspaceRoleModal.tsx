@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button } from 'reactstrap';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import { WorkspaceMember, assignWorkspaceMemberRole } from '../../apiCaller/workspaceDetails';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
 import { isForbiddenError } from '../../helpers/permissions';
@@ -24,9 +24,9 @@ export default function AssignWorkspaceRoleModal({
     member,
     onSuccess,
     onError,
-}: AssignWorkspaceRoleModalProps) {
-    const queryClient = useQueryClient();
+}: Readonly<AssignWorkspaceRoleModalProps>) {
     const { t } = useTranslation();
+    const queryClient = useQueryClient();
 
     const { data: roles = [], error: rolesError, isLoading: rolesLoading } = useQuery<WorkspaceRole[]>({
         queryKey: ['workspace-roles', workspaceId],
@@ -48,32 +48,32 @@ export default function AssignWorkspaceRoleModal({
             roleId: member?.roleId?.toString() || '',
         },
         validationSchema: Yup.object({
-            roleId: Yup.string().required('Please select a role'),
+            roleId: Yup.string().required(t('PleaseSelectRole')),
         }),
         onSubmit: (values) => {
             if (!member) return;
             if (member.owner) {
-                onError?.('Không thể gán role cho Owner. Hãy dùng chuyển quyền sở hữu.');
+                onError?.(t('CannotAssignRoleToOwner'));
                 return;
             }
             if (!values.roleId) {
-                onError?.('Vui lòng chọn role');
+                onError?.(t('SelectRoleErrorMessage'));
                 return;
             }
             assignRoleMutation.mutate(
-                { workspaceId, memberId: member.userId, roleId: parseInt(values.roleId) },
+                { workspaceId, memberId: member.userId, roleId: Number.parseInt(values.roleId, 10) },
                 {
-                        onSuccess: () => {
-                            onSuccess?.(t('RoleAssignedSuccessfully') || 'Cập nhật role thành công');
+                    onSuccess: () => {
+                        onSuccess?.(t('RoleAssignedSuccessfully'));
                         validation.resetForm();
                         onClose();
                     },
                     onError: (error: any) => {
-                            if (isForbiddenError(error)) {
-                                onError?.(t('WorkspacePermissions.AssignMemberRoleDenied') || 'Bạn không có quyền gán role cho thành viên.');
-                                return;
-                            }
-                            onError?.(error?.message || t('FailedToAssignRole') || 'Cập nhật role thất bại');
+                        if (isForbiddenError(error)) {
+                            onError?.(t('WorkspacePermissions.AssignMemberRoleDenied') || 'Bạn không có quyền gán role cho thành viên.');
+                            return;
+                        }
+                        onError?.(error?.message || t('FailedToAssignRole'));
                     },
                 }
             );
@@ -94,7 +94,7 @@ export default function AssignWorkspaceRoleModal({
     return (
         <Modal id="assignWorkspaceRoleModal" isOpen={show} toggle={onClose} centered>
             <ModalHeader className="bg-light p-3" toggle={onClose}>
-                Assign Role
+                {t('AssignRoleTitle')}
             </ModalHeader>
             <Form className="tablelist-form" onSubmit={(e: any) => {
                 e.preventDefault();
@@ -104,7 +104,7 @@ export default function AssignWorkspaceRoleModal({
                 <ModalBody>
                     {isOwner && (
                         <div className="alert alert-warning">
-                            Không thể gán role cho Owner. Hãy dùng chức năng chuyển quyền sở hữu.
+                            {t('CannotAssignRoleToOwner')}
                         </div>
                     )}
 
@@ -120,19 +120,19 @@ export default function AssignWorkspaceRoleModal({
                         <table className="table table-bordered align-middle">
                             <tbody>
                                 <tr>
-                                    <th style={{ width: 180 }}>Member (userId)</th>
+                                    <th style={{ inlineSize: 180 }}>{t('WorkspaceMemberId')}</th>
                                     <td className="font-monospace">{member.userId}</td>
                                 </tr>
                                 <tr>
-                                    <th>Current Role ID</th>
-                                    <td>{member.owner ? 'OWNER' : (member.roleId ?? '—')}</td>
+                                    <th>{t('CurrentRole')}</th>
+                                    <td>{member.owner ? t('Owner') : (member.roleId ?? '—')}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <div className="mb-3">
-                        <Label htmlFor="role-field" className="form-label">Role</Label>
+                        <Label htmlFor="role-field" className="form-label">{t('MemberRole')}</Label>
                         <Input
                             name="roleId"
                             id="role-field"
@@ -144,7 +144,7 @@ export default function AssignWorkspaceRoleModal({
                             value={validation.values.roleId || ''}
                             invalid={validation.touched.roleId && !!validation.errors.roleId}
                         >
-                            <option value="">Select a role</option>
+                            <option value="">{t('SelectWorkspaceRole')}</option>
                             {roles.map((role: WorkspaceRole) => (
                                 <option key={role.id} value={role.id}>
                                     {role.code}
@@ -157,13 +157,13 @@ export default function AssignWorkspaceRoleModal({
                         ) : null}
                     </div>
 
-                    <div className="text-muted small">Chọn role và bấm Save để gán cho thành viên.</div>
+                    <div className="text-muted small">{t('SelectRoleAndClickSave')}</div>
                 </ModalBody>
                 <div className="modal-footer">
                     <div className="hstack gap-2 justify-content-end">
-                        <Button type="button" className="btn btn-light" onClick={onClose}>Close</Button>
+                        <Button type="button" className="btn btn-light" onClick={onClose}>{t('Close')}</Button>
                         <Button type="submit" className="btn btn-primary" disabled={assignRoleMutation.isPending || isOwner}>
-                            {assignRoleMutation.isPending ? 'Saving...' : 'Save'}
+                            {assignRoleMutation.isPending ? t('Saving') : t('Save')}
                         </Button>
                     </div>
                 </div>
@@ -171,5 +171,3 @@ export default function AssignWorkspaceRoleModal({
         </Modal>
     );
 }
-
-

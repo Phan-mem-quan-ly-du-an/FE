@@ -48,6 +48,7 @@ import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
+import DeleteColumnModal from "./DeleteColumnModal";
 import "../../assets/scss/pages/KanbanBoard.scss";
 
 const KanbanBoard: React.FC = () => {
@@ -93,7 +94,6 @@ const KanbanBoard: React.FC = () => {
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
 
@@ -110,6 +110,10 @@ const KanbanBoard: React.FC = () => {
   // Task detail modal states
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
+
+  // Delete column modal states
+  const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
+  const [deletingColumn, setDeletingColumn] = useState<BoardColumnResponse | null>(null);
 
   // ============= HELPER FUNCTIONS =============
   // Convert TaskResponse to Task format for TaskDetailModal
@@ -324,28 +328,23 @@ const KanbanBoard: React.FC = () => {
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    // If no filters selected, show all tasks
     if (filterAssignee.length === 0 && filterPriority.length === 0) {
       return tasks;
     }
 
     return tasks.filter(task => {
-      // Filter by assignee (if any assignee filter selected)
       if (filterAssignee.length > 0) {
         const taskAssignee = task.assigneeId || 'unassigned';
-        if (!filterAssignee.includes(taskAssignee)) {
-          return false; // Task doesn't match assignee filter
-        }
+        if (!filterAssignee.includes(taskAssignee)) return false;
       }
 
-      // Filter by priority (if any priority filter selected)
       if (filterPriority.length > 0) {
-        if (!task.priority || !filterPriority.includes(task.priority)) {
-          return false; // Task doesn't match priority filter
-        }
+        const p = (task.priority || '').toLowerCase();
+        const normalized = p === 'highest' ? 'high' : p;
+        if (!normalized || !filterPriority.includes(normalized)) return false;
       }
 
-      return true; // Task passes all active filters
+      return true;
     });
   };
 
@@ -506,22 +505,10 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
-  // ============= HANDLE DELETE COLUMN =============
-  const handleDeleteColumn = async (columnId: number, columnName: string) => {
-    if (
-      !window.confirm(
-        `Xóa column "${columnName}"?\nCác tasks trong column sẽ chuyển về Unassigned.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await deleteColumn(columnId);
-      loadBoard(); // Reload board
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Không thể xóa column");
-    }
+  // ============= OPEN DELETE COLUMN MODAL =============
+  const openDeleteColumnModal = (column: BoardColumnResponse) => {
+    setDeletingColumn(column);
+    setShowDeleteColumnModal(true);
   };
 
   // ============= HANDLE ADD TASK =============
@@ -1036,10 +1023,10 @@ const KanbanBoard: React.FC = () => {
                       color="link"
                       size="sm"
                       className="text-white p-0"
-                      onClick={() => handleDeleteColumn(column.id, column.name)}
-                    >
+                      onClick={() => openDeleteColumnModal(column)}
+                      >
                       <i className="ri-delete-bin-line"></i>
-                    </Button>
+                      </Button>
                   </div>
 
                   {/* DROPPABLE AREA */}
@@ -1342,6 +1329,20 @@ const KanbanBoard: React.FC = () => {
           />
         )}
 
+        {/* Delete Column Modal */}
+        {deletingColumn && board && (
+          <DeleteColumnModal
+            isOpen={showDeleteColumnModal}
+            toggle={() => {
+              setShowDeleteColumnModal(false);
+              setDeletingColumn(null);
+            }}
+            column={deletingColumn}
+            columns={board.columns}
+            onSuccess={loadBoard}
+          />
+        )}
+
         {/* Filters Modal */}
         <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
           <ModalHeader toggle={() => setShowFiltersModal(false)}>
@@ -1359,33 +1360,30 @@ const KanbanBoard: React.FC = () => {
                     {t('Priority')}
                   </Label>
                   <div className="d-flex flex-column gap-2">
-                    {['HIGH', 'MEDIUM', 'LOW'].map(priority => (
-                      <FormGroup check key={priority}>
+                    {[
+                      { code: 'low', label: 'Low', badge: 'secondary' },
+                      { code: 'medium', label: 'Medium', badge: 'info' },
+                      { code: 'high', label: 'High', badge: 'warning' },
+                    ].map(opt => (
+                      <FormGroup check key={opt.code}>
                         <Label check>
                           <input
                             type="checkbox"
-                            checked={filterPriority.includes(priority)}
+                            checked={filterPriority.includes(opt.code)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setFilterPriority([...filterPriority, priority]);
+                                setFilterPriority([...filterPriority, opt.code]);
                               } else {
-                                setFilterPriority(filterPriority.filter(p => p !== priority));
+                                setFilterPriority(filterPriority.filter(p => p !== opt.code));
                               }
                             }}
                             className="me-2"
                           />
                           <Badge 
-                            color={
-                              priority === 'HIGH' ? 'warning' : 
-                              priority === 'MEDIUM' ? 'info' : 
-                              'secondary'
-                            }
+                            color={opt.badge as any}
                             className="me-2"
                           >
-                            {priority === 'HIGH' ? t('PriorityHigh') :
-                             priority === 'MEDIUM' ? t('PriorityMedium') :
-                             priority === 'LOW' ? t('PriorityLow') :
-                             priority}
+                            {opt.label}
                           </Badge>
                         </Label>
                       </FormGroup>
@@ -1393,7 +1391,6 @@ const KanbanBoard: React.FC = () => {
                   </div>
                 </FormGroup>
               </Col>
-
               {/* Right Column */}
               <Col md={6}>
                 {/* Assignee Filter */}

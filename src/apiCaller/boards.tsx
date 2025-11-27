@@ -197,6 +197,26 @@ export const createTask = async (
   return response.data.data; // API trả về { message, data }
 };
 
+export const transferTasksFromColumn = async (
+  projectId: string,
+  sourceColumnId: number,
+  targetColumnId: number
+): Promise<void> => {
+  try {
+    await axiosClient.patch(
+      `/projects/${projectId}/columns/${sourceColumnId}/transfer/${targetColumnId}`
+    );
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      await axiosClient.patch(
+        `/columns/${sourceColumnId}/transfer/${targetColumnId}?projectId=${encodeURIComponent(projectId)}`
+      );
+    } else {
+      throw err;
+    }
+  }
+};
+
 /**
  * API: Update task
  * PUT /api/projects/{projectId}/tasks/{taskId}

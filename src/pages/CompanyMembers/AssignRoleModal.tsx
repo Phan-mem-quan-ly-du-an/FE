@@ -113,8 +113,8 @@ export default function AssignRoleModal({
                         <table className="table table-bordered align-middle">
                             <tbody>
                             <tr>
-                                <th style={{ width: 180 }}>{t('MemberUserId')}</th>
-                                <td className="font-monospace">{member.userId}</td>
+                                <th style={{ width: 180 }}>{t('Email')}</th>
+                                <td className="font-monospace">{member.email ?? member.invitedEmail ?? member.userId}</td>
                             </tr>
                             <tr>
                                 <th>{t('CurrentRole')}</th>
