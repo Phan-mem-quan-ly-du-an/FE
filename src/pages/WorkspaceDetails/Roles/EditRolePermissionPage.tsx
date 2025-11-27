@@ -220,8 +220,8 @@ export default function EditWorkspaceRolePermissionPage() {
                                             <table className="table align-middle table-nowrap">
                                                 <thead className="table-light text-muted text-uppercase">
                                                     <tr>
-                                                        <th style={{ width: 160 }}>Role ID</th>
-                                                        <th>Role Name</th>
+                                                        <th style={{ width: 160 }}>{t('RoleID')}</th>
+                                                        <th>{t('RoleName')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -243,12 +243,12 @@ export default function EditWorkspaceRolePermissionPage() {
                                 </div>
                                 <div className="table-responsive table-card mb-1 mt-0">
                                     <table className="table align-middle table-nowrap">
-                                        <thead className="table-light text-muted text-uppercase">
-                                            <tr>
-                                                <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
-                                                <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
-                                            </tr>
-                                        </thead>
+                                                <thead className="table-light text-muted text-uppercase">
+                                                    <tr>
+                                                        <th style={{ width: 320 }}>{t('PermissionName')}</th>
+                                                        <th className="text-center" style={{ width: 140 }}>{t('Tick')}</th>
+                                                    </tr>
+                                                </thead>
                                         <tbody>
                                             {!loading && permissions.map(p => (
                                                 <tr key={p.id}>

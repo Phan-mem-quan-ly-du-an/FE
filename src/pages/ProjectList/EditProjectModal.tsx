@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback } from 'reactstrap';
+import { useTranslation } from 'react-i18next';
 import { updateProject, Project } from '../../apiCaller/projects';
 
 
-function friendlyNetworkMessage(msg?: string) {
+function friendlyNetworkMessage(msg?: string, t?: any) {
     const s = (msg || '').toLowerCase();
-    return (s.includes('500') || s.includes('failed to fetch') || s.includes('network'))
-        ? 'Network error. Please reload.'
-        : (msg || 'An error occurred.');
+    if (s.includes('500') || s.includes('failed to fetch') || s.includes('network')) {
+        return t ? t('NetworkError') : 'Network error. Please reload.';
+    }
+    return msg || (t ? t('UnexpectedError') : 'An error occurred.');
 }
 
 export default function EditProjectModal({
@@ -23,6 +25,7 @@ export default function EditProjectModal({
     const [color, setColor] = useState('#3b82f6');
     const [msg, setMsg] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const { t } = useTranslation();
 
     useEffect(() => {
         if (project && open) {
@@ -47,11 +50,11 @@ export default function EditProjectModal({
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!name.trim()) {
-            setMsg('Project name is required.');
+            setMsg(t('ProjectNameRequired'));
             return;
         }
         if (!project?.id) {
-            setMsg('Project ID is missing.');
+            setMsg(t('ProjectIDMissing'));
             return;
         }
 
@@ -68,7 +71,7 @@ export default function EditProjectModal({
             onUpdated();
             onClose();
         } catch (err: any) {
-            setMsg(friendlyNetworkMessage(err?.message));
+            setMsg(friendlyNetworkMessage(err?.message, t));
         } finally {
             setSaving(false);
         }
@@ -80,7 +83,7 @@ export default function EditProjectModal({
 
     return (
         <Modal isOpen={open} toggle={onClose} centered modalClassName="modal-compact">
-            <ModalHeader toggle={onClose}>Edit Project</ModalHeader>
+            <ModalHeader toggle={onClose}>{t('EditProject')}</ModalHeader>
             <ModalBody>
                 <style>{`
                     .modal-compact .modal-dialog { max-width: 520px; }
@@ -91,23 +94,23 @@ export default function EditProjectModal({
 
                 <Form onSubmit={onSubmit} className="d-flex flex-column gap-3">
                     <div>
-                        <Label className="form-label">Project Name <span className="text-danger">*</span></Label>
+                        <Label className="form-label">{t('ProjectName')} <span className="text-danger">*</span></Label>
                         <Input 
                             type="text" 
-                            placeholder="e.g., Website Redesign" 
+                            placeholder={t('ProjectNamePlaceholder')}
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
                             required 
                             disabled={saving} 
                             invalid={!name.trim() && !!name}
                         />
-                        {!name.trim() && !!name && <FormFeedback>Project name is required.</FormFeedback>}
+                        {!name.trim() && !!name && <FormFeedback>{t('ProjectNameRequired')}</FormFeedback>}
                     </div>
                     <div>
-                        <Label className="form-label">Description</Label>
+                        <Label className="form-label">{t('Description')}</Label>
                         <Input
                             type="textarea"
-                            placeholder="Project description..."
+                            placeholder={t('DescriptionPlaceholder')}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             disabled={saving}
@@ -116,7 +119,7 @@ export default function EditProjectModal({
                     </div>
 
                     <div>
-                        <Label className="form-label">Color</Label>
+                        <Label className="form-label">{t('Color')}</Label>
                         <Input
                             type="color"
                             value={color}
@@ -133,7 +136,7 @@ export default function EditProjectModal({
                             color="primary" 
                             disabled={saving || !name.trim()}
                         >
-                            {saving ? 'Updating...' : 'Save Changes'}
+                            {saving ? t('Saving') : t('Save')}
                         </Button>
                         <Button 
                             type="button" 
@@ -141,7 +144,7 @@ export default function EditProjectModal({
                             onClick={onClose} 
                             disabled={saving}
                         >
-                            Cancel
+                            {t('Cancel')}
                         </Button>
                     </div>
                 </Form>

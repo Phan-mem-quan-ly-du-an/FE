@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { WorkspaceRole } from '../../apiCaller/workspaceRoles';
 
 interface TransferOwnershipModalProps {
@@ -23,34 +24,36 @@ export default function TransferOwnershipModal({
     selectedDowngradeRoleId,
     onRoleChange,
     isPending
-}: TransferOwnershipModalProps) {
+}: Readonly<TransferOwnershipModalProps>) {
+    const { t } = useTranslation();
     if (!show) return null;
 
     return (
         <>
-            <div className="modal d-block" tabIndex={-1} role="dialog">
-                <div className="modal-dialog" role="document">
+            <div className="modal d-block" tabIndex={-1}>
+                <div className="modal-dialog">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h5 className="modal-title">Transfer workspace ownership</h5>
+                            <h5 className="modal-title">{t('TransferWorkspaceOwnership')}</h5>
                             <button type="button" className="btn-close" aria-label="Close"
                                     onClick={onClose}/>
                         </div>
                         <div className="modal-body">
                             <p className="mb-2">
-                                Chuyển quyền Owner trong workspace cho: <span
+                                {t('RoleForOldOwner')}: <span
                                 className="font-monospace">{targetMember?.userId}</span>
                             </p>
                             <div className="mb-3">
-                                <label className="form-label">Role mới cho Owner cũ (thuộc workspace)</label>
+                                <label htmlFor="roleSelect" className="form-label">{t('RoleForOldOwner')}</label>
                                 <select
+                                    id="roleSelect"
                                     className="form-select"
                                     value={selectedDowngradeRoleId === '' ? '' : String(selectedDowngradeRoleId)}
                                     onChange={(e) =>
                                         onRoleChange(e.target.value ? Number(e.target.value) : '')
                                     }
                                 >
-                                    <option value="">— Chọn role —</option>
+                                    <option value="">{t('SelectRole')}</option>
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.id}>
                                             {r.code}
@@ -59,18 +62,18 @@ export default function TransferOwnershipModal({
                                     ))}
                                 </select>
                                 <div className="form-text">
-                                    Bạn phải chọn role để gán cho Owner cũ sau khi chuyển quyền.
+                                    {t('PleaseSelectRoleForOldOwner')}
                                 </div>
                             </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={onClose}
                                     disabled={isPending}>
-                                Cancel
+                                {t('Close')}
                             </button>
                             <button className="btn btn-primary" onClick={onConfirm}
                                     disabled={isPending}>
-                                {isPending ? 'Transferring...' : 'Confirm Transfer'}
+                                {isPending ? t('Saving') : t('TransferOwnership')}
                             </button>
                         </div>
                     </div>
