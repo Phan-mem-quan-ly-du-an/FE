@@ -256,8 +256,8 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
                                             <table className="table align-middle table-nowrap">
                                                 <thead className="table-light text-muted text-uppercase">
                                                 <tr>
-                                                    <th style={{ width: 160 }}>Role ID</th>
-                                                    <th>Role Name</th>
+                                                    <th style={{ width: 160 }}>{t('RoleID')}</th>
+                                                    <th>{t('RoleNameLabel')}</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
@@ -281,8 +281,8 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
                                     <table className="table align-middle table-nowrap">
                                         <thead className="table-light text-muted text-uppercase">
                                         <tr>
-                                            <th style={{ width: 320 }}>{t('Permission Name') || 'Permission Name'}</th>
-                                            <th className="text-center" style={{ width: 140 }}>{t('Tick') || 'Tick'}</th>
+                                            <th style={{ width: 320 }}>{t('PermissionName')}</th>
+                                            <th className="text-center" style={{ width: 140 }}>{t('Tick')}</th>
                                         </tr>
                                         </thead>
                                         <tbody>

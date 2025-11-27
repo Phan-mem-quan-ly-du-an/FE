@@ -81,7 +81,7 @@ const OverviewTab = () => {
         enabled: !!projectId && !!board?.activeSprintId,
         retry: 1,
         meta: {
-            onError: () => toast.error(t("FailedToLoadTasks") || "Failed to load tasks"),
+            onError: () => toast.error(t("FailedToLoadTasks")),
         },
     });
 
@@ -203,7 +203,7 @@ const OverviewTab = () => {
                 <div className="d-flex align-items-center justify-content-center" style={{ width: 300, height: 300 }}>
                     <div className="text-center text-muted">
                         <i className="ri-pie-chart-line fs-1"></i>
-                        <div className="small mt-2">No data</div>
+                        <div className="small mt-2">{t("NoData")}</div>
                     </div>
                 </div>
             );
@@ -281,25 +281,25 @@ const OverviewTab = () => {
                     <Col xs={12} sm={6} md={3}>
                         <div className="text-center border rounded p-3">
                             <div className="fs-3 fw-bold text-success">{metrics?.completed ?? 0}</div>
-                            <div className="text-muted">Completed (7d)</div>
+                            <div className="text-muted">{t("Completed7d")}</div>
                         </div>
                     </Col>
                     <Col xs={12} sm={6} md={3}>
                         <div className="text-center border rounded p-3">
                             <div className="fs-3 fw-bold text-primary">{metrics?.updated ?? 0}</div>
-                            <div className="text-muted">Updated (7d)</div>
+                            <div className="text-muted">{t("Updated7d")}</div>
                         </div>
                     </Col>
                     <Col xs={12} sm={6} md={3}>
                         <div className="text-center border rounded p-3">
                             <div className="fs-3 fw-bold text-info">{metrics?.created ?? 0}</div>
-                            <div className="text-muted">Created (7d)</div>
+                            <div className="text-muted">{t("Created7d")}</div>
                         </div>
                     </Col>
                     <Col xs={12} sm={6} md={3}>
                         <div className="text-center border rounded p-3">
                             <div className="fs-3 fw-bold text-warning">{(metrics?.dueSoon ?? (metrics as any)?.due_soon) ?? 0}</div>
-                            <div className="text-muted">Due Soon (7d)</div>
+                            <div className="text-muted">{t("DueSoon7d")}</div>
                         </div>
                     </Col>
                 </Row>
@@ -330,7 +330,7 @@ const OverviewTab = () => {
                     </Card>
                     <Card className="mt-3">
                         <CardBody>
-                            <h6 className="fw-bold text-uppercase mb-3">Status Distribution</h6>
+                            <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
                             <div className="d-flex align-items-center justify-content-between gap-3">
                                 {/* Legend */}
                                 <div className="vstack gap-3" style={{ minWidth: "180px" }}>

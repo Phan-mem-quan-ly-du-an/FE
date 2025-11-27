@@ -2,6 +2,7 @@
 import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, Label, FormGroup } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { User } from 'lucide-react';
 import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
@@ -38,6 +39,7 @@ interface PageResponse<T> {
 interface BoardResponseColumn { id: number; name: string; position: number; }
 
 const TaskListView = () => {
+  const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -143,8 +145,8 @@ const TaskListView = () => {
         setTotalPages(pageData.totalPages || 0);
       }
     } catch (e: any) {
-      setError('Failed to load tasks');
-      toast.error('Failed to load tasks');
+      setError(t('FailedToLoadTasks'));
+      toast.error(t('FailedToLoadTasks'));
     } finally {
       setLoading(false);
     }
@@ -224,7 +226,7 @@ const TaskListView = () => {
 
   const toggleIncludeArchived = () => {
     if (!filters.includeArchived) {
-      const ok = window.confirm('Bao gồm các task đã archive?');
+      const ok = window.confirm(t('IncludeArchivedTasks') + '?');
       if (!ok) return;
     }
     setFilters(prev => ({ ...prev, includeArchived: !prev.includeArchived }));
@@ -237,9 +239,9 @@ const TaskListView = () => {
       const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/tasks/${taskId}`).put({ data: { assigneeId: memberId } });
       const updated: any = res.data?.data || res.data;
       setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, assigneeId: updated.assigneeId } : t)));
-      toast.success('Assigned successfully', { autoClose: 1500 });
+      toast.success(t('AssignedSuccessfully'), { autoClose: 1500 });
     } catch {
-      toast.error('Failed to assign task');
+      toast.error(t('FailedToAssignTask'));
     }
   };
 
@@ -317,10 +319,10 @@ const TaskListView = () => {
     if (selectedTasks.length === 0) return;
     try {
       await Promise.all(selectedTasks.map(taskId => handleAssignMember(taskId, assigneeId)));
-      toast.success(`${selectedTasks.length} tasks assigned`, { autoClose: 2000 });
+      toast.success(t('TasksAssigned', { count: selectedTasks.length }), { autoClose: 2000 });
       setSelectedTasks([]);
     } catch {
-      toast.error('Failed to assign tasks');
+      toast.error(t('FailedToAssignTasks'));
     }
   };
 
@@ -340,13 +342,16 @@ const TaskListView = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Key', 'Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Updated'];
+    const headers = [t('Key'), t('Task'), t('Status'), t('Priority'), t('Assignee'), t('DueDate'), t('Updated')];
     const rows = tasks.map(task => [
       getTaskKey(task),
       task.title,
-      task.statusColumn?.name || 'No Status',
+      task.statusColumn?.name || t('NoStatus'),
+      task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+      task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+      task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
       task.priority,
-      getMemberInfo(task.assigneeId)?.displayName || 'Unassigned',
+      getMemberInfo(task.assigneeId)?.displayName || t('Unassigned'),
       formatDate(task.dueDate),
       formatDate(task.updatedAt)
     ]);
@@ -358,7 +363,7 @@ const TaskListView = () => {
     a.download = `tasks-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Exported successfully', { autoClose: 1500 });
+    toast.success(t('ExportedSuccessfully'), { autoClose: 1500 });
   };
 
   return (
@@ -371,14 +376,14 @@ const TaskListView = () => {
                 <InputGroupText>
                   <i className="ri-search-line"></i>
                 </InputGroupText>
-                <Input type="text" placeholder="Search tasks..." value={filters.q} onChange={(e) => onChangeQ(e.target.value)} />
+                <Input type="text" placeholder={t('SearchTasksPlaceholder')} value={filters.q} onChange={(e) => onChangeQ(e.target.value)} />
               </InputGroup>
             </Col>
             <Col md={8} className="text-end">
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
                 <Button color={getActiveFiltersCount() > 0 ? 'primary' : 'light'} size="sm" onClick={() => setShowFiltersModal(true)}>
                   <i className="ri-filter-3-line me-1"></i>
-                  Filters
+                  {t('Filters')}
                   {getActiveFiltersCount() > 0 && (
                     <Badge color="light" className="ms-1" pill style={{ color: '#25a0e2' }}>{getActiveFiltersCount()}</Badge>
                   )}
@@ -386,25 +391,25 @@ const TaskListView = () => {
 
                 <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
-                    <i className="ri-layout-line me-1"></i>View
+                    <i className="ri-layout-line me-1"></i>{t('View')}
                   </DropdownToggle>
                   <DropdownMenu end>
                     <DropdownItem onClick={() => setViewDensity('compact')} active={viewDensity === 'compact'}>
-                      <i className="ri-layout-row-line me-1"></i>Compact
+                      <i className="ri-layout-row-line me-1"></i>{t('Compact')}
                     </DropdownItem>
                     <DropdownItem onClick={() => setViewDensity('comfortable')} active={viewDensity === 'comfortable'}>
-                      <i className="ri-layout-2-line me-1"></i>Comfortable
+                      <i className="ri-layout-2-line me-1"></i>{t('Comfortable')}
                     </DropdownItem>
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
-                <Button color="light" size="sm" onClick={exportToCSV} title="Export to CSV">
+                <Button color="light" size="sm" onClick={exportToCSV} title={t('ExportToCSV')}>
                   <i className="ri-download-line"></i>
                 </Button>
 
                 <Button color="primary" size="sm" onClick={() => setShowCreateModal(true)}>
                   <i className="ri-add-line me-1"></i>
-                  Create Task
+                  {t('CreateTask')}
                 </Button>
               </div>
             </Col>
@@ -416,7 +421,7 @@ const TaskListView = () => {
                 <CardBody>
                   <div className="d-flex align-items-center">
                     <div className="flex-grow-1">
-                      <p className="text-uppercase fw-medium text-muted mb-0">Total Tasks</p>
+                      <p className="text-uppercase fw-medium text-muted mb-0">{t('TotalTasks')}</p>
                     </div>
                     <div className="flex-shrink-0">
                       <div className="avatar-sm">
@@ -437,7 +442,7 @@ const TaskListView = () => {
                 <CardBody>
                   <div className="d-flex align-items-center">
                     <div className="flex-grow-1">
-                      <p className="text-uppercase fw-medium text-muted mb-0">High Priority</p>
+                      <p className="text-uppercase fw-medium text-muted mb-0">{t('HighPriority')}</p>
                     </div>
                     <div className="flex-shrink-0">
                       <div className="avatar-sm">
@@ -458,7 +463,7 @@ const TaskListView = () => {
                 <CardBody>
                   <div className="d-flex align-items-center">
                     <div className="flex-grow-1">
-                      <p className="text-uppercase fw-medium text-muted mb-0">Assigned</p>
+                      <p className="text-uppercase fw-medium text-muted mb-0">{t('Assigned')}</p>
                     </div>
                     <div className="flex-shrink-0">
                       <div className="avatar-sm">
@@ -479,7 +484,7 @@ const TaskListView = () => {
                 <CardBody>
                   <div className="d-flex align-items-center">
                     <div className="flex-grow-1">
-                      <p className="text-uppercase fw-medium text-muted mb-0">Unassigned</p>
+                      <p className="text-uppercase fw-medium text-muted mb-0">{t('Unassigned')}</p>
                     </div>
                     <div className="flex-shrink-0">
                       <div className="avatar-sm">
@@ -502,12 +507,12 @@ const TaskListView = () => {
               <CardBody className="py-2">
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
-                    <strong>{selectedTasks.length}</strong> task{selectedTasks.length > 1 ? 's' : ''} selected
+                    <strong>{selectedTasks.length}</strong> {selectedTasks.length === 1 ? t('Task') : t('Tasks')} {t('Selected')}
                   </div>
                   <div className="d-flex gap-2">
                     <UncontrolledDropdown>
                       <DropdownToggle caret color="primary" size="sm">
-                        <i className="ri-user-add-line me-1"></i>Assign
+                        <i className="ri-user-add-line me-1"></i>{t('Assign')}
                       </DropdownToggle>
                       <DropdownMenu end>
                         {projectMembers.map(m => (
@@ -518,7 +523,7 @@ const TaskListView = () => {
                       </DropdownMenu>
                     </UncontrolledDropdown>
                     <Button color="secondary" size="sm" outline onClick={() => setSelectedTasks([])}>
-                      <i className="ri-close-line"></i> Clear
+                      <i className="ri-close-line"></i> {t('Clear')}
                     </Button>
                   </div>
                 </div>
@@ -529,18 +534,18 @@ const TaskListView = () => {
           <Card>
             <CardBody>
               <div className="mb-2">
-                <span className="text-muted">Total {totalElements}</span>
+                <span className="text-muted">{t('Total')} {totalElements}</span>
               </div>
 
               {loading ? (
                 <div className="text-center py-5">
                   <Spinner color="primary" />
-                  <div className="mt-2 text-muted">Loading tasks...</div>
+                  <div className="mt-2 text-muted">{t('LoadingTasks')}</div>
                 </div>
               ) : error ? (
                 <div className="text-center py-5">
                   <div className="text-danger">{error}</div>
-                  <Button color="primary" size="sm" onClick={() => fetchTasks(appliedFiltersRef.current)}>Retry</Button>
+                  <Button color="primary" size="sm" onClick={() => fetchTasks(appliedFiltersRef.current)}>{t('Retry')}</Button>
                 </div>
               ) : tasks.length === 0 ? (
                 <div className="text-center py-5">
@@ -549,7 +554,7 @@ const TaskListView = () => {
                       <i className="ri-inbox-line"></i>
                     </div>
                   </div>
-                  <h5 className="text-muted">No tasks found</h5>
+                  <h5 className="text-muted">{t('NoTasksFound')}</h5>
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -559,13 +564,13 @@ const TaskListView = () => {
                         <th style={{ width: '40px' }}>
                           <Input type="checkbox" checked={selectedTasks.length === tasks.length && tasks.length > 0} onChange={toggleSelectAll} />
                         </th>
-                        <th style={{ width: '100px' }}>Key</th>
-                        <th className="cursor-pointer" onClick={() => handleSort('title')}>Task {getSortIcon('title')}</th>
-                        <th className="cursor-pointer" onClick={() => handleSort('statusColumn')}>Status {getSortIcon('statusColumn')}</th>
-                        <th className="cursor-pointer" onClick={() => handleSort('priority')}>Priority {getSortIcon('priority')}</th>
-                        <th>Assignee</th>
-                        <th className="cursor-pointer" onClick={() => handleSort('dueDate')}>Due Date {getSortIcon('dueDate')}</th>
-                        <th className="cursor-pointer" onClick={() => handleSort('updatedAt')}>Updated {getSortIcon('updatedAt')}</th>
+                        <th style={{ width: '100px' }}>{t('Key')}</th>
+                        <th className="cursor-pointer" onClick={() => handleSort('title')}>{t('Task')} {getSortIcon('title')}</th>
+                        <th className="cursor-pointer" onClick={() => handleSort('statusColumn')}>{t('Status')} {getSortIcon('statusColumn')}</th>
+                        <th className="cursor-pointer" onClick={() => handleSort('priority')}>{t('Priority')} {getSortIcon('priority')}</th>
+                        <th>{t('Assignee')}</th>
+                        <th className="cursor-pointer" onClick={() => handleSort('dueDate')}>{t('DueDate')} {getSortIcon('dueDate')}</th>
+                        <th className="cursor-pointer" onClick={() => handleSort('updatedAt')}>{t('Updated')} {getSortIcon('updatedAt')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -603,18 +608,30 @@ const TaskListView = () => {
                               </div>
                             </td>
                             <td>
-                              <Badge color={getStatusColor(task.statusColumn?.name)} className="fs-11">{task.statusColumn?.name || 'No Status'}</Badge>
+                              <Badge color={getStatusColor(task.statusColumn?.name)} className="fs-11">
+                                {!task.statusColumn?.name ? t('NoStatus') :
+                                 task.statusColumn.name.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                                 task.statusColumn.name.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                                 task.statusColumn.name.toUpperCase() === 'IN REVIEW' ? t('StatusInReview') :
+                                 task.statusColumn.name.toUpperCase() === 'DONE' ? t('StatusDone') :
+                                 task.statusColumn.name}
+                              </Badge>
                             </td>
                             <td>
-                              <Badge color={getPriorityColor(task.priority as any)} className="fs-11">{(task.priority || '').toString().toUpperCase()}</Badge>
+                              <Badge color={getPriorityColor(task.priority as any)} className="fs-11">
+                                {task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+                                 task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+                                 task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+                                 (task.priority || '').toString().toUpperCase()}
+                              </Badge>
                             </td>
                             <td>
                               <Dropdown isOpen={openAssigneeDropdown === task.id} toggle={() => setOpenAssigneeDropdown(openAssigneeDropdown === task.id ? null : task.id)}>
                                 <DropdownToggle className="btn btn-light btn-sm" caret>
-                                  {member ? member.displayName : 'Unassigned'}
+                                  {member ? member.displayName : t('Unassigned')}
                                 </DropdownToggle>
                                 <DropdownMenu end>
-                                  <DropdownItem onClick={() => handleAssignMember(task.id, '')}>Unassigned</DropdownItem>
+                                  <DropdownItem onClick={() => handleAssignMember(task.id, '')}>{t('Unassigned')}</DropdownItem>
                                   <DropdownItem divider />
                                   {projectMembers.map(m => (
                                     <DropdownItem key={m.userId} onClick={() => handleAssignMember(task.id, m.userId)} active={m.userId === task.assigneeId}>{m.displayName || m.email}</DropdownItem>
@@ -641,12 +658,12 @@ const TaskListView = () => {
 
               <div className="d-flex align-items-center justify-content-between mt-3">
                 <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted">Page {page + 1} / {Math.max(totalPages, 1)}</span>
-                  <Button color="light" size="sm" disabled={page === 0} onClick={() => setPage(p => Math.max(p - 1, 0))}>Prev</Button>
-                  <Button color="light" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                  <span className="text-muted">{t('Page')} {page + 1} / {Math.max(totalPages, 1)}</span>
+                  <Button color="light" size="sm" disabled={page === 0} onClick={() => setPage(p => Math.max(p - 1, 0))}>{t('Prev')}</Button>
+                  <Button color="light" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}>{t('Next')}</Button>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted">Size</span>
+                  <span className="text-muted">{t('Size')}</span>
                   <UncontrolledDropdown>
                     <DropdownToggle caret color="light" size="sm">{size}</DropdownToggle>
                     <DropdownMenu end>
@@ -670,13 +687,13 @@ const TaskListView = () => {
       <Modal isOpen={showFiltersModal} toggle={() => setShowFiltersModal(false)} size="lg">
         <ModalHeader toggle={() => setShowFiltersModal(false)}>
           <i className="ri-filter-3-line me-2"></i>
-          Filters
+          {t('Filters')}
         </ModalHeader>
         <ModalBody>
           <Row>
             <Col md={6}>
               <FormGroup>
-                <Label className="fw-semibold">Priority</Label>
+                <Label className="fw-semibold">{t('Priority')}</Label>
                 <div className="d-flex flex-column gap-2">
                   {['HIGH', 'MEDIUM', 'LOW'].map(p => (
                     <div key={p} className="form-check">
@@ -695,7 +712,7 @@ const TaskListView = () => {
               </FormGroup>
 
               <FormGroup className="mt-3">
-                <Label className="fw-semibold">Status</Label>
+                <Label className="fw-semibold">{t('Status')}</Label>
                 <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {columns.map(c => (
                     <div key={c.id} className="form-check">
@@ -714,7 +731,7 @@ const TaskListView = () => {
 
             <Col md={6}>
               <FormGroup>
-                <Label className="fw-semibold">Assignee</Label>
+                <Label className="fw-semibold">{t('Assignee')}</Label>
                 <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {projectMembers.map(m => (
                     <div key={m.userId} className="form-check">
@@ -731,9 +748,9 @@ const TaskListView = () => {
               </FormGroup>
 
               <FormGroup className="mt-3">
-                <Label className="fw-semibold">Sprint</Label>
+                <Label className="fw-semibold">{t('Sprint')}</Label>
                 <Input type="select" value={filters.sprintId || ''} onChange={(e) => setSprint(e.target.value ? parseInt(e.target.value) : undefined)}>
-                  <option value="">No specific sprint</option>
+                  <option value="">{t('NoSpecificSprint')}</option>
                   {sprints.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -745,7 +762,7 @@ const TaskListView = () => {
                     checked={filters.onlyActiveSprint}
                     onChange={toggleOnlyActiveSprint}
                   />
-                  <Label check htmlFor="only-active-sprint">Only Active Sprint</Label>
+                  <Label check htmlFor="only-active-sprint">{t('OnlyActiveSprint')}</Label>
                 </div>
               </FormGroup>
 
@@ -757,7 +774,7 @@ const TaskListView = () => {
                     checked={filters.includeArchived}
                     onChange={toggleIncludeArchived}
                   />
-                  <Label check htmlFor="include-archived">Include Archived Tasks</Label>
+                  <Label check htmlFor="include-archived">{t('IncludeArchivedTasks')}</Label>
                 </div>
               </FormGroup>
             </Col>
@@ -766,11 +783,11 @@ const TaskListView = () => {
         <ModalFooter>
           <Button color="secondary" outline onClick={clearAllFilters}>
             <i className="ri-close-line me-1"></i>
-            Clear All
+            {t('ClearAll')}
           </Button>
           <Button color="primary" onClick={() => setShowFiltersModal(false)}>
             <i className="ri-check-line me-1"></i>
-            Apply
+            {t('Apply')}
           </Button>
         </ModalFooter>
       </Modal>

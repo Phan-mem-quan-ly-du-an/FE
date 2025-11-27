@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { taskAPI } from '../../apiCaller/backlogSprint';
 
 interface CreateTaskModalProps {
@@ -18,6 +19,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   sprintId,
   onSuccess
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -32,7 +34,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     e.preventDefault();
     
     if (!formData.title.trim()) {
-      toast.error('Task title is required');
+      toast.error(t('TaskTitleRequired'));
       return;
     }
 
@@ -54,12 +56,12 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       const createdTask = await taskAPI.create(projectId, taskData);
       console.log('✅ Task created:', createdTask);
       
-      toast.success('Task created successfully');
+      toast.success(t('TaskCreatedSuccessfully'));
       onSuccess();
       handleClose();
     } catch (error: any) {
       console.error('❌ Error creating task:', error);
-      toast.error(error.response?.data?.message || 'Failed to create task');
+      toast.error(error.response?.data?.message || t('FailedToCreateTask'));
     } finally {
       setLoading(false);
     }
@@ -81,16 +83,16 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     <Modal show={show} onHide={handleClose} centered size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          Create New Task {sprintId && <Badge bg="info" className="ms-2">Sprint #{sprintId}</Badge>}
+          {t('CreateNewTask')} {sprintId && <Badge bg="info" className="ms-2">{t('Sprint')} #{sprintId}</Badge>}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
-            <Form.Label>Task Title *</Form.Label>
+            <Form.Label>{t('TaskTitle')} *</Form.Label>
             <Form.Control
               type="text"
-              placeholder="e.g., Implement user authentication"
+              placeholder={t('TaskTitlePlaceholder')}
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
@@ -99,11 +101,11 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
+            <Form.Label>{t('Description')}</Form.Label>
             <Form.Control
               as="textarea"
               rows={4}
-              placeholder="Describe the task in detail..."
+              placeholder={t('TaskDescriptionPlaceholder')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -112,7 +114,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           <div className="row">
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>Priority</Form.Label>
+                <Form.Label>{t('Priority')}</Form.Label>
                 <Form.Select
                   value={formData.priority}
                   onChange={(e) => setFormData({ 
@@ -120,19 +122,19 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     priority: e.target.value as any 
                   })}
                 >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
+                  <option value="LOW">{t('PriorityLowLabel')}</option>
+                  <option value="MEDIUM">{t('PriorityMediumLabel')}</option>
+                  <option value="HIGH">{t('PriorityHighLabel')}</option>
                 </Form.Select>
               </Form.Group>
             </div>
             <div className="col-md-6">
               <Form.Group className="mb-3">
-                <Form.Label>Estimated Hours</Form.Label>
+                <Form.Label>{t('EstimatedHours')}</Form.Label>
                 <Form.Control
                   type="number"
                   min="0"
-                  placeholder="e.g., 8"
+                  placeholder={t('EstimatedHoursPlaceholder')}
                   value={formData.estimatedHours}
                   onChange={(e) => setFormData({ ...formData, estimatedHours: e.target.value })}
                 />
@@ -141,7 +143,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           <Form.Group className="mb-3">
-            <Form.Label>Due Date</Form.Label>
+            <Form.Label>{t('DueDate')}</Form.Label>
             <Form.Control
               type="date"
               value={formData.dueDate}
@@ -150,29 +152,29 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Tags</Form.Label>
+            <Form.Label>{t('Tags')}</Form.Label>
             <Form.Control
               type="text"
-              placeholder="frontend, api, bug-fix (comma separated)"
+              placeholder={t('TagsPlaceholder')}
               value={formData.tags}
               onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
             />
             <Form.Text className="text-muted">
-              Separate multiple tags with commas
+              {t('SeparateMultipleTags')}
             </Form.Text>
           </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
-          Cancel
+          {t('Cancel')}
         </Button>
         <Button 
           variant="primary" 
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? 'Creating...' : 'Create Task'}
+          {loading ? t('Creating') : t('CreateTask')}
         </Button>
       </Modal.Footer>
     </Modal>

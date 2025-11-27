@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs, Tab } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { taskAPI } from '../../apiCaller/backlogSprint';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import AttachmentsTab from './AttachmentsTab';
@@ -47,6 +48,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   projectId,
   onUpdate
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<Task>(task);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
@@ -59,9 +61,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     { id: 4, name: 'DONE', color: '#10b981' }
   ]);
 
-  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([
-    { userId: 'unassigned', displayName: 'Unassigned', email: '' }
-  ]);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
 
   // Load project members
   useEffect(() => {
@@ -71,7 +71,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       try {
         const members = await getProjectMembers(projectId);
         setProjectMembers([
-          { userId: 'unassigned', displayName: 'Unassigned', email: '' },
+          { userId: 'unassigned', displayName: t('Unassigned'), email: '' },
           ...members
         ]);
       } catch (error) {
@@ -103,11 +103,15 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setFormData(updatedTask);
       
       await taskAPI.update(projectId, task.id, updatedTask);
-      toast.success(`Status updated to ${statusName}`);
+      const translatedStatus = statusName === 'TO DO' ? t('StatusTodo') :
+                               statusName === 'IN PROGRESS' ? t('StatusInProgress') :
+                               statusName === 'IN REVIEW' ? t('StatusInReview') :
+                               statusName === 'DONE' ? t('StatusDone') : statusName;
+      toast.success(t('StatusUpdatedTo', { status: translatedStatus }));
       onUpdate();
     } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      toast.error(t('FailedToUpdateStatus'));
       setFormData(task); // Revert on error
     }
   };
@@ -125,7 +129,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     e.preventDefault();
     
     if (!formData.title.trim()) {
-      toast.error('Task title is required');
+      toast.error(t('TaskTitleRequired'));
       return;
     }
 
@@ -149,31 +153,31 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       };
       
       await taskAPI.update(projectId, task.id, apiPayload);
-      toast.success('Task updated successfully');
+      toast.success(t('TaskUpdatedSuccessfully'));
       onUpdate();
       onHide();
     } catch (error: any) {
       console.error('Error updating task:', error);
-      toast.error(error.response?.data?.message || 'Failed to update task');
+      toast.error(error.response?.data?.message || t('FailedToUpdateTask'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
+    if (!window.confirm(t('DeleteTaskConfirm'))) {
       return;
     }
 
     try {
       setLoading(true);
       await taskAPI.delete(projectId, task.id);
-      toast.success('Task deleted successfully');
+      toast.success(t('TaskDeletedSuccessfully'));
       onUpdate();
       onHide();
     } catch (error: any) {
       console.error('Error deleting task:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete task');
+      toast.error(error.response?.data?.message || t('FailedToDeleteTask'));
     } finally {
       setLoading(false);
     }
@@ -194,12 +198,18 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const getCurrentAssignee = () => {
-    if (!formData.assignedTo) return projectMembers[0]; // Unassigned
-    return projectMembers.find(m => m.userId === formData.assignedTo) || projectMembers[0];
+    if (!formData.assignedTo) {
+      return projectMembers.find(m => m.userId === 'unassigned') || { userId: 'unassigned', displayName: t('Unassigned'), email: '' };
+    }
+    return projectMembers.find(m => m.userId === formData.assignedTo) || { userId: 'unassigned', displayName: t('Unassigned'), email: '' };
   };
 
   const getCurrentStatus = () => {
-    return formData.statusColumn || statusColumns[0];
+    if (formData.statusColumn) {
+      return formData.statusColumn;
+    }
+    // If no status, default to first status column
+    return statusColumns[0];
   };
 
   return (
@@ -208,9 +218,12 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         <div className="d-flex align-items-center justify-content-between w-100 me-3">
           <div>
             <Modal.Title>
-              Task #{task.id}
+              {t('Task')} #{task.id}
               <Badge bg={getPriorityColor(formData.priority)} className="ms-2">
-                {formData.priority}
+                {formData.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+                 formData.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+                 formData.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+                 formData.priority}
               </Badge>
             </Modal.Title>
           </div>
@@ -226,7 +239,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 }}
               >
                 <i className="ri-checkbox-circle-line me-1"></i>
-                {getCurrentStatus().name}
+                {getCurrentStatus().name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                 getCurrentStatus().name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                 getCurrentStatus().name?.toUpperCase() === 'IN REVIEW' ? t('StatusInReview') :
+                 getCurrentStatus().name?.toUpperCase() === 'DONE' ? t('StatusDone') :
+                 getCurrentStatus().name || t('StatusTodo')}
               </Button>
               <Dropdown.Toggle 
                 split 
@@ -238,24 +255,30 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 }}
               />
               <Dropdown.Menu>
-                {statusColumns.map(status => (
-                  <Dropdown.Item
-                    key={status.id}
-                    onClick={() => handleStatusChange(status.id, status.name)}
-                    active={getCurrentStatus().id === status.id}
-                  >
-                    <span
-                      className="d-inline-block me-2"
-                      style={{
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        backgroundColor: status.color
-                      }}
-                    />
-                    {status.name}
-                  </Dropdown.Item>
-                ))}
+                {statusColumns.map(status => {
+                  const translatedStatus = status.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
+                                          status.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
+                                          status.name?.toUpperCase() === 'IN REVIEW' ? t('StatusInReview') :
+                                          status.name?.toUpperCase() === 'DONE' ? t('StatusDone') : status.name;
+                  return (
+                    <Dropdown.Item
+                      key={status.id}
+                      onClick={() => handleStatusChange(status.id, status.name)}
+                      active={getCurrentStatus().id === status.id}
+                    >
+                      <span
+                        className="d-inline-block me-2"
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: status.color
+                        }}
+                      />
+                      {translatedStatus}
+                    </Dropdown.Item>
+                  );
+                })}
               </Dropdown.Menu>
             </Dropdown>
 
@@ -291,10 +314,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           onSelect={(k) => setActiveTab(k || 'details')}
           className="mb-3"
         >
-          <Tab eventKey="details" title="Details">
+          <Tab eventKey="details" title={t('Details')}>
             <Form onSubmit={handleSubmit}>
               <Form.Group className="mb-3">
-                <Form.Label>Task Title *</Form.Label>
+                <Form.Label>{t('TaskTitle')} *</Form.Label>
                 <Form.Control
                   type="text"
                   value={formData.title}
@@ -304,7 +327,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Description</Form.Label>
+                <Form.Label>{t('Description')}</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={5}
@@ -316,7 +339,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <div className="row">
                 <div className="col-md-6">
                   <Form.Group className="mb-3">
-                    <Form.Label>Priority</Form.Label>
+                    <Form.Label>{t('Priority')}</Form.Label>
                     <Form.Select
                       value={formData.priority}
                       onChange={(e) => setFormData({ 
@@ -324,15 +347,15 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         priority: e.target.value as any 
                       })}
                     >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
+                      <option value="LOW">{t('PriorityLowLabel')}</option>
+                      <option value="MEDIUM">{t('PriorityMediumLabel')}</option>
+                      <option value="HIGH">{t('PriorityHighLabel')}</option>
                     </Form.Select>
                   </Form.Group>
                 </div>
                 <div className="col-md-6">
                   <Form.Group className="mb-3">
-                    <Form.Label>Due Date</Form.Label>
+                    <Form.Label>{t('DueDate')}</Form.Label>
                     <Form.Control
                       type="date"
                       value={formData.dueDate || ''}
@@ -345,7 +368,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <div className="row">
                 <div className="col-md-6">
                   <Form.Group className="mb-3">
-                    <Form.Label>Estimated Hours</Form.Label>
+                    <Form.Label>{t('EstimatedHours')}</Form.Label>
                     <Form.Control
                       type="number"
                       min="0"
@@ -360,35 +383,39 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </div>
 
               <Form.Group className="mb-3">
-                <Form.Label>Tags</Form.Label>
+                <Form.Label>{t('Tags')}</Form.Label>
                 <Form.Control
                   type="text"
                   value={formData.tags || ''}
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  placeholder="frontend, api, bug-fix"
+                  placeholder={t('TagsPlaceholder')}
                 />
               </Form.Group>
             </Form>
           </Tab>
 
-          <Tab eventKey="activity" title="Activity">
+          <Tab eventKey="activity" title={t('Activity')}>
             <div className="py-3">
               <div className="mb-3">
-                <strong>Created:</strong> {task.createdAt ? new Date(task.createdAt).toLocaleString() : 'N/A'}
+                <strong>{t('Created')}:</strong> {task.createdAt ? new Date(task.createdAt).toLocaleString() : t('NA')}
               </div>
               <div className="mb-3">
-                <strong>Last Updated:</strong> {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : 'N/A'}
+                <strong>{t('LastUpdated')}:</strong> {task.updatedAt ? new Date(task.updatedAt).toLocaleString() : t('NA')}
               </div>
               <div className="mb-3">
-                <strong>Sprint:</strong> {task.sprintId ? `Sprint #${task.sprintId}` : 'Backlog'}
+                <strong>{t('Sprint')}:</strong> {task.sprintId ? `${t('Sprint')} #${task.sprintId}` : t('Backlog')}
               </div>
               <div className="mb-3">
-                <strong>Status:</strong> {task.statusColumn?.name || 'To Do'}
+                <strong>{t('Status')}:</strong> {task.statusColumn?.name === 'TO DO' ? t('StatusTodo') :
+                                                 task.statusColumn?.name === 'IN PROGRESS' ? t('StatusInProgress') :
+                                                 task.statusColumn?.name === 'IN REVIEW' ? t('StatusInReview') :
+                                                 task.statusColumn?.name === 'DONE' ? t('StatusDone') :
+                                                 task.statusColumn?.name || t('StatusTodo')}
               </div>
             </div>
           </Tab>
 
-          <Tab eventKey="attachments" title="Attachments">
+          <Tab eventKey="attachments" title={t('Attachments')}>
             <AttachmentsTab projectId={projectId} taskId={task.id} />
           </Tab>
         </Tabs>
@@ -400,11 +427,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           disabled={loading}
         >
           <i className="ri-delete-bin-line me-2"></i>
-          Delete
+          {t('Delete')}
         </Button>
         <div>
           <Button variant="secondary" onClick={onHide} className="me-2">
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button 
             variant="primary" 
@@ -412,7 +439,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             disabled={loading}
           >
             <i className="ri-save-line me-2"></i>
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? t('Saving') : t('SaveChanges')}
           </Button>
         </div>
       </Modal.Footer>
