@@ -448,6 +448,36 @@
       opacity: 0.98;
     }
   }
+
+  .epic-card {
+    padding: 10px 12px;
+    border: 1px solid #e6e8eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    &:hover {
+      background-color: #f8fafc;
+    }
+    &.selected {
+      background-color: rgba(94, 77, 178, 0.12);
+      border-color: #c0b6f2;
+    }
+    .epic-card-menu {
+      color: #6b7280;
+      border-radius: 6px;
+      padding: 2px;
+      cursor: pointer;
+      &:hover {
+        color: #1f2937;
+        background-color: #e5e7eb;
+      }
+    }
+    .epic-card-details {
+      margin-top: 8px;
+      .dates { color: #374151; }
+      .actions { margin-top: 6px; }
+    }
+  }
 }
 
 // Modal Styles
