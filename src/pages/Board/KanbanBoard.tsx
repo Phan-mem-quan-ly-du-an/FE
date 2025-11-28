@@ -225,6 +225,23 @@ const KanbanBoard: React.FC = () => {
       await loadBoard();
     }
   };
+    // ============= LOAD EPICS =============
+    const loadEpics = async () => {
+        if (!projectId) return;
+
+        try {
+            // Gọi API lấy danh sách Epic
+            const data = await getEpicsByProject(projectId);
+
+            // API trả về dạng PageResponse (có thuộc tính content chứa mảng)
+            // Dựa vào JSON bạn gửi: data.content là mảng các epic
+            if (data && data.content) {
+                setEpics(data.content);
+            }
+        } catch (error) {
+            console.error("❌ Error loading epics:", error);
+        }
+    };
 
   // Export to CSV
   const exportToCSV = () => {
@@ -348,6 +365,7 @@ const KanbanBoard: React.FC = () => {
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
+    loadEpics();
   }, [projectId]);
 
   // ============= FILTER TASKS =============

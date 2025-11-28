@@ -1749,7 +1749,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         <Form.Label>Assignee</Form.Label>
                                         <Form.Select value={newTaskAssigneeId} onChange={(e) => setNewTaskAssigneeId(e.target.value)}>
                                             <option value="">Unassigned</option>
-                                            {projectMembers.map(m => (<option key={m.userId} value={m.userId}>{m.displayName || m.email}</option>))}
+                                            {[...projectMembers.filter((m, idx, arr) => m.userId !== 'unassigned' || idx === arr.findIndex(mm => mm.userId === 'unassigned'))].map(m => (
+                                                m.userId === 'unassigned' ? null : (<option key={m.userId} value={m.userId}>{m.displayName || m.email}</option>)
+                                            ))}
                                         </Form.Select>
                                     </Form.Group>
                                 </Col>
