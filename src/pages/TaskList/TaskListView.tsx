@@ -7,6 +7,7 @@ import { User } from 'lucide-react';
 import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import { sprintAPI } from '../../apiCaller/backlogSprint';
+import { getEpicsByProject, EpicDto } from '../../apiCaller/epics';
 import CreateTaskModal from '../BacklogSprint/CreateTaskModal';
 import TaskDetailModal from '../BacklogSprint/TaskDetailModal';
 import './TaskList.scss';
@@ -17,6 +18,8 @@ interface Task {
   description?: string;
   projectId: string;
   sprintId?: number | null;
+  epicId?: number | null;
+  epicTitle?: string;
   assigneeId?: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' ;
   dueDate?: string;
@@ -55,6 +58,7 @@ const TaskListView = () => {
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [columns, setColumns] = useState<BoardResponseColumn[]>([]);
   const [sprints, setSprints] = useState<{ id: number; name: string }[]>([]);
+  const [epics, setEpics] = useState<EpicDto[]>([]);
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
   const [filters, setFilters] = useState({
@@ -63,9 +67,12 @@ const TaskListView = () => {
     assigneeIds: [] as string[],
     columnIds: [] as number[],
     sprintId: undefined as number | undefined,
+    epicIds: [] as number[],
     onlyActiveSprint: false,
     includeArchived: false
   });
+  const [groupBy, setGroupBy] = useState<'none' | 'priority' | 'assignee' | 'status' | 'sprint' | 'epic'>('none');
+  const [groupValue, setGroupValue] = useState<string | number | undefined>(undefined);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -82,6 +89,7 @@ const TaskListView = () => {
     if (f.assigneeIds.length) return true;
     if (f.columnIds.length) return true;
     if (typeof f.sprintId !== 'undefined') return true;
+    if (f.epicIds.length) return true;
     if (f.includeArchived === true) return true;
     if (f.onlyActiveSprint === true) return true;
     return false;
@@ -114,6 +122,14 @@ const TaskListView = () => {
     } catch {}
   };
 
+  const loadEpics = async () => {
+    if (!projectId) return;
+    try {
+      const response = await getEpicsByProject(projectId, 0, 100);
+      setEpics(response.content || []);
+    } catch {}
+  };
+
   const fetchTasks = async (useFilters: typeof filters | null) => {
     if (!projectId) return;
     setLoading(true);
@@ -127,6 +143,7 @@ const TaskListView = () => {
           assigneeIds: useFilters.assigneeIds || [],
           columnIds: useFilters.columnIds || [],
           sprintId: typeof useFilters.sprintId === 'number' ? useFilters.sprintId : undefined,
+          epicIds: useFilters.epicIds || [],
           onlyActiveSprint: useFilters.onlyActiveSprint,
           includeArchived: useFilters.includeArchived
         };
@@ -156,6 +173,7 @@ const TaskListView = () => {
     loadProjectMembers();
     loadBoardColumns();
     loadSprints();
+    loadEpics();
   }, [projectId]);
 
   useEffect(() => {
@@ -172,7 +190,7 @@ const TaskListView = () => {
     debounceTimerRef.current = setTimeout(() => {
       fetchTasks(appliedFiltersRef.current);
     }, 300);
-  }, [filters.priorities, filters.assigneeIds, filters.columnIds, filters.sprintId, filters.onlyActiveSprint, filters.includeArchived]);
+  }, [filters.priorities, filters.assigneeIds, filters.columnIds, filters.sprintId, filters.epicIds, filters.onlyActiveSprint, filters.includeArchived]);
 
   const onChangeQ = (v: string) => {
     setFilters(prev => {
@@ -210,6 +228,15 @@ const TaskListView = () => {
       const exists = prev.columnIds.includes(id);
       const columnIds = exists ? prev.columnIds.filter(x => x !== id) : [...prev.columnIds, id];
       return { ...prev, columnIds };
+    });
+    setPage(0);
+  };
+
+  const toggleEpic = (id: number) => {
+    setFilters(prev => {
+      const exists = prev.epicIds.includes(id);
+      const epicIds = exists ? prev.epicIds.filter(x => x !== id) : [...prev.epicIds, id];
+      return { ...prev, epicIds };
     });
     setPage(0);
   };
@@ -296,8 +323,24 @@ const TaskListView = () => {
     return { total, highPriority, assigned, unassigned };
   }, [tasks, totalElements]);
 
+  const displayTasks = useMemo(() => {
+    if (groupBy === 'none' || typeof groupValue === 'undefined' || groupValue === null || groupValue === '') return tasks;
+    const isMatch = (t: Task) => {
+      if (groupBy === 'priority') return ((t.priority || '').toString().toUpperCase()) === ((groupValue as string) || '').toUpperCase();
+      if (groupBy === 'assignee') return (t.assigneeId || '') === (groupValue as string);
+      if (groupBy === 'status') return (t.statusColumn?.id || -1) === (groupValue as number);
+      if (groupBy === 'sprint') return (t.sprintId || null) === (groupValue as number);
+      if (groupBy === 'epic') return (t.epicId || null) === (groupValue as number);
+      return false;
+    };
+    const matched: Task[] = [];
+    const others: Task[] = [];
+    tasks.forEach(t => { (isMatch(t) ? matched : others).push(t); });
+    return [...matched, ...others];
+  }, [tasks, groupBy, groupValue]);
+
   const clearAllFilters = () => {
-    setFilters({ q: '', priorities: [], assigneeIds: [], columnIds: [], sprintId: undefined, onlyActiveSprint: false, includeArchived: false });
+    setFilters({ q: '', priorities: [], assigneeIds: [], columnIds: [], sprintId: undefined, epicIds: [], onlyActiveSprint: false, includeArchived: false });
     setPage(0);
     appliedFiltersRef.current = null;
     fetchTasks(null);
@@ -337,6 +380,7 @@ const TaskListView = () => {
     if (filters.assigneeIds.length) count += filters.assigneeIds.length;
     if (filters.columnIds.length) count += filters.columnIds.length;
     if (typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) count += 1;
+    if (filters.epicIds.length) count += filters.epicIds.length;
     if (filters.includeArchived) count += 1;
     return count;
   };
@@ -390,6 +434,41 @@ const TaskListView = () => {
                 </Button>
 
                 <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.columnIds.length ? 'info' : 'light'} size="sm">Status</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, columnIds: [] }))} active={filters.columnIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {columns.map(c => (
+                      <DropdownItem key={c.id} onClick={() => toggleColumn(c.id)} active={filters.columnIds.includes(c.id)}>{c.name}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={(typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) ? 'info' : 'light'} size="sm">Sprint</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '240px' }}>
+                    <DropdownItem onClick={() => setSprint(undefined)} active={typeof filters.sprintId === 'undefined'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    {sprints.map(s => (
+                      <DropdownItem key={s.id} onClick={() => setSprint(s.id)} active={filters.sprintId === s.id}>{s.name}</DropdownItem>
+                    ))}
+                    <DropdownItem divider />
+                    <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, assigneeIds: [] }))} active={filters.assigneeIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {projectMembers.map(m => (
+                      <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
                     <i className="ri-layout-line me-1"></i>{t('View')}
                   </DropdownToggle>
@@ -403,7 +482,142 @@ const TaskListView = () => {
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
-                <Button color="light" size="sm" onClick={exportToCSV} title={t('ExportToCSV')}>
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.priorities.length ? 'info' : 'light'} size="sm">Priority</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '220px' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, priorities: [] }))} active={filters.priorities.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    <DropdownItem onClick={() => togglePriority('HIGH')} active={filters.priorities.includes('HIGH')}>HIGH</DropdownItem>
+                    <DropdownItem onClick={() => togglePriority('MEDIUM')} active={filters.priorities.includes('MEDIUM')}>MEDIUM</DropdownItem>
+                    <DropdownItem onClick={() => togglePriority('LOW')} active={filters.priorities.includes('LOW')}>LOW</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.columnIds.length ? 'info' : 'light'} size="sm">Status</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, columnIds: [] }))} active={filters.columnIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {columns.map(c => (
+                      <DropdownItem key={c.id} onClick={() => toggleColumn(c.id)} active={filters.columnIds.includes(c.id)}>{c.name}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={(typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) ? 'info' : 'light'} size="sm">Sprint</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '240px' }}>
+                    <DropdownItem onClick={() => setSprint(undefined)} active={typeof filters.sprintId === 'undefined'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    {sprints.map(s => (
+                      <DropdownItem key={s.id} onClick={() => setSprint(s.id)} active={filters.sprintId === s.id}>{s.name}</DropdownItem>
+                    ))}
+                    <DropdownItem divider />
+                    <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.epicIds.length ? 'info' : 'light'} size="sm">Epic</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '280px', maxHeight: '320px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, epicIds: [] }))} active={filters.epicIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {epics.length === 0 ? (
+                      <DropdownItem disabled className="text-muted">No epics found</DropdownItem>
+                    ) : (
+                      epics.map(e => (
+                        <DropdownItem key={e.id} onClick={() => toggleEpic(e.id)} active={filters.epicIds.includes(e.id)}>
+                          {e.title}
+                        </DropdownItem>
+                      ))
+                    )}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <Button color={filters.includeArchived ? 'info' : 'light'} size="sm" onClick={toggleIncludeArchived}>Archived</Button>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={groupBy !== 'none' && typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group By</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '220px' }}>
+                    <DropdownItem onClick={() => { setGroupBy('none'); setGroupValue(undefined); }} active={groupBy === 'none'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    <DropdownItem onClick={() => { setGroupBy('priority'); setGroupValue(undefined); }} active={groupBy === 'priority'}>Priority</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('status'); setGroupValue(undefined); }} active={groupBy === 'status'}>Status</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('assignee'); setGroupValue(undefined); }} active={groupBy === 'assignee'}>Assignee</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('sprint'); setGroupValue(undefined); }} active={groupBy === 'sprint'}>Sprint</DropdownItem>
+                    <DropdownItem onClick={() => { setGroupBy('epic'); setGroupValue(undefined); }} active={groupBy === 'epic'}>Epic</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                {groupBy === 'priority' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '220px' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      <DropdownItem onClick={() => setGroupValue('HIGH')} active={groupValue === 'HIGH'}>HIGH</DropdownItem>
+                      <DropdownItem onClick={() => setGroupValue('MEDIUM')} active={groupValue === 'MEDIUM'}>MEDIUM</DropdownItem>
+                      <DropdownItem onClick={() => setGroupValue('LOW')} active={groupValue === 'LOW'}>LOW</DropdownItem>
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'status' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {columns.map(c => (
+                        <DropdownItem key={c.id} onClick={() => setGroupValue(c.id)} active={groupValue === c.id}>{c.name}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'assignee' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {projectMembers.map(m => (
+                        <DropdownItem key={m.userId} onClick={() => setGroupValue(m.userId)} active={groupValue === m.userId}>{m.displayName || m.email}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'sprint' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '240px' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {sprints.map(s => (
+                        <DropdownItem key={s.id} onClick={() => setGroupValue(s.id)} active={groupValue === s.id}>{s.name}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                {groupBy === 'epic' && (
+                  <UncontrolledDropdown>
+                    <DropdownToggle caret color={typeof groupValue !== 'undefined' ? 'info' : 'light'} size="sm">Group Value</DropdownToggle>
+                    <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
+                      <DropdownItem onClick={() => setGroupValue(undefined)} active={typeof groupValue === 'undefined'}>None</DropdownItem>
+                      <DropdownItem divider />
+                      {epics.map(e => (
+                        <DropdownItem key={e.id} onClick={() => setGroupValue(e.id)} active={groupValue === e.id}>
+                          {e.title}
+                        </DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                )}
+
+                <Button color="danger" size="sm" outline onClick={clearAllFilters}><i className="ri-close-line me-1"></i>Clear</Button>
+                <Button color="light" size="sm" onClick={exportToCSV} title="Export to CSV">
                   <i className="ri-download-line"></i>
                 </Button>
 
@@ -568,6 +782,7 @@ const TaskListView = () => {
                         <th className="cursor-pointer" onClick={() => handleSort('title')}>{t('Task')} {getSortIcon('title')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('statusColumn')}>{t('Status')} {getSortIcon('statusColumn')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('priority')}>{t('Priority')} {getSortIcon('priority')}</th>
+                        <th style={{ width: '180px' }}>Epic</th>
                         <th>{t('Assignee')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('dueDate')}>{t('DueDate')} {getSortIcon('dueDate')}</th>
                         <th className="cursor-pointer" onClick={() => handleSort('updatedAt')}>{t('Updated')} {getSortIcon('updatedAt')}</th>
@@ -577,6 +792,7 @@ const TaskListView = () => {
                       {tasks.map(task => {
                         const member = getMemberInfo(task.assigneeId);
                         const sprint = sprints.find(s => s.id === task.sprintId);
+                        const epic = epics.find(e => e.id === task.epicId);
                         return (
                           <tr key={task.id} className={selectedTasks.includes(task.id) ? 'table-active' : ''}>
                             <td>
@@ -591,18 +807,19 @@ const TaskListView = () => {
                                 {task.description && viewDensity === 'comfortable' && (
                                   <p className="text-muted mb-0 text-truncate" style={{ maxWidth: '300px' }}>{task.description}</p>
                                 )}
-                                {(task.tags || sprint) && viewDensity === 'comfortable' && (
+                                {task.tags && viewDensity === 'comfortable' && (
                                   <div className="d-flex gap-1 mt-1 flex-wrap">
-                                    {task.tags && task.tags.split(',').map((tag, i) => (
-                                      <span key={i} className="badge bg-light text-dark border" style={{ fontSize: '10px' }}>
+                                    {task.tags.split(',').map((tag, i) => (
+                                      <span key={i} className="badge" style={{ 
+                                        fontSize: '10px',
+                                        backgroundColor: '#e0e7ff',
+                                        color: '#4338ca',
+                                        border: '1px solid #c7d2fe',
+                                        fontWeight: '500'
+                                      }}>
                                         <i className="ri-price-tag-3-line"></i> {tag.trim()}
                                       </span>
                                     ))}
-                                    {sprint && (
-                                      <span className="badge bg-info-subtle text-info border border-info" style={{ fontSize: '10px' }}>
-                                        <i className="ri-sprint-line"></i> {sprint.name}
-                                      </span>
-                                    )}
                                   </div>
                                 )}
                               </div>
@@ -624,6 +841,27 @@ const TaskListView = () => {
                                  task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
                                  (task.priority || '').toString().toUpperCase()}
                               </Badge>
+                            </td>
+                            <td>
+                              {epic ? (
+                                <Badge 
+                                  color="light" 
+                                  className="fs-11" 
+                                  style={{
+                                    backgroundColor: '#f3f4f6',
+                                    color: '#6b7280',
+                                    border: '1px solid #e5e7eb',
+                                    fontWeight: '500',
+                                    padding: '4px 10px',
+                                    maxWidth: '160px',
+                                    display: 'inline-block'
+                                  }}
+                                >
+                                  <span className="text-truncate" title={epic.title}>{epic.title}</span>
+                                </Badge>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: '11px' }}>-</span>
+                              )}
                             </td>
                             <td>
                               <Dropdown isOpen={openAssigneeDropdown === task.id} toggle={() => setOpenAssigneeDropdown(openAssigneeDropdown === task.id ? null : task.id)}>

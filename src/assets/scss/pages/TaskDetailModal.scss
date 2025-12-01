@@ -221,5 +221,13 @@
         padding: 20px 0;
       }
     }
+    .inline-four {
+      .form-select,
+      .form-control {
+        height: 32px;
+        padding: 4px 10px;
+        font-size: 13px;
+      }
+    }
   }
 }

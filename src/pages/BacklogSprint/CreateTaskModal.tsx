@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import { getEpicsByProject, EpicDto } from '../../apiCaller/epics';
 
 interface CreateTaskModalProps {
   show: boolean;
@@ -26,9 +27,27 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
     estimatedHours: '',
     dueDate: '',
-    tags: ''
+    tags: '',
+    epicId: '' as string
   });
   const [loading, setLoading] = useState(false);
+  const [epics, setEpics] = useState<EpicDto[]>([]);
+
+  useEffect(() => {
+    if (show && projectId) {
+      loadEpics();
+    }
+  }, [show, projectId]);
+
+  const loadEpics = async () => {
+    try {
+      const response = await getEpicsByProject(projectId);
+      setEpics(response.content || []);
+    } catch (error) {
+      console.error('Error loading epics:', error);
+      setEpics([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +68,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : undefined,
         dueDate: formData.dueDate || undefined,
         tags: formData.tags.trim() || undefined,
+        epicId: formData.epicId ? parseInt(formData.epicId) : undefined,
         orderIndex: 0
       };
       console.log('📝 Creating task:', taskData);
@@ -74,7 +94,8 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       priority: 'MEDIUM',
       estimatedHours: '',
       dueDate: '',
-      tags: ''
+      tags: '',
+      epicId: ''
     });
     onHide();
   };
@@ -142,14 +163,34 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
           </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label>{t('DueDate')}</Form.Label>
-            <Form.Control
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-            />
-          </Form.Group>
+          <div className="row">
+            <div className="col-md-6">
+              <Form.Group className="mb-3">
+                <Form.Label>{t('DueDate')}</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6">
+              <Form.Group className="mb-3">
+                <Form.Label>{t('Epic')}</Form.Label>
+                <Form.Select
+                  value={formData.epicId}
+                  onChange={(e) => setFormData({ ...formData, epicId: e.target.value })}
+                >
+                  <option value="">{t('Epic') || 'Select Epic (Optional)'}</option>
+                  {epics.map((epic) => (
+                    <option key={epic.id} value={epic.id}>
+                      {epic.title}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
 
           <Form.Group className="mb-3">
             <Form.Label>{t('Tags')}</Form.Label>

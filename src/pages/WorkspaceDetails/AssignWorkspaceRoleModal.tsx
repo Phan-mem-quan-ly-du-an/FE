@@ -13,6 +13,7 @@ interface AssignWorkspaceRoleModalProps {
     onClose: () => void;
     workspaceId: string;
     member: WorkspaceMember | null;
+    memberEmail?: string;
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
 }
@@ -22,6 +23,7 @@ export default function AssignWorkspaceRoleModal({
     onClose,
     workspaceId,
     member,
+    memberEmail,
     onSuccess,
     onError,
 }: Readonly<AssignWorkspaceRoleModalProps>) {
@@ -90,6 +92,9 @@ export default function AssignWorkspaceRoleModal({
     if (!member) return null;
 
     const isOwner = !!member.owner;
+    const rid = member.roleId ? Number(member.roleId) : (member.role?.id as number | undefined);
+    const r = roles.find((rr) => rr.id === rid);
+    const currentRoleName = isOwner ? t('Owner') : (r ? (r.name || r.code) : (member.role?.name || (rid ? String(rid) : '—')));
 
     return (
         <Modal id="assignWorkspaceRoleModal" isOpen={show} toggle={onClose} centered>
@@ -120,12 +125,12 @@ export default function AssignWorkspaceRoleModal({
                         <table className="table table-bordered align-middle">
                             <tbody>
                                 <tr>
-                                    <th style={{ inlineSize: 180 }}>{t('WorkspaceMemberId')}</th>
-                                    <td className="font-monospace">{member.userId}</td>
+                                    <th style={{ inlineSize: 180 }}>{t('Email')}</th>
+                                    <td className="font-monospace">{memberEmail || member.userId}</td>
                                 </tr>
                                 <tr>
                                     <th>{t('CurrentRole')}</th>
-                                    <td>{member.owner ? t('Owner') : (member.roleId ?? '—')}</td>
+                                    <td>{currentRoleName}</td>
                                 </tr>
                             </tbody>
                         </table>
