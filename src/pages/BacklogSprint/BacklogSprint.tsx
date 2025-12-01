@@ -971,9 +971,20 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const renderTask = (task: Task, index: number, isArchived = false) => {
-        const currentStatus: StatusColumn = task.statusColumn
-            ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
-            : statusColumns[0];
+        // Find matching status from statusColumns by ID or name
+        let currentStatus: StatusColumn;
+        if (task.statusColumn) {
+            const matchedById = statusColumns.find(col => col.id === task.statusColumn?.id);
+            const matchedByName = statusColumns.find(col =>
+                col.name.toUpperCase() === task.statusColumn?.name?.toUpperCase()
+            );
+            currentStatus = matchedById || matchedByName || {
+                ...task.statusColumn,
+                color: task.statusColumn.color || statusColumns[0]?.color || '#3b82f6'
+            };
+        } else {
+            currentStatus = statusColumns[0] || { id: 1, name: 'TO DO', color: '#840417ff' };
+        }
 
         const currentAssignee = projectMembers.length > 0 
             ? (projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0])
@@ -1075,7 +1086,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             {/* Epic Dropdown - left of Status */}
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'epic'}
                                 onToggle={(isOpen) => {
                                     if (isOpen) {
@@ -1100,7 +1110,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 >
                                     {task.epicId ? (epics.find(e => e.id === task.epicId)?.title || 'Epic') : 'Epic'}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                <Dropdown.Menu 
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     <Dropdown.Item
                                         active={!task.epicId}
                                         onClick={(e) => handleEpicChange(task, null, e)}
@@ -1122,12 +1135,12 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             {/* Status Dropdown */}
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
-                                onToggle={(isOpen) => {
+                                onToggle={async (isOpen) => {
                                     if (isOpen) {
                                         setOpenDropdown({ taskId: task.id, type: 'status' });
-                                        
+                                        // Reload columns to ensure we have the latest statuses
+                                        await loadBoardColumns();
                                     } else {
                                         setOpenDropdown(null);
                                     }
@@ -1151,7 +1164,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                      currentStatus.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
                                      currentStatus.name}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu>
+                                <Dropdown.Menu 
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     {statusColumns.map((status, idx) => {
                                         const statusDisplayName = status.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
                                                                  status.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
@@ -1159,9 +1175,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                                  status.name;
                                         return (
                                         <Dropdown.Item
-                                            key={`${status.name}-${idx}`}
+                                            key={`${status.id}-${idx}`}
                                             onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
-                                            active={currentStatus.name === status.name}
+                                            active={currentStatus.id === status.id || currentStatus.name?.toUpperCase() === status.name?.toUpperCase()}
                                         >
                                         <span
                                             className="d-inline-block me-2"
@@ -1172,7 +1188,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                 backgroundColor: status.color
                                             }}
                                         />
-                                            {status.name}
+                                            {statusDisplayName}
                                         </Dropdown.Item>
                                         );
                                     })}
@@ -1181,7 +1197,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
                                 onToggle={(isOpen) => {
                                     if (isOpen) {
@@ -1204,7 +1219,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                     <User size={10} className="me-1" />
                                     {currentAssignee.displayName}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu>
+                                <Dropdown.Menu
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     {projectMembers.map(member => (
                                         <Dropdown.Item
                                             key={member.userId}
