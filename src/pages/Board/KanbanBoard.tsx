@@ -409,7 +409,7 @@ const KanbanBoard: React.FC = () => {
 
   // ============= HANDLE DRAG & DROP =============
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
 
     // Không có destination hoặc không di chuyển
     if (
@@ -420,24 +420,65 @@ const KanbanBoard: React.FC = () => {
       return;
     }
 
-    console.log("🎯 Drag end:", { source, destination, draggableId });
+    console.log("🎯 Drag end:", { source, destination, draggableId, type });
 
-    // Parse IDs - Remove prefix if exists
+    if (!board) return;
+
+    // ============= COLUMN REORDERING =============
+    if (type === "COLUMN") {
+      const columnId = parseInt(draggableId.replace("column-", ""));
+      console.log("📋 Reordering column:", columnId, "from", source.index, "to", destination.index);
+
+      // Optimistic update - reorder columns in UI
+      const newColumns = Array.from(board.columns);
+      const [movedColumn] = newColumns.splice(source.index, 1);
+      newColumns.splice(destination.index, 0, movedColumn);
+
+      setBoard({
+        ...board,
+        columns: newColumns,
+      });
+
+      try {
+        // Call API to persist column order
+        const columnIds = newColumns.map((col) => col.id);
+        await reorderColumns(board.id, columnIds);
+        console.log("✅ Column reordered successfully");
+        toast.success("Column reordered", { autoClose: 1500 });
+      } catch (err: any) {
+        console.error("❌ Error reordering column:", err);
+        toast.error("Failed to reorder column");
+        // Revert by reloading
+        await loadBoard();
+      }
+      return;
+    }
+
+    // ============= TASK MOVEMENT =============
+    // Parse task and column IDs
     const taskId = parseInt(draggableId.replace("task-", ""));
     const sourceColumnId = parseInt(source.droppableId);
     const destColumnId = parseInt(destination.droppableId);
 
-    console.log("📦 Parsed IDs:", { taskId, sourceColumnId, destColumnId });
+    console.log("📦 Moving task:", { taskId, sourceColumnId, destColumnId });
 
-    if (!board) return;
+    // Validate parsed IDs
+    if (isNaN(taskId) || isNaN(sourceColumnId) || isNaN(destColumnId)) {
+      console.error("❌ Invalid IDs:", { taskId, sourceColumnId, destColumnId });
+      return;
+    }
+
+    // Find the task to move
+    const sourceColumn = board.columns.find((c) => c.id === sourceColumnId);
+    const taskToMove = sourceColumn?.tasks.find((t) => t.id === taskId);
+
+    if (!taskToMove) {
+      console.error("❌ Task not found:", taskId);
+      return;
+    }
 
     // 🎯 OPTIMISTIC UPDATE - Cập nhật UI ngay lập tức
     const updatedColumns = board.columns.map((col) => {
-      // Tìm task cần di chuyển
-      const sourceColumn = board.columns.find((c) => c.id === sourceColumnId);
-      const taskToMove = sourceColumn?.tasks.find((t) => t.id === taskId);
-
-      if (!taskToMove) return col;
 
       if (col.id === sourceColumnId) {
         // Xóa task khỏi source column
