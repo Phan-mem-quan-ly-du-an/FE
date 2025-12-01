@@ -1,7 +1,9 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, FormGroup, Label } from 'reactstrap';
+import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, Label, FormGroup } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
+import { User } from 'lucide-react';
 import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
 import { sprintAPI } from '../../apiCaller/backlogSprint';
@@ -9,7 +11,6 @@ import { getEpicsByProject, EpicDto } from '../../apiCaller/epics';
 import CreateTaskModal from '../BacklogSprint/CreateTaskModal';
 import TaskDetailModal from '../BacklogSprint/TaskDetailModal';
 import './TaskList.scss';
-import { useTranslation } from 'react-i18next';
 
 interface Task {
   id: number;
@@ -437,6 +438,38 @@ const TaskListView = () => {
             </Col>
             <Col md={8} className="text-end">
               <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                <Button color={getActiveFiltersCount() > 0 ? 'primary' : 'light'} size="sm" onClick={() => setShowFiltersModal(true)}>
+                  <i className="ri-filter-3-line me-1"></i>
+                  {t('Filters')}
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge color="light" className="ms-1" pill style={{ color: '#25a0e2' }}>{getActiveFiltersCount()}</Badge>
+                  )}
+                </Button>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={filters.columnIds.length ? 'info' : 'light'} size="sm">Status</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '260px', maxHeight: '280px', overflowY: 'auto' }}>
+                    <DropdownItem onClick={() => setFilters(prev => ({ ...prev, columnIds: [] }))} active={filters.columnIds.length === 0}>All</DropdownItem>
+                    <DropdownItem divider />
+                    {columns.map(c => (
+                      <DropdownItem key={c.id} onClick={() => toggleColumn(c.id)} active={filters.columnIds.includes(c.id)}>{c.name}</DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color={(typeof filters.sprintId !== 'undefined' || filters.onlyActiveSprint) ? 'info' : 'light'} size="sm">Sprint</DropdownToggle>
+                  <DropdownMenu end style={{ minWidth: '240px' }}>
+                    <DropdownItem onClick={() => setSprint(undefined)} active={typeof filters.sprintId === 'undefined'}>None</DropdownItem>
+                    <DropdownItem divider />
+                    {sprints.map(s => (
+                      <DropdownItem key={s.id} onClick={() => setSprint(s.id)} active={filters.sprintId === s.id}>{s.name}</DropdownItem>
+                    ))}
+                    <DropdownItem divider />
+                    <DropdownItem onClick={toggleOnlyActiveSprint} active={filters.onlyActiveSprint}>Only Active Sprint</DropdownItem>
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
                 <UncontrolledDropdown>
                   <DropdownToggle caret color={filters.assigneeIds.length ? 'info' : 'light'} size="sm">Assignee</DropdownToggle>
                   <DropdownMenu end style={{ minWidth: '280px', maxHeight: '280px', overflowY: 'auto' }}>
@@ -445,6 +478,20 @@ const TaskListView = () => {
                     {projectMembers.map(m => (
                       <DropdownItem key={m.userId} onClick={() => toggleAssignee(m.userId)} active={filters.assigneeIds.includes(m.userId)}>{m.displayName || m.email}</DropdownItem>
                     ))}
+                  </DropdownMenu>
+                </UncontrolledDropdown>
+
+                <UncontrolledDropdown>
+                  <DropdownToggle caret color="light" size="sm">
+                    <i className="ri-layout-line me-1"></i>{t('View')}
+                  </DropdownToggle>
+                  <DropdownMenu end>
+                    <DropdownItem onClick={() => setViewDensity('compact')} active={viewDensity === 'compact'}>
+                      <i className="ri-layout-row-line me-1"></i>{t('Compact')}
+                    </DropdownItem>
+                    <DropdownItem onClick={() => setViewDensity('comfortable')} active={viewDensity === 'comfortable'}>
+                      <i className="ri-layout-2-line me-1"></i>{t('Comfortable')}
+                    </DropdownItem>
                   </DropdownMenu>
                 </UncontrolledDropdown>
 
@@ -738,7 +785,7 @@ const TaskListView = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <Table hover className="align-middle table-nowrap mb-0">
+                  <Table hover className={`align-middle table-nowrap mb-0 ${viewDensity === 'compact' ? 'table-sm' : ''}`}>
                     <thead className="table-light">
                       <tr>
                         <th style={{ width: '40px' }}>
@@ -755,7 +802,7 @@ const TaskListView = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {displayTasks.map(task => {
+                      {tasks.map(task => {
                         const member = getMemberInfo(task.assigneeId);
                         const sprint = sprints.find(s => s.id === task.sprintId);
                         const epic = epics.find(e => e.id === task.epicId);

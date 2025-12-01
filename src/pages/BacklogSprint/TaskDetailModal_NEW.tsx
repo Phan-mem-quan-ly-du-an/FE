@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Row, Col, Card, Tab, Nav } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import { getBoardByProjectId } from '../../apiCaller/boards';
 import '../../assets/scss/pages/TaskDetailModal.scss';
 
 interface Task {
@@ -19,6 +20,7 @@ interface Task {
   statusColumn?: {
     id: number;
     name: string;
+    color?: string;
   };
   createdAt?: string;
   updatedAt?: string;
@@ -36,6 +38,7 @@ interface TaskDetailModalProps {
   task: Task;
   projectId: string;
   onUpdate: () => void;
+  statusColumns?: StatusColumn[]; // Optional: pass from parent for better performance
 }
 
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -43,9 +46,20 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onHide,
   task,
   projectId,
-  onUpdate
+  onUpdate,
+  statusColumns: propStatusColumns
 }) => {
   const [formData, setFormData] = useState<Task>(task);
+  
+  // Status columns state - will load from API if not provided via props
+  const [statusColumns, setStatusColumns] = useState<StatusColumn[]>(
+    propStatusColumns || [
+      { id: 1, name: 'TO DO', color: '#840417ff' },
+      { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
+      { id: 3, name: 'DONE', color: '#10b981' }
+    ]
+  );
+  const [loadingStatus, setLoadingStatus] = useState(false);
   
   // Time tracking state
   const [isTracking, setIsTracking] = useState(false);
@@ -60,22 +74,55 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     { id: 4, text: 'Add authentication pages', completed: false },
   ]);
 
-  // Status options
-  const [statusOptions] = useState([
-    { id: 1, name: 'TO DO', color: '#6b7280' },
-    { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
-    { id: 3, name: 'IN REVIEW', color: '#f59e0b' },
-    { id: 4, name: 'DONE', color: '#10b981' }
-  ]);
+  // Load status columns from API if not provided via props
+  const loadStatusColumns = async () => {
+    if (propStatusColumns && propStatusColumns.length > 0) {
+      setStatusColumns(propStatusColumns);
+      return;
+    }
+    
+    try {
+      setLoadingStatus(true);
+      const boardData = await getBoardByProjectId(projectId);
+      if (boardData && boardData.columns && boardData.columns.length > 0) {
+        const columns = boardData.columns.map((col: any) => ({
+          id: col.id,
+          name: col.name,
+          color: col.color || '#3b82f6'
+        }));
+        setStatusColumns(columns);
+        console.log('✅ TaskDetailModal: Loaded board columns:', columns);
+      }
+    } catch (error) {
+      console.error('❌ TaskDetailModal: Error loading board columns:', error);
+      // Keep default columns if load fails
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  // Update status columns when props change
+  useEffect(() => {
+    if (propStatusColumns && propStatusColumns.length > 0) {
+      setStatusColumns(propStatusColumns);
+    }
+  }, [propStatusColumns]);
 
   useEffect(() => {
-    setFormData(task);
-    // Load saved time
-    const savedTime = localStorage.getItem(`task-${task.id}-time`);
-    if (savedTime) {
-      setTrackedSeconds(parseInt(savedTime));
+    if (show) {
+      setFormData(task);
+      // Load saved time
+      const savedTime = localStorage.getItem(`task-${task.id}-time`);
+      if (savedTime) {
+        setTrackedSeconds(parseInt(savedTime));
+      }
+      // Load status columns if modal is shown and no props provided
+      if (!propStatusColumns || propStatusColumns.length === 0) {
+        loadStatusColumns();
+      }
     }
-  }, [task]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task, show, propStatusColumns]);
 
   // Cleanup timer
   useEffect(() => {
@@ -119,23 +166,38 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const { hrs, mins } = formatTime(trackedSeconds);
 
-  // Handle status change
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedStatus = statusOptions.find(s => s.id === parseInt(e.target.value));
+  // Get current status with color
+  const getCurrentStatus = (): StatusColumn => {
+    if (formData.statusColumn) {
+      const matched = statusColumns.find(col => col.id === formData.statusColumn?.id);
+      if (matched) {
+        return matched;
+      }
+      // Try matching by name if ID doesn't match
+      const matchedByName = statusColumns.find(
+        col => col.name.toUpperCase() === formData.statusColumn?.name?.toUpperCase()
+      );
+      if (matchedByName) {
+        return matchedByName;
+      }
+    }
+    return statusColumns[0] || { id: 1, name: 'TO DO', color: '#840417ff' };
+  };
+
+  // Handle status change - only update local state
+  // User must click Save button to persist changes
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedStatus = statusColumns.find(s => s.id === parseInt(e.target.value));
     if (!selectedStatus) return;
 
-    try {
-      const updatedTask = {
-        ...formData,
-        statusColumn: { id: selectedStatus.id, name: selectedStatus.name }
-      };
-      await taskAPI.update(projectId, task.id, updatedTask);
-      setFormData(updatedTask);
-      toast.success('Status updated');
-      onUpdate();
-    } catch (error) {
-      toast.error('Failed to update status');
-    }
+    setFormData(prev => ({
+      ...prev,
+      statusColumn: { 
+        id: selectedStatus.id, 
+        name: selectedStatus.name, 
+        color: selectedStatus.color 
+      }
+    }));
   };
 
   // Handle priority change
@@ -159,15 +221,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         st.id === id ? { ...st, completed: !st.completed } : st
       )
     );
-  };
-
-  const getPriorityBadgeColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'warning';
-      case 'MEDIUM': return 'info';
-      case 'LOW': return 'secondary';
-      default: return 'secondary';
-    }
   };
 
   const tags = task.tags ? task.tags.split(',').map(t => t.trim()) : [];
@@ -224,10 +277,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <div className="info-label">Status</div>
                 <Form.Select 
                   size="sm" 
-                  value={formData.statusColumn?.id || 1}
+                  value={getCurrentStatus().id}
                   onChange={handleStatusChange}
+                  disabled={loadingStatus}
+                  style={{ 
+                    borderLeft: `4px solid ${getCurrentStatus().color || '#3b82f6'}`,
+                  }}
                 >
-                  {statusOptions.map(status => (
+                  {statusColumns.map(status => (
                     <option key={status.id} value={status.id}>
                       {status.name}
                     </option>

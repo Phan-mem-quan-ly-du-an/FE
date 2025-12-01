@@ -7,6 +7,7 @@ import {
   Row,
   Col,
   Card,
+  CardBody,
   Button,
   Badge,
   Modal,
@@ -97,6 +98,9 @@ const KanbanBoard: React.FC = () => {
   ]);
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
+  // All tasks across project (for stats like List)
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
@@ -125,6 +129,14 @@ const KanbanBoard: React.FC = () => {
   // Delete column modal states
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [deletingColumn, setDeletingColumn] = useState<BoardColumnResponse | null>(null);
+
+  const stats = React.useMemo(() => {
+    const total = allTasks.length;
+    const highPriority = allTasks.filter(t => (t.priority || '').toString().toUpperCase() === 'HIGH').length;
+    const assigned = allTasks.filter(t => t.assigneeId).length;
+    const unassigned = total - assigned;
+    return { total, highPriority, assigned, unassigned };
+  }, [allTasks]);
 
   // ============= HELPER FUNCTIONS =============
   // Convert TaskResponse to Task format for TaskDetailModal
@@ -213,6 +225,23 @@ const KanbanBoard: React.FC = () => {
       await loadBoard();
     }
   };
+    // ============= LOAD EPICS =============
+    const loadEpics = async () => {
+        if (!projectId) return;
+
+        try {
+            // Gọi API lấy danh sách Epic
+            const data = await getEpicsByProject(projectId);
+
+            // API trả về dạng PageResponse (có thuộc tính content chứa mảng)
+            // Dựa vào JSON bạn gửi: data.content là mảng các epic
+            if (data && data.content) {
+                setEpics(data.content);
+            }
+        } catch (error) {
+            console.error("❌ Error loading epics:", error);
+        }
+    };
 
   // Export to CSV
   const exportToCSV = () => {
@@ -337,16 +366,6 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
-  const loadEpics = async () => {
-    if (!projectId) return;
-    try {
-      const response = await getEpicsByProject(projectId, 0, 100);
-      setEpics(response.content || []);
-    } catch (err) {
-      console.error('Failed to load epics:', err);
-    }
-  };
-
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
@@ -390,60 +409,27 @@ const KanbanBoard: React.FC = () => {
 
   // ============= HANDLE DRAG & DROP =============
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId, type } = result;
+    const { source, destination, draggableId } = result;
 
-    if (!destination) {
-      return;
-    }
-
-    if (!board) {
-      return;
-    }
-
-    // Handle column reordering
-    if (type === "COLUMN") {
-      if (source.index === destination.index) {
-        return;
-      }
-
-      const originalColumns = board.columns;
-      const updatedColumns = Array.from(board.columns);
-      const [movedColumn] = updatedColumns.splice(source.index, 1);
-      updatedColumns.splice(destination.index, 0, movedColumn);
-
-      setBoard({
-        ...board,
-        columns: updatedColumns,
-      });
-
-      try {
-        await reorderColumns(board.id, updatedColumns.map(col => col.id));
-        toast.success("Column order updated", { autoClose: 1500 });
-      } catch (err: any) {
-        console.error("❌ Failed to reorder columns", err);
-        toast.error("Không thể sắp xếp lại column", { autoClose: 2000 });
-        setBoard(prev => (prev ? { ...prev, columns: originalColumns } : prev));
-      }
-
-      return;
-    }
-
-    // Không có sự thay đổi vị trí trong cùng một column
+    // Không có destination hoặc không di chuyển
     if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
+      !destination ||
+      (source.droppableId === destination.droppableId &&
+        source.index === destination.index)
     ) {
       return;
     }
 
     console.log("🎯 Drag end:", { source, destination, draggableId });
 
-    // Parse task & column IDs
+    // Parse IDs - Remove prefix if exists
     const taskId = parseInt(draggableId.replace("task-", ""));
     const sourceColumnId = parseInt(source.droppableId);
     const destColumnId = parseInt(destination.droppableId);
 
     console.log("📦 Parsed IDs:", { taskId, sourceColumnId, destColumnId });
+
+    if (!board) return;
 
     // 🎯 OPTIMISTIC UPDATE - Cập nhật UI ngay lập tức
     const updatedColumns = board.columns.map((col) => {
@@ -1486,7 +1472,7 @@ const KanbanBoard: React.FC = () => {
                     <i className="ri-user-line me-2"></i>
                     {t('Assignee')}
                   </Label>
-                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                     {projectMembers.map(member => (
                       <FormGroup check key={member.userId}>
                         <Label check>
@@ -1671,30 +1657,19 @@ const TaskCard: React.FC<TaskCardProps & {
           </p>
         )}
 
-        {/* Labels/Tags and Epic - hide in compact mode */}
-        {viewDensity === 'comfortable' && (task.tags || task.epicTitle) && (
+        {/* Labels/Tags - hide in compact mode */}
+        {viewDensity === 'comfortable' && task.tags && (
           <div className="mb-2" onClick={() => onTaskClick(task)}>
-            {task.tags && task.tags.split(',').map((tag, idx) => (
-              <Badge 
-                key={idx} 
-                className="me-1 mb-1" 
-                style={{ 
-                  fontSize: '11px',
-                  backgroundColor: '#e0e7ff',
-                  color: '#4338ca',
-                  border: '1px solid #c7d2fe',
-                  fontWeight: '500',
-                  padding: '4px 8px'
-                }}
-              >
+            {task.tags.split(',').map((tag, idx) => (
+              <Badge key={idx} color="light" className="me-1 mb-1" style={{ fontSize: '10px' }}>
                 {tag.trim()}
               </Badge>
             ))}
             {task.epicTitle && (
-              <Badge 
+              <Badge
                 color="info"
-                className="me-1 mb-1" 
-                style={{ 
+                className="me-1 mb-1"
+                style={{
                   fontSize: '10px',
                   fontWeight: '500',
                   padding: '4px 8px'

@@ -654,6 +654,12 @@
   "HighPriority": "Độ ưu tiên cao",
   "Completed": "Đã hoàn thành",
   "Assigned": "Đã gán",
+  "EpicProgress": "Tiến độ Epic",
+  "InProgress": "Đang làm",
+  "ToDo": "Cần làm",
+  "Done": "Hoàn thành",
+  "NoEpic": "Không có Epic",
+  "EpicDetails": "Chi tiết Epic",
   "SprintDetail": "Chi tiết Sprint",
   "CompleteSprint": "Hoàn thành Sprint",
   "Completing": "Đang hoàn thành...",
@@ -793,6 +799,8 @@
   "OverdueBy": "Quá hạn",
   "TaskProgress": "Tiến độ nhiệm vụ",
   "TasksCompleted": "{{completed}} trong {{total}} nhiệm vụ đã hoàn thành",
-  "Remaining": "Còn lại"
+  "Remaining": "Còn lại",
+  "ProjectPermissions.AssignRolePermissionDenied": "Bạn không có quyền xem hoặc gán permission cho role này.",
+  "LoadingPermissions": "Đang tải quyền..."
 }
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { Row, Col, Spinner, Card, CardBody, Badge } from "reactstrap";
+import { Row, Col, Spinner, Card, CardBody, Badge, Progress } from "reactstrap";
 import { useQuery } from "@tanstack/react-query";
 import { getProjectById, Project } from "../../apiCaller/projects";
 import { toast } from "react-toastify";
@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { getSession, SessionInfo } from "../../apiCaller/session";
 import { getBoardByProjectId, BoardResponse } from "../../apiCaller/boards";
 import { taskAPI } from "../../apiCaller/backlogSprint";
+import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
 
 interface Task {
     id: number;
@@ -28,6 +29,8 @@ interface Task {
     };
     createdAt?: string;
     updatedAt?: string;
+    epicId?: number | null;
+    epicTitle?: string | null;
 }
 
 const OverviewTab = () => {
@@ -102,6 +105,22 @@ const OverviewTab = () => {
         retry: 1,
     });
 
+    // Fetch all tasks by project (for Epic Progress)
+    const { data: allTasksResp } = useQuery<any>({
+        queryKey: ["tasksByProject", projectId],
+        queryFn: () => taskAPI.listByProject(projectId!, true),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    // Fetch epics for accurate epic names
+    const { data: epicsPage } = useQuery<any>({
+        queryKey: ["epics", projectId],
+        queryFn: () => getEpicsByProject(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
     // Debug logs
     React.useEffect(() => {
         console.log('📊 Status Distribution:', statusDist);
@@ -115,7 +134,9 @@ const OverviewTab = () => {
             assigneeId: task.assigneeId || task.assignedTo || null,
             sprintId: typeof task.sprintId === 'string'
                 ? parseInt(task.sprintId)
-                : (task.sprintId ?? null)
+                : (task.sprintId ?? null),
+            epicId: typeof task.epicId === 'string' ? parseInt(task.epicId) : (task.epicId ?? null),
+            epicTitle: task.epicTitle || null,
         };
     };
 
@@ -129,6 +150,34 @@ const OverviewTab = () => {
         "#6610f2", // purple
         "#fd7e14", // orange
     ];
+
+    const statusColorMap = useMemo(() => {
+        const m = new Map<string, string>();
+        const cols = board?.columns || [];
+        cols.forEach(c => {
+            const key = (c.name || '').toLowerCase();
+            const val = (c.color || '').trim();
+            if (key) m.set(key, val || m.get(key) || '');
+        });
+        return m;
+    }, [board]);
+
+    const getStatusColor = (name: string) => {
+        const key = (name || '').toLowerCase();
+        const fromDb = statusColorMap.get(key);
+        if (fromDb && fromDb.length >= 4) return fromDb;
+        if (key.includes('to do') || key === 'todo') return '#6c757d';
+        if (key.includes('in progress') || key.includes('progress')) return '#0d6efd';
+        if (key.includes('done') || key.includes('completed')) return '#198754';
+        return '#0d6efd';
+    };
+
+    const epicTitleMap = useMemo(() => {
+        const map = new Map<number, string>();
+        const list: EpicDto[] = (epicsPage?.content || epicsPage?.data?.content || []);
+        list.forEach(e => map.set(e.id, e.title));
+        return map;
+    }, [epicsPage]);
 
     const myTasks = useMemo(() => {
         if (!tasksResponse?.content || !board?.activeSprintId) {
@@ -229,11 +278,11 @@ const OverviewTab = () => {
                     strokeWidth={strokeWidth}
                 />
 
-                {entries.map(([name, value], i) => {
+                {entries.map(([name, value]) => {
                     if (value === 0) return null;
 
                     const length = (value / total) * circumference;
-                    const color = dynamicColors[i % dynamicColors.length];
+                    const color = getStatusColor(name);
 
                     const circle = (
                         <circle
@@ -305,53 +354,28 @@ const OverviewTab = () => {
                 </Row>
             </Card>
             <Row>
-                {/* Left Column: Summary */}
+                {/* Left Column: StatusDistribution first, then Epic Progress */}
                 <Col md={6}>
                     <Card>
                         <CardBody>
-                            <h5 className="fw-bold text-uppercase mb-3">{t("Summary")}</h5>
-                            <p className="text-muted">
-                                {project.description || t("NoDescriptionProvided")}
-                            </p>
-
-                            <ul className="ps-4 vstack gap-2 mb-0">
-                                <li>
-                                    <strong>{t("ProjectID")}:</strong> {project.id}
-                                </li>
-                                <li>
-                                    <strong>{t("WorkspaceID")}:</strong> {project.workspaceId}
-                                </li>
-                                <li>
-                                    <strong>{t("ColorTheme")}:</strong>{" "}
-                                    <span style={{ color: project.color }}>{project.color}</span>
-                                </li>
-                            </ul>
-                        </CardBody>
-                    </Card>
-                    <Card className="mt-3">
-                        <CardBody>
                             <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
                             <div className="d-flex align-items-center justify-content-between gap-3">
-                                {/* Legend */}
                                 <div className="vstack gap-3" style={{ minWidth: "180px" }}>
-                                    {Object.entries(statusDist || {}).map(([name, value], idx) => (
+                                    {Object.entries(statusDist || {}).map(([name, value]) => (
                                         <div key={name} className="d-flex align-items-center gap-2">
                                             <span
                                                 style={{
                                                     width: 18,
                                                     height: 18,
-                                                    backgroundColor: dynamicColors[idx % dynamicColors.length],
+                                                    backgroundColor: getStatusColor(name),
                                                     borderRadius: "50%"
                                                 }}
                                             ></span>
-
                                             <span className="text-muted flex-grow-1">{name}</span>
                                             <span className="fw-bold">{value}</span>
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Pie Chart */}
                                 {(() => {
                                     return (
                                         <div className="flex-grow-1 d-flex justify-content-end">
@@ -360,6 +384,77 @@ const OverviewTab = () => {
                                     );
                                 })()}
                             </div>
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3" style={{ maxHeight: 340 }}>
+                        <CardBody>
+                            <h5 className="fw-bold text-uppercase mb-1">{t("EpicProgress")}</h5>
+                            <div className="d-flex align-items-center gap-3 mb-3">
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge bg-success">{t('Done')}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge bg-primary">{t('InProgress')}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge bg-secondary">{t('ToDo')}</span>
+                                </div>
+                            </div>
+
+                            {(() => {
+                                const raw = (allTasksResp?.content || (allTasksResp?.data?.content)) || [];
+                                const tasks: Task[] = raw.map(normalizeTask);
+
+                                const byEpic = new Map<number, { title: string; done: number; todo: number; other: number; total: number }>();
+                                tasks.forEach(taskItem => {
+                                    const epicId = (taskItem.epicId ?? -1) as number;
+                                    const epicTitle = epicId === -1
+                                        ? t('NoEpic')
+                                        : (epicTitleMap.get(epicId) || taskItem.epicTitle || `Epic #${epicId}`);
+                                    const status = (taskItem.statusColumn?.name || '').toLowerCase();
+                                    const rec = byEpic.get(epicId) || { title: epicTitle, done: 0, todo: 0, other: 0, total: 0 };
+                                    rec.total += 1;
+                                    if (status.includes('done') || status.includes('completed')) rec.done += 1;
+                                    else if (status.includes('to do') || status === 'todo') rec.todo += 1;
+                                    else rec.other += 1;
+                                    rec.title = epicTitle;
+                                    byEpic.set(epicId, rec);
+                                });
+
+                                const items = Array.from(byEpic.entries()).filter(([id]) => id !== -1);
+                                if (items.length === 0) {
+                                    return <p className="text-muted mb-0">{t('NoEpics')}</p>;
+                                }
+
+                                return (
+                                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                        {items.map(([id, rec]) => {
+                                            const donePct = rec.total ? Math.round((rec.done / rec.total) * 100) : 0;
+                                            const otherPct = rec.total ? Math.round((rec.other / rec.total) * 100) : 0;
+                                            const todoPct = Math.max(0, 100 - donePct - otherPct);
+                                            return (
+                                                <div key={id} className="mb-3">
+                                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                                        <span className="fw-semibold">{rec.title}</span>
+                                                        <span className="text-muted small">{rec.total} {t('Tasks')}</span>
+                                                    </div>
+                                                    <Progress multi style={{ height: 18 }}>
+                                                        {donePct > 0 && (
+                                                            <Progress bar color="success" value={donePct}>{donePct}%</Progress>
+                                                        )}
+                                                        {otherPct > 0 && (
+                                                            <Progress bar color="primary" value={otherPct}>{otherPct}%</Progress>
+                                                        )}
+                                                        {todoPct > 0 && (
+                                                            <Progress bar color="secondary" value={todoPct}>{todoPct}%</Progress>
+                                                        )}
+                                                    </Progress>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </CardBody>
                     </Card>
                 </Col>

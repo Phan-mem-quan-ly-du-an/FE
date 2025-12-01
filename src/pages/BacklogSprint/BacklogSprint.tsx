@@ -116,6 +116,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         return persisted ? persisted === 'true' : true;
     });
     const [selectedEpicId, setSelectedEpicId] = useState<number | null>(null);
+    const [epicFilterId, setEpicFilterId] = useState<number | null>(null);
     const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
     const [epicLoading, setEpicLoading] = useState<boolean>(false);
     const [epicEditTitle, setEpicEditTitle] = useState<string>('');
@@ -318,10 +319,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const toggleEpicFilter = (epicId: number) => {
-        setSelectedEpicId(prev => (prev === epicId ? null : epicId));
+        setEpicFilterId(prev => (prev === epicId ? null : epicId));
     };
 
     const openEpicDetail = (epicId: number) => {
+        setSelectedEpicId(epicId);
         loadEpicDetail(epicId);
     };
 
@@ -343,11 +345,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 startDate: epicEditStartDate || undefined,
                 endDate: epicEditEndDate || undefined
             };
-            await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).put({ data: payload });
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).put({ data: payload });
+            const updated: Epic = (res.data?.data || res.data) as any;
+            setSelectedEpic(prev => ({ ...(prev || {} as Epic), ...updated }));
+            setEpics(prev => prev.map(e => e.id === selectedEpicId ? { ...e, ...updated } : e));
             toast.success('Epic updated');
-            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
-            await loadEpics(activeSprintId);
-            await loadEpicDetail(selectedEpicId);
         } catch (e: any) {
             toast.error(e?.response?.data?.message || 'Failed to update epic');
         } finally {
@@ -362,12 +364,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         try {
             setEpicLoading(true);
             await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).delete();
-            toast.success('Epic deleted');
-            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
-            await loadEpics(activeSprintId);
+            setEpics(prev => prev.filter(e => e.id !== selectedEpicId));
             setSelectedEpic(null);
             setSelectedEpicId(null);
             setEpicTasks([]);
+            toast.success('Epic deleted');
         } catch (e: any) {
             toast.error(e?.response?.data?.message || 'Failed to delete epic');
         } finally {
@@ -511,7 +512,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     .setQueryParams({ epicId: null as any })
                     .patch({ data: {} });
             }
-            await loadEpicTasks(selectedEpicId);
+            setEpicTasks(prev => prev.filter(t => t.id !== taskId));
             toast.success('Task removed from epic');
 
             const activeSprintId = sprints.find(s => s.status === 'active')?.id;
@@ -970,9 +971,20 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const renderTask = (task: Task, index: number, isArchived = false) => {
-        const currentStatus: StatusColumn = task.statusColumn
-            ? { ...task.statusColumn, color: task.statusColumn.color || statusColumns[0].color }
-            : statusColumns[0];
+        // Find matching status from statusColumns by ID or name
+        let currentStatus: StatusColumn;
+        if (task.statusColumn) {
+            const matchedById = statusColumns.find(col => col.id === task.statusColumn?.id);
+            const matchedByName = statusColumns.find(col =>
+                col.name.toUpperCase() === task.statusColumn?.name?.toUpperCase()
+            );
+            currentStatus = matchedById || matchedByName || {
+                ...task.statusColumn,
+                color: task.statusColumn.color || statusColumns[0]?.color || '#3b82f6'
+            };
+        } else {
+            currentStatus = statusColumns[0] || { id: 1, name: 'TO DO', color: '#840417ff' };
+        }
 
         const currentAssignee = projectMembers.length > 0 
             ? (projectMembers.find(m => m.userId === task.assigneeId) || projectMembers[0])
@@ -1074,7 +1086,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             {/* Epic Dropdown - left of Status */}
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'epic'}
                                 onToggle={(isOpen) => {
                                     if (isOpen) {
@@ -1099,7 +1110,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 >
                                     {task.epicId ? (epics.find(e => e.id === task.epicId)?.title || 'Epic') : 'Epic'}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                <Dropdown.Menu 
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     <Dropdown.Item
                                         active={!task.epicId}
                                         onClick={(e) => handleEpicChange(task, null, e)}
@@ -1121,12 +1135,12 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                             {/* Status Dropdown */}
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'status'}
-                                onToggle={(isOpen) => {
+                                onToggle={async (isOpen) => {
                                     if (isOpen) {
                                         setOpenDropdown({ taskId: task.id, type: 'status' });
-                                        
+                                        // Reload columns to ensure we have the latest statuses
+                                        await loadBoardColumns();
                                     } else {
                                         setOpenDropdown(null);
                                     }
@@ -1150,7 +1164,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                      currentStatus.name?.toUpperCase() === 'DONE' ? t('StatusDone') :
                                      currentStatus.name}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu>
+                                <Dropdown.Menu 
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     {statusColumns.map((status, idx) => {
                                         const statusDisplayName = status.name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
                                                                  status.name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
@@ -1158,9 +1175,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                                  status.name;
                                         return (
                                         <Dropdown.Item
-                                            key={`${status.name}-${idx}`}
+                                            key={`${status.id}-${idx}`}
                                             onClick={(e) => handleStatusChange(task, status.id, status.name, e)}
-                                            active={currentStatus.name === status.name}
+                                            active={currentStatus.id === status.id || currentStatus.name?.toUpperCase() === status.name?.toUpperCase()}
                                         >
                                         <span
                                             className="d-inline-block me-2"
@@ -1171,7 +1188,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                                 backgroundColor: status.color
                                             }}
                                         />
-                                            {status.name}
+                                            {statusDisplayName}
                                         </Dropdown.Item>
                                         );
                                     })}
@@ -1180,7 +1197,6 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
 
                             <Dropdown
                                 className="d-inline-block"
-                                drop="down"
                                 show={openDropdown?.taskId === task.id && openDropdown?.type === 'assignee'}
                                 onToggle={(isOpen) => {
                                     if (isOpen) {
@@ -1203,7 +1219,10 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                     <User size={10} className="me-1" />
                                     {currentAssignee.displayName}
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu>
+                                <Dropdown.Menu
+                                    popperConfig={{ strategy: 'fixed' }}
+                                    style={{ maxHeight: '260px', overflowY: 'auto' }}
+                                >
                                     {projectMembers.map(member => (
                                         <Dropdown.Item
                                             key={member.userId}
@@ -1271,18 +1290,18 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         );
     }
 
-    const filteredBacklogTasks = selectedEpicId
-        ? backlogTasks.filter(t => t.epicId === selectedEpicId)
+    const filteredBacklogTasks = epicFilterId
+        ? backlogTasks.filter(t => t.epicId === epicFilterId)
         : backlogTasks;
 
-    const filteredSprintTasks: { [sprintId: number]: Task[] } = selectedEpicId
+    const filteredSprintTasks: { [sprintId: number]: Task[] } = epicFilterId
         ? Object.fromEntries(
-            Object.entries(sprintTasks).map(([sid, list]) => [Number(sid), list.filter(t => t.epicId === selectedEpicId)])
-          )
+            Object.entries(sprintTasks).map(([sid, list]) => [Number(sid), list.filter(t => t.epicId === epicFilterId)])
+        )
         : sprintTasks;
 
-    const filteredArchivedTasks = selectedEpicId
-        ? archivedTasks.filter(t => t.epicId === selectedEpicId)
+    const filteredArchivedTasks = epicFilterId
+        ? archivedTasks.filter(t => t.epicId === epicFilterId)
         : archivedTasks;
 
     return (
@@ -1335,7 +1354,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         return (
                                             <div
                                                 key={e.id}
-                                                className={`epic-card ${selectedEpicId === e.id ? 'selected' : ''}`}
+                                                className={`epic-card ${epicFilterId === e.id ? 'selected' : ''}`}
                                                 onClick={() => toggleEpicFilter(e.id)}
                                                 role="button"
                                             >
@@ -1621,7 +1640,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         <Card>
                             <Card.Body>
                                 <div className="d-flex align-items-center justify-content-between mb-2">
-                                    <h6 className="mb-0">{t('EpicDetail')}</h6>
+                                    <h6 className="mb-0">{t('EpicDetails')}</h6>
                                     <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedEpic(null); }}>Close</Button>
                                 </div>
                                 {epicLoading && (
@@ -1749,7 +1768,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         <Form.Label>Assignee</Form.Label>
                                         <Form.Select value={newTaskAssigneeId} onChange={(e) => setNewTaskAssigneeId(e.target.value)}>
                                             <option value="">Unassigned</option>
-                                            {projectMembers.map(m => (<option key={m.userId} value={m.userId}>{m.displayName || m.email}</option>))}
+                                            {[...projectMembers.filter((m, idx, arr) => m.userId !== 'unassigned' || idx === arr.findIndex(mm => mm.userId === 'unassigned'))].map(m => (
+                                                m.userId === 'unassigned' ? null : (<option key={m.userId} value={m.userId}>{m.displayName || m.email}</option>)
+                                            ))}
                                         </Form.Select>
                                     </Form.Group>
                                 </Col>
