@@ -116,6 +116,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         return persisted ? persisted === 'true' : true;
     });
     const [selectedEpicId, setSelectedEpicId] = useState<number | null>(null);
+    const [epicFilterId, setEpicFilterId] = useState<number | null>(null);
     const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
     const [epicLoading, setEpicLoading] = useState<boolean>(false);
     const [epicEditTitle, setEpicEditTitle] = useState<string>('');
@@ -318,10 +319,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
     };
 
     const toggleEpicFilter = (epicId: number) => {
-        setSelectedEpicId(prev => (prev === epicId ? null : epicId));
+        setEpicFilterId(prev => (prev === epicId ? null : epicId));
     };
 
     const openEpicDetail = (epicId: number) => {
+        setSelectedEpicId(epicId);
         loadEpicDetail(epicId);
     };
 
@@ -343,11 +345,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                 startDate: epicEditStartDate || undefined,
                 endDate: epicEditEndDate || undefined
             };
-            await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).put({ data: payload });
+            const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).put({ data: payload });
+            const updated: Epic = (res.data?.data || res.data) as any;
+            setSelectedEpic(prev => ({ ...(prev || {} as Epic), ...updated }));
+            setEpics(prev => prev.map(e => e.id === selectedEpicId ? { ...e, ...updated } : e));
             toast.success('Epic updated');
-            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
-            await loadEpics(activeSprintId);
-            await loadEpicDetail(selectedEpicId);
         } catch (e: any) {
             toast.error(e?.response?.data?.message || 'Failed to update epic');
         } finally {
@@ -362,12 +364,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         try {
             setEpicLoading(true);
             await new ApiCaller().setUrl(`/projects/${projectId}/epics/${selectedEpicId}`).delete();
-            toast.success('Epic deleted');
-            const activeSprintId = sprints.find(s => s.status === 'active')?.id;
-            await loadEpics(activeSprintId);
+            setEpics(prev => prev.filter(e => e.id !== selectedEpicId));
             setSelectedEpic(null);
             setSelectedEpicId(null);
             setEpicTasks([]);
+            toast.success('Epic deleted');
         } catch (e: any) {
             toast.error(e?.response?.data?.message || 'Failed to delete epic');
         } finally {
@@ -511,7 +512,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                     .setQueryParams({ epicId: null as any })
                     .patch({ data: {} });
             }
-            await loadEpicTasks(selectedEpicId);
+            setEpicTasks(prev => prev.filter(t => t.id !== taskId));
             toast.success('Task removed from epic');
 
             const activeSprintId = sprints.find(s => s.status === 'active')?.id;
@@ -1271,18 +1272,18 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         );
     }
 
-    const filteredBacklogTasks = selectedEpicId
-        ? backlogTasks.filter(t => t.epicId === selectedEpicId)
+    const filteredBacklogTasks = epicFilterId
+        ? backlogTasks.filter(t => t.epicId === epicFilterId)
         : backlogTasks;
 
-    const filteredSprintTasks: { [sprintId: number]: Task[] } = selectedEpicId
+    const filteredSprintTasks: { [sprintId: number]: Task[] } = epicFilterId
         ? Object.fromEntries(
-            Object.entries(sprintTasks).map(([sid, list]) => [Number(sid), list.filter(t => t.epicId === selectedEpicId)])
-          )
+            Object.entries(sprintTasks).map(([sid, list]) => [Number(sid), list.filter(t => t.epicId === epicFilterId)])
+        )
         : sprintTasks;
 
-    const filteredArchivedTasks = selectedEpicId
-        ? archivedTasks.filter(t => t.epicId === selectedEpicId)
+    const filteredArchivedTasks = epicFilterId
+        ? archivedTasks.filter(t => t.epicId === epicFilterId)
         : archivedTasks;
 
     return (
@@ -1335,7 +1336,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                         return (
                                             <div
                                                 key={e.id}
-                                                className={`epic-card ${selectedEpicId === e.id ? 'selected' : ''}`}
+                                                className={`epic-card ${epicFilterId === e.id ? 'selected' : ''}`}
                                                 onClick={() => toggleEpicFilter(e.id)}
                                                 role="button"
                                             >
@@ -1621,7 +1622,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                         <Card>
                             <Card.Body>
                                 <div className="d-flex align-items-center justify-content-between mb-2">
-                                    <h6 className="mb-0">{t('EpicDetail')}</h6>
+                                    <h6 className="mb-0">{t('EpicDetails')}</h6>
                                     <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedEpic(null); }}>Close</Button>
                                 </div>
                                 {epicLoading && (
