@@ -305,15 +305,44 @@ const OverviewTab = () => {
                 </Row>
             </Card>
             <Row>
-                {/* Left Column: Summary */}
+                {/* Left Column: StatusDistribution first, then Summary */}
                 <Col md={6}>
                     <Card>
+                        <CardBody>
+                            <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
+                            <div className="d-flex align-items-center justify-content-between gap-3">
+                                <div className="vstack gap-3" style={{ minWidth: "180px" }}>
+                                    {Object.entries(statusDist || {}).map(([name, value], idx) => (
+                                        <div key={name} className="d-flex align-items-center gap-2">
+                                            <span
+                                                style={{
+                                                    width: 18,
+                                                    height: 18,
+                                                    backgroundColor: dynamicColors[idx % dynamicColors.length],
+                                                    borderRadius: "50%"
+                                                }}
+                                            ></span>
+                                            <span className="text-muted flex-grow-1">{name}</span>
+                                            <span className="fw-bold">{value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {(() => {
+                                    return (
+                                        <div className="flex-grow-1 d-flex justify-content-end">
+                                            {renderDynamicPie(statusDist || {})}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3">
                         <CardBody>
                             <h5 className="fw-bold text-uppercase mb-3">{t("Summary")}</h5>
                             <p className="text-muted">
                                 {project.description || t("NoDescriptionProvided")}
                             </p>
-
                             <ul className="ps-4 vstack gap-2 mb-0">
                                 <li>
                                     <strong>{t("ProjectID")}:</strong> {project.id}
@@ -326,40 +355,6 @@ const OverviewTab = () => {
                                     <span style={{ color: project.color }}>{project.color}</span>
                                 </li>
                             </ul>
-                        </CardBody>
-                    </Card>
-                    <Card className="mt-3">
-                        <CardBody>
-                            <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
-                            <div className="d-flex align-items-center justify-content-between gap-3">
-                                {/* Legend */}
-                                <div className="vstack gap-3" style={{ minWidth: "180px" }}>
-                                    {Object.entries(statusDist || {}).map(([name, value], idx) => (
-                                        <div key={name} className="d-flex align-items-center gap-2">
-                                            <span
-                                                style={{
-                                                    width: 18,
-                                                    height: 18,
-                                                    backgroundColor: dynamicColors[idx % dynamicColors.length],
-                                                    borderRadius: "50%"
-                                                }}
-                                            ></span>
-
-                                            <span className="text-muted flex-grow-1">{name}</span>
-                                            <span className="fw-bold">{value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Pie Chart */}
-                                {(() => {
-                                    return (
-                                        <div className="flex-grow-1 d-flex justify-content-end">
-                                            {renderDynamicPie(statusDist || {})}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
                         </CardBody>
                     </Card>
                 </Col>
