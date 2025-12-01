@@ -385,21 +385,34 @@ const TaskListView = () => {
   };
 
   const exportToCSV = () => {
-    const headers = [t('Key'), t('Task'), t('Status'), t('Priority'), t('Assignee'), t('DueDate'), t('Updated')];
-    const rows = tasks.map(task => [
-      getTaskKey(task),
-      task.title,
-      task.statusColumn?.name || t('NoStatus'),
-      task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
-      task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
-      task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
-      task.priority,
-      getMemberInfo(task.assigneeId)?.displayName || t('Unassigned'),
-      formatDate(task.dueDate),
-      formatDate(task.updatedAt)
-    ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const headers = [t('Key'), t('Task'), t('Description'), t('Status'), t('Priority'), t('Assignee'), t('Epic'), t('Sprint'), t('DueDate'), t('Est. Hours'), t('Tags'), t('Updated')];
+    const rows = tasks.map(task => {
+      const epic = epics.find(e => e.id === task.epicId);
+      
+      return [
+        getTaskKey(task),
+        task.title || '',
+        task.description || '',
+        task.statusColumn?.name || t('NoStatus'),
+        task.priority?.toUpperCase() === 'HIGH' ? t('PriorityHigh') :
+        task.priority?.toUpperCase() === 'MEDIUM' ? t('PriorityMedium') :
+        task.priority?.toUpperCase() === 'LOW' ? t('PriorityLow') :
+        task.priority || 'N/A',
+        getMemberInfo(task.assigneeId)?.displayName || t('Unassigned'),
+        epic?.title || task.epicTitle || 'N/A',
+        task.sprintId || 'N/A',
+        formatDate(task.dueDate),
+        task.estimatedHours?.toString() || 'N/A',
+        task.tags || 'N/A',
+        formatDate(task.updatedAt)
+      ];
+    });
+    
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

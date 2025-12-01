@@ -221,15 +221,19 @@ const KanbanBoard: React.FC = () => {
     const allTasks = board.columns.flatMap(col => col.tasks);
     const filteredTasks = filterTasks(allTasks);
 
-    const headers = ['Key', 'Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Est. Hours', 'Tags'];
+    const headers = ['Key', 'Title', 'Description', 'Status', 'Priority', 'Assignee', 'Epic', 'Sprint', 'Due Date', 'Est. Hours', 'Tags'];
     const rows = filteredTasks.map(task => {
       const assignee = projectMembers.find(m => m.userId === task.assigneeId);
+      
       return [
         getTaskKey(task),
-        task.title,
+        task.title || '',
+        task.description || '',
         task.statusColumn?.name || 'N/A',
         task.priority || 'N/A',
         assignee?.displayName || 'Unassigned',
+        task.epicTitle || 'N/A',
+        task.sprintId || 'N/A',
         task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A',
         task.estimatedHours?.toString() || 'N/A',
         task.tags || 'N/A'
@@ -237,10 +241,10 @@ const KanbanBoard: React.FC = () => {
     });
 
     const csv = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\\n');
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1034,31 +1038,47 @@ const KanbanBoard: React.FC = () => {
           onDragEnd={handleDragEnd}
           key={board.columns.map((c) => c.id).join("-")}
         >
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              overflowX: "auto",
-              paddingBottom: "8px",
-              scrollbarWidth: "thin",
-              scrollbarColor: "#888 #f1f1f1",
-            }}
-            className="kanban-board-container"
-          >
-            {board.columns.map((column) => (
+          <Droppable droppableId="board" direction="horizontal" type="COLUMN">
+            {(provided) => (
               <div
-                key={`column-${column.id}`}
+                ref={provided.innerRef}
+                {...provided.droppableProps}
                 style={{
-                  minWidth: "320px",
-                  maxWidth: "320px",
-                  flexShrink: 0,
+                  display: "flex",
+                  gap: "16px",
+                  overflowX: "auto",
+                  paddingBottom: "8px",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#888 #f1f1f1",
                 }}
+                className="kanban-board-container"
               >
-                <Card className="h-100">
+                {board.columns.map((column, index) => (
+                  <Draggable
+                    key={`column-${column.id}`}
+                    draggableId={`column-${column.id}`}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        style={{
+                          minWidth: "320px",
+                          maxWidth: "320px",
+                          flexShrink: 0,
+                          ...provided.draggableProps.style,
+                        }}
+                      >
+                        <Card className="h-100" style={{
+                          opacity: snapshot.isDragging ? 0.8 : 1,
+                          transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
+                        }}>
                   {/* COLUMN HEADER */}
                   <div
+                    {...provided.dragHandleProps}
                     className="card-header d-flex justify-content-between align-items-center"
-                    style={{ backgroundColor: column.color, color: "#fff" }}
+                    style={{ backgroundColor: column.color, color: "#fff", cursor: 'grab' }}
                   >
                     <div className="d-flex align-items-center gap-2">
                       <input
@@ -1169,9 +1189,14 @@ const KanbanBoard: React.FC = () => {
                     )}
                   </Droppable>
                 </Card>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            ))}
-          </div>
+            )}
+          </Droppable>
         </DragDropContext>
 
         {/* MODAL ADD COLUMN */}
