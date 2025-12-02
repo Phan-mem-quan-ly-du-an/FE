@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, ModalHeader, ModalBody, Form, Label, Input, Button } from 'reactstrap';
 import { getCompanyRoles, inviteMember, Role } from '../../apiCaller/companyMembers';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface InviteMemberModalProps {
     show: boolean;
     onClose: () => void;
     companyId: string;
     onSuccess?: (message: string) => void;
-    onError?: (message: string) => void;
+    onError?: (error: any) => void;
 }
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -92,9 +93,16 @@ export default function InviteMemberModal(props: InviteMemberModalProps) {
             onClose();
         },
         onError: (error: any) => {
-            const text = friendlyNetworkMessage(error?.message);
-            setMsg(text);
-            onError?.(text);
+            if (isForbiddenError(error)) {
+                const text = 'Bạn không có quyền mời thành viên vào công ty.';
+                setMsg(text);
+                onError?.(error);
+                onClose();
+            } else {
+                const text = friendlyNetworkMessage(error?.message);
+                setMsg(text);
+                onError?.(error);
+            }
         },
     });
 

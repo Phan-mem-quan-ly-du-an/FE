@@ -83,6 +83,13 @@
     "Inviting": "Inviting...",
     "AddMembersButton": "Add Members",
     "CannotAssignRoleToOwner": "Cannot assign role to Owner",
+    "CompanyPermissions": {
+        "InviteMemberDenied": "You don't have permission to invite members to this company",
+        "InviteMemberDeniedTitle": "Permission denied",
+        "InviteMemberDeniedDetail": "You don't have permission to invite members. Contact a company administrator to request access."
+    },
+    "CheckingPermission": "Checking permission...",
+    "NoPermission": "No permission",
     "CannotAssignRoleToOwnerMessage": "This member is currently the Owner. You cannot assign a role. Please use Transfer ownership from the Members page.",
     "RoleAssignedSuccessfully": "Role assigned successfully",
     "FailedToAssignRole": "Failed to assign role",

@@ -91,6 +91,13 @@
   "AddMembersButton": "Thêm thành viên",
   "CannotAssignRoleToOwner": "Không thể gán vai trò cho Owner. Sử dụng chức năng chuyển quyền sở hữu.",
   "CannotAssignRoleToOwnerMessage": "Thành viên này đang là Owner. Bạn không thể gán role. Vui lòng dùng Transfer ownership từ trang Members.",
+  "CompanyPermissions": {
+    "InviteMemberDenied": "Bạn không có quyền mời thành viên vào công ty này",
+    "InviteMemberDeniedTitle": "Không có quyền",
+    "InviteMemberDeniedDetail": "Bạn không có quyền mời thành viên. Hãy liên hệ quản trị viên công ty để được cấp quyền."
+  },
+  "CheckingPermission": "Đang kiểm tra quyền...",
+  "NoPermission": "Không có quyền",
   "RoleAssignedSuccessfully": "Gán role thành công",
   "FailedToAssignRole": "Không thể gán vai trò",
   "MemberUserId": "Mã thành viên",
