@@ -216,13 +216,14 @@ const OverviewTab = () => {
         const maxValRaw = Math.max(0, ...values);
         const maxGrid = Math.max(10, Math.ceil(maxValRaw / 10) * 10);
         const gridStep = 10;
-        const chartWidth = 380;
+        const chartWidth = 480;
         const chartHeight = 240;
-        const margin = { top: 12, right: 12, bottom: 44, left: 44 };
+        const margin = { top: 10, right: 16, bottom: 28, left: 28 };
         const innerW = chartWidth - margin.left - margin.right;
         const innerH = chartHeight - margin.top - margin.bottom;
         const barGap = 16;
-        const barW = Math.floor((innerW - barGap * (order.length - 1)) / order.length);
+        const axisGapX = 12;
+        const barW = Math.floor((innerW - axisGapX - barGap * (order.length - 1)) / order.length);
 
         const yScale = (v: number) => (v / maxGrid) * innerH;
         const yTicks: number[] = [];
@@ -244,7 +245,7 @@ const OverviewTab = () => {
                         return (
                             <g key={`grid-${t}`}>
                                 <line x1={0} y1={y} x2={innerW} y2={y} stroke="#e9ecef" strokeDasharray="3 3" />
-                                <text x={-10} y={y} textAnchor="end" dominantBaseline="middle" fill="#6c757d" fontSize={11}>{t}</text>
+                                <text x={-6} y={y} textAnchor="end" dominantBaseline="middle" fill="#6c757d" fontSize={11}>{t}</text>
                             </g>
                         );
                     })}
@@ -252,7 +253,7 @@ const OverviewTab = () => {
                     {order.map((label, i) => {
                         const val = dist[label] || 0;
                         const h = yScale(val);
-                        const x = i * (barW + barGap);
+                        const x = axisGapX + i * (barW + barGap);
                         const y = innerH - h;
                         const color = resolvePriorityColor(label);
                         return (
@@ -633,9 +634,17 @@ const OverviewTab = () => {
                                 };
                                 const items = entries
                                     .map(([uid, v]) => ({ uid, count: Number(v || 0), name: nameOf(uid) }))
-                                    .sort((a, b) => b.count - a.count);
+                                    .sort((a, b) => {
+                                        if (a.uid === 'unassigned' && b.uid !== 'unassigned') return -1;
+                                        if (b.uid === 'unassigned' && a.uid !== 'unassigned') return 1;
+                                        return b.count - a.count;
+                                    });
                                 return (
                                     <div className="vstack gap-3">
+                                        <div className="d-flex align-items-center gap-3 mb-1">
+                                            <div className="flex-shrink-0 text-muted small" style={{ minWidth: 160 }}>{t('Assignee') || 'Assignee'}</div>
+                                            <div className="flex-grow-1 text-muted small">{t('WorkDistribution') || 'Work Distribution'}</div>
+                                        </div>
                                         {items.map(item => {
                                             const pct = Math.round((item.count / total) * 100);
                                             return (
@@ -644,9 +653,11 @@ const OverviewTab = () => {
                                                         <span className="fw-semibold">{item.name}</span>
                                                     </div>
                                                     <div className="flex-grow-1">
-                                                        <Progress value={pct} color="primary">
-                                                            {pct}% ({item.count})
-                                                        </Progress>
+                                                        <div className="progress" style={{ height: 22 }}>
+                                                            <div className="progress-bar bg-primary px-2" role="progressbar" style={{ width: `${pct}%` }} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                                                                {pct}% ({item.count})
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );

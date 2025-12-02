@@ -656,6 +656,8 @@
   "PriorityDistribution": "Phân bổ mức độ ưu tiên",
   "NoData": "Không có dữ liệu",
   "TeamWorkload": "Khối lượng công việc nhóm",
+  "Assignee": "Người được giao",
+  "WorkDistribution": "Phân bổ công việc",
   "SprintDetail": "Chi tiết Sprint",
   "CompleteSprint": "Hoàn thành Sprint",
   "Completing": "Đang hoàn thành...",
