@@ -9,6 +9,7 @@ import { getSession, SessionInfo } from "../../apiCaller/session";
 import { getBoardByProjectId, BoardResponse } from "../../apiCaller/boards";
 import { taskAPI } from "../../apiCaller/backlogSprint";
 import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
+import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 
 interface Task {
     id: number;
@@ -116,6 +117,20 @@ const OverviewTab = () => {
     const { data: priorityDist } = useQuery<Record<string, number>>({
         queryKey: ["priorityDistribution", projectId],
         queryFn: () => taskAPI.getPriorityDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: workloadDist } = useQuery<Record<string, number>>({
+        queryKey: ["workloadDistribution", projectId],
+        queryFn: () => taskAPI.getWorkloadDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: members } = useQuery<ProjectMember[]>({
+        queryKey: ["projectMembers", projectId],
+        queryFn: () => getProjectMembers(projectId!),
         enabled: !!projectId,
         retry: 1,
     });
@@ -600,6 +615,45 @@ const OverviewTab = () => {
                                     ))}
                                 </div>
                             )}
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3">
+                        <CardBody>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("TeamWorkload")}</h5>
+                            {(() => {
+                                const dist = workloadDist || {};
+                                const entries = Object.entries(dist);
+                                const total = entries.reduce((s, [, v]) => s + Number(v || 0), 0);
+                                if (total === 0) {
+                                    return <p className="text-muted mb-0">{t("NoData")}</p>;
+                                }
+                                const nameOf = (uid: string) => {
+                                    const m = (members || []).find(mm => mm.userId === uid);
+                                    return m?.displayName || uid;
+                                };
+                                const items = entries
+                                    .map(([uid, v]) => ({ uid, count: Number(v || 0), name: nameOf(uid) }))
+                                    .sort((a, b) => b.count - a.count);
+                                return (
+                                    <div className="vstack gap-3">
+                                        {items.map(item => {
+                                            const pct = Math.round((item.count / total) * 100);
+                                            return (
+                                                <div key={item.uid} className="d-flex align-items-center gap-3">
+                                                    <div className="flex-shrink-0" style={{ minWidth: 160 }}>
+                                                        <span className="fw-semibold">{item.name}</span>
+                                                    </div>
+                                                    <div className="flex-grow-1">
+                                                        <Progress value={pct} color="primary">
+                                                            {pct}% ({item.count})
+                                                        </Progress>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </CardBody>
                     </Card>
                 </Col>

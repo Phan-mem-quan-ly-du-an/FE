@@ -174,6 +174,15 @@ export const taskAPI = {
         const data: any = response.data;
         const payload: any = data.data || data;
         return payload as Record<string, number>;
+    },
+    getWorkloadDistribution: async (projectId: string): Promise<Record<string, number>> => {
+        const apiCaller = new ApiCaller();
+        const url = `/projects/${projectId}/tasks/metrics/workload`;
+        apiCaller.setUrl(url);
+        const response = await apiCaller.get();
+        const data: any = response.data;
+        const payload: any = data.data || data;
+        return payload as Record<string, number>;
     }
 };
 
