@@ -644,6 +644,8 @@
     "Done": "Done",
     "NoEpic": "No Epic",
     "EpicDetails": "Epic Details",
+    "PriorityDistribution": "Priority Distribution",
+    "NoData": "No data",
     "SprintDetail": "Sprint Detail",
     "CompleteSprint": "Complete Sprint",
     "Completing": "Completing...",

@@ -653,6 +653,8 @@
   "Done": "Hoàn thành",
   "NoEpic": "Không có Epic",
   "EpicDetails": "Chi tiết Epic",
+  "PriorityDistribution": "Phân bổ mức độ ưu tiên",
+  "NoData": "Không có dữ liệu",
   "SprintDetail": "Chi tiết Sprint",
   "CompleteSprint": "Hoàn thành Sprint",
   "Completing": "Đang hoàn thành...",

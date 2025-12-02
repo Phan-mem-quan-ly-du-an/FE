@@ -113,6 +113,13 @@ const OverviewTab = () => {
         retry: 1,
     });
 
+    const { data: priorityDist } = useQuery<Record<string, number>>({
+        queryKey: ["priorityDistribution", projectId],
+        queryFn: () => taskAPI.getPriorityDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
     // Fetch epics for accurate epic names
     const { data: epicsPage } = useQuery<any>({
         queryKey: ["epics", projectId],
@@ -178,6 +185,83 @@ const OverviewTab = () => {
         list.forEach(e => map.set(e.id, e.title));
         return map;
     }, [epicsPage]);
+
+    const resolvePriorityColor = (name: string) => {
+        const n = (name || '').toLowerCase();
+        if (n.includes('highest')) return '#dc3545';
+        if (n.includes('high')) return '#fd7e14';
+        if (n.includes('medium')) return '#ffc107';
+        if (n.includes('low')) return '#20c997';
+        return '#0d6efd';
+    };
+
+    const renderPriorityBarChart = (dist: Record<string, number>) => {
+        const order = ["Low", "Medium", "High", "Highest"];
+        const values = order.map(k => dist[k] || 0);
+        const maxValRaw = Math.max(0, ...values);
+        const maxGrid = Math.max(10, Math.ceil(maxValRaw / 10) * 10);
+        const gridStep = 10;
+        const chartWidth = 380;
+        const chartHeight = 240;
+        const margin = { top: 12, right: 12, bottom: 44, left: 44 };
+        const innerW = chartWidth - margin.left - margin.right;
+        const innerH = chartHeight - margin.top - margin.bottom;
+        const barGap = 16;
+        const barW = Math.floor((innerW - barGap * (order.length - 1)) / order.length);
+
+        const yScale = (v: number) => (v / maxGrid) * innerH;
+        const yTicks: number[] = [];
+        for (let t = 0; t <= maxGrid; t += gridStep) yTicks.push(t);
+
+        return (
+            <svg
+                width={chartWidth}
+                height={chartHeight}
+                style={{ minWidth: chartWidth, minHeight: chartHeight }}
+            >
+
+                <g transform={`translate(${margin.left},${margin.top})`}>
+                    <line x1={0} y1={innerH} x2={innerW} y2={innerH} stroke="#adb5bd" strokeWidth={1} />
+                    <line x1={0} y1={0} x2={0} y2={innerH} stroke="#adb5bd" strokeWidth={1} />
+
+                    {yTicks.map((t) => {
+                        const y = innerH - yScale(t);
+                        return (
+                            <g key={`grid-${t}`}>
+                                <line x1={0} y1={y} x2={innerW} y2={y} stroke="#e9ecef" strokeDasharray="3 3" />
+                                <text x={-10} y={y} textAnchor="end" dominantBaseline="middle" fill="#6c757d" fontSize={11}>{t}</text>
+                            </g>
+                        );
+                    })}
+
+                    {order.map((label, i) => {
+                        const val = dist[label] || 0;
+                        const h = yScale(val);
+                        const x = i * (barW + barGap);
+                        const y = innerH - h;
+                        const color = resolvePriorityColor(label);
+                        return (
+                            <g key={`bar-${label}`} transform={`translate(${x},${y})`}>
+                                <rect width={barW} height={h} fill={color} rx={4} ry={4} />
+                                <text
+                                    x={barW / 2}
+                                    y={h > 22 ? h / 2 : -8}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                    fill={h > 22 ? '#fff' : '#212529'}
+                                    fontSize={13}
+                                    fontWeight={600}
+                                >
+                                    {val}
+                                </text>
+                                <text x={barW / 2} y={h + 20} textAnchor="middle" fill="#495057" fontSize={12}>{label}</text>
+                            </g>
+                        );
+                    })}
+                </g>
+            </svg>
+        );
+    };
 
     const myTasks = useMemo(() => {
         if (!tasksResponse?.content || !board?.activeSprintId) {
@@ -455,6 +539,24 @@ const OverviewTab = () => {
                                     </div>
                                 );
                             })()}
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3" style={{ maxHeight: 340 }}>
+                        <CardBody>
+            <h6 className="fw-bold text-uppercase mb-3">{t("PriorityDistribution")}</h6>
+
+            <div className="d-flex align-items-center justify-content-center" style={{ height: 260, minHeight: 260 }}>
+                {(() => {
+                    const src = priorityDist || {};
+                    const dist: Record<string, number> = {
+                        Low: Number(src['Low'] ?? src['low'] ?? src['LOW'] ?? 0),
+                        Medium: Number(src['Medium'] ?? src['medium'] ?? src['MEDIUM'] ?? 0),
+                        High: Number(src['High'] ?? src['high'] ?? src['HIGH'] ?? 0),
+                        Highest: Number(src['Highest'] ?? src['highest'] ?? src['HIGHEST'] ?? 0),
+                    };
+                    return renderPriorityBarChart(dist);
+                })()}
+            </div>
                         </CardBody>
                     </Card>
                 </Col>
