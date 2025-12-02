@@ -468,12 +468,12 @@ const KanbanBoard: React.FC = () => {
     });
 
     try {
-      // Gọi API để sync với backend
-      console.log("🔄 Calling moveTask API...");
-      await moveTask(projectId!, taskId, destColumnId, destination.index);
-      console.log(
-        `✅ API Success - Moved task ${taskId} from column ${sourceColumnId} to ${destColumnId}`
-      );
+      // Gọi API UPDATE để server ghi activity logs (statusColumn, orderIndex)
+      const destCol = board.columns.find((c) => c.id === destColumnId);
+      await updateTask(projectId!, taskId, {
+        statusColumn: { id: destColumnId, name: destCol?.name || '', color: destCol?.color },
+        orderIndex: destination.index,
+      });
       
       // Get column names for success message
       const sourceColName = board.columns.find((c) => c.id === sourceColumnId)?.name;
@@ -489,9 +489,9 @@ const KanbanBoard: React.FC = () => {
         toast.success(`Task reordered`, { autoClose: 1500 });
       }
     } catch (err: any) {
-      console.error("❌ Error moving task:", err);
+      console.error("❌ Error updating task position/status:", err);
       console.error("❌ Error details:", err?.response?.data);
-      const errorMsg = err?.response?.data?.message || "Failed to move task";
+      const errorMsg = err?.response?.data?.message || "Failed to update task";
       toast.error(errorMsg);
       // Revert về trạng thái cũ bằng cách reload
       await loadBoard();
