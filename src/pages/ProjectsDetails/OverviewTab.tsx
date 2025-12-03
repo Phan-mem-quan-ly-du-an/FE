@@ -135,6 +135,13 @@ const OverviewTab = () => {
         retry: 1,
     });
 
+    const { data: recentLogs } = useQuery<any[]>({
+        queryKey: ["recentLogs", projectId],
+        queryFn: () => taskAPI.getRecentLogs(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
     // Fetch epics for accurate epic names
     const { data: epicsPage } = useQuery<any>({
         queryKey: ["epics", projectId],
@@ -579,6 +586,26 @@ const OverviewTab = () => {
 
                 <Col md={6}>
                     <Card>
+                        <CardBody>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("RecentLogs")}</h5>
+                            {(() => {
+                                const list = Array.isArray(recentLogs) ? recentLogs.slice() : [];
+                                list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                                if (list.length === 0) return <p className="text-muted mb-0">{t("NoData")}</p>;
+                                return (
+                                    <div className="vstack gap-3">
+                                        {list.map((log: any) => (
+                                            <div key={log.logId} className="d-flex flex-column">
+                                                <div className="fw-semibold">{String(log.description || '')}</div>
+                                                <div className="text-muted small">{new Date(log.createdAt).toLocaleString()}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3">
                         <CardBody>
                             <h5 className="fw-bold text-uppercase mb-3">{t("MyTasks")}</h5>
 
