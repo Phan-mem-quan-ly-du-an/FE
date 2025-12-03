@@ -2,16 +2,19 @@ import { useTranslation } from "react-i18next";
 import { Button, Form, FormFeedback, Input, Label, Modal, ModalBody, ModalHeader } from "reactstrap";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useState } from "react";
 
 export type CreateRoleModalProps = {
     show: boolean;
     onClose: () => void;
     onSubmit: (values: { code: string; name?: string | null; description?: string | null }) => Promise<void> | void;
     isSubmitting?: boolean;
+    error?: string | null;
 };
 
-export default function CreateRoleModal({ show, onClose, onSubmit, isSubmitting }: CreateRoleModalProps) {
+export default function CreateRoleModal({ show, onClose, onSubmit, isSubmitting: externalIsSubmitting, error }: CreateRoleModalProps) {
     const { t } = useTranslation();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const formik = useFormik({
         initialValues: { code: "", name: "", description: "" },
@@ -21,18 +24,38 @@ export default function CreateRoleModal({ show, onClose, onSubmit, isSubmitting 
             description: Yup.string().nullable(),
         }),
         onSubmit: async (values) => {
-            await onSubmit({
-                code: values.code.trim(),
-                name: values.name?.trim() || null,
-                description: values.description?.trim() || null,
-            });
+            setIsSubmitting(true);
+            try {
+                await onSubmit({
+                    code: values.code.trim(),
+                    name: values.name?.trim() || null,
+                    description: values.description?.trim() || null,
+                });
+                formik.resetForm();
+            } catch (error) {
+                // Error is handled in parent component
+                console.error("Error submitting role:", error);
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     });
 
+    const handleToggle = () => {
+        if (onClose) {
+            onClose();
+        }
+    };
+
     return (
-        <Modal isOpen={show} toggle={onClose} centered>
-            <ModalHeader toggle={onClose}>{t('CreateRole')}</ModalHeader>
+        <Modal isOpen={show} toggle={handleToggle} centered>
+            <ModalHeader toggle={handleToggle}>{t('CreateRole')}</ModalHeader>
             <ModalBody>
+                {error && (
+                    <div className="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                        <strong>⚠️ {t('Error')}:</strong> {error}
+                    </div>
+                )}
                 <Form onSubmit={formik.handleSubmit}>
                     <div className="mb-3">
                         <Label htmlFor="role-code">{t('RoleCode')}</Label>
@@ -83,8 +106,8 @@ export default function CreateRoleModal({ show, onClose, onSubmit, isSubmitting 
                     </div>
 
                     <div className="d-flex justify-content-end gap-2">
-                        <Button type="button" color="secondary" onClick={onClose} disabled={isSubmitting}>{t('Close')}</Button>
-                        <Button type="submit" color="primary" disabled={isSubmitting}>{isSubmitting ? t('Saving') : t('Save')}</Button>
+                        <Button type="button" color="secondary" onClick={onClose} disabled={isSubmitting || externalIsSubmitting}>{t('Close')}</Button>
+                        <Button type="submit" color="primary" disabled={isSubmitting || externalIsSubmitting}>{isSubmitting || externalIsSubmitting ? t('Saving') : t('Save')}</Button>
                     </div>
                 </Form>
             </ModalBody>

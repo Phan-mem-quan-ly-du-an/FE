@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Card, CardBody, CardHeader, Button, Spinner, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
+import { Card, CardBody, CardHeader, Button, Spinner, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Alert } from 'reactstrap';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { getWorkspaceRoles, WorkspaceRole, deleteWorkspaceRole, createWorkspaceRole, updateWorkspaceRole } from '../../apiCaller/workspaceRoles';
@@ -19,6 +19,9 @@ const RoleTab: React.FC = () => {
     const [showEdit, setShowEdit] = useState(false);
     const [editingRole, setEditingRole] = useState<WorkspaceRole | null>(null);
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+    const [createError, setCreateError] = useState<string | null>(null);
+    const [editError, setEditError] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const {
         data: roles = [],
@@ -38,13 +41,26 @@ const RoleTab: React.FC = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
             toast.success(t('RoleDeletedSuccessfully') || 'Xóa role thành công');
+            setDeleteError(null);
         },
         onError: (error: any) => {
             if (isForbiddenError(error)) {
-                toast.warning(t('WorkspacePermissions.DeleteRoleDenied') || 'Bạn không có quyền xóa role của workspace.');
+                const errorMsg = t('WorkspacePermissions.DeleteRoleDenied');
+                setDeleteError(errorMsg);
+                toast.warning(errorMsg, {
+                    position: 'top-right',
+                    autoClose: 5000,
+                    style: { zIndex: 99999 }
+                });
                 return;
             }
-            toast.error(error?.message || t('FailedDeleteRole') || 'Xóa role thất bại');
+            const errorMsg = error?.message || t('FailedDeleteRole') || 'Xóa role thất bại';
+            setDeleteError(errorMsg);
+            toast.error(errorMsg, {
+                position: 'top-right',
+                autoClose: 5000,
+                style: { zIndex: 99999 }
+            });
         },
     });
 
@@ -165,6 +181,11 @@ const RoleTab: React.FC = () => {
 
     return (
         <div className="px-4 py-4">
+            {deleteError && (
+                <Alert color="warning" className="mb-3">
+                    <strong>⚠️ {t('Error')}:</strong> {deleteError}
+                </Alert>
+            )}
             <Card>
                 <CardHeader>
                     <div className="d-flex justify-content-between align-items-center">
@@ -248,28 +269,48 @@ const RoleTab: React.FC = () => {
                 <>
                     <CreateRoleModal
                         show={showCreate}
-                        onClose={() => setShowCreate(false)}
+                        error={createError}
+                        onClose={() => {
+                            setShowCreate(false);
+                            setCreateError(null);
+                        }}
                         onSubmit={async (values) => {
                             if (!workspaceId) return;
+                            setCreateError(null);
                             try {
                                 await createWorkspaceRole(workspaceId, values);
                                 setShowCreate(false);
+                                setCreateError(null);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
                                 toast.success(t('Saved') || 'Đã lưu');
                             } catch (error: any) {
                                 if (isForbiddenError(error)) {
-                                    toast.warning(t('WorkspacePermissions.CreateRoleDenied') || 'Bạn không có quyền tạo role trong workspace.');
+                                    const errorMsg = t('WorkspacePermissions.CreateRoleDenied');
+                                    setCreateError(errorMsg);
+                                    toast.warning(errorMsg, {
+                                        position: 'top-right',
+                                        autoClose: 5000,
+                                        style: { zIndex: 99999 }
+                                    });
                                 } else {
-                                    toast.error(error?.message || t('ErrorCreatingRole') || 'Error creating role');
+                                    const errorMsg = error?.message || t('ErrorCreatingRole');
+                                    setCreateError(errorMsg);
+                                    toast.error(errorMsg, {
+                                        position: 'top-right',
+                                        autoClose: 5000,
+                                        style: { zIndex: 99999 }
+                                    });
                                 }
                             }
                         }}
                     />
                     <EditRoleModal
                         show={showEdit}
+                        error={editError}
                         onClose={() => {
                             setShowEdit(false);
                             setEditingRole(null);
+                            setEditError(null);
                         }}
                         initial={editingRole ? {
                             code: editingRole.code || "",
@@ -278,17 +319,31 @@ const RoleTab: React.FC = () => {
                         } : { code: "" }}
                         onSubmit={async (values) => {
                             if (!workspaceId || !editingRole) return;
+                            setEditError(null);
                             try {
                                 await updateWorkspaceRole(workspaceId, editingRole.id, values);
                                 setShowEdit(false);
                                 setEditingRole(null);
+                                setEditError(null);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
                                 toast.success(t('Saved') || 'Đã lưu');
                             } catch (error: any) {
                                 if (isForbiddenError(error)) {
-                                    toast.warning(t('WorkspacePermissions.UpdateRoleDenied') || 'Bạn không có quyền sửa role của workspace.');
+                                    const errorMsg = t('WorkspacePermissions.UpdateRoleDenied');
+                                    setEditError(errorMsg);
+                                    toast.warning(errorMsg, {
+                                        position: 'top-right',
+                                        autoClose: 5000,
+                                        style: { zIndex: 99999 }
+                                    });
                                 } else {
-                                    toast.error(error?.message || t('ErrorUpdatingRole') || 'Error updating role');
+                                    const errorMsg = error?.message || t('ErrorUpdatingRole');
+                                    setEditError(errorMsg);
+                                    toast.error(errorMsg, {
+                                        position: 'top-right',
+                                        autoClose: 5000,
+                                        style: { zIndex: 99999 }
+                                    });
                                 }
                             }
                         }}
