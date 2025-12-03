@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button, Alert } from 'reactstrap';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ export default function AssignWorkspaceRoleModal({
 }: Readonly<AssignWorkspaceRoleModalProps>) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const [error, setError] = useState<string | null>(null);
 
     const { data: roles = [], error: rolesError, isLoading: rolesLoading } = useQuery<WorkspaceRole[]>({
         queryKey: ['workspace-roles', workspaceId],
@@ -52,28 +53,38 @@ export default function AssignWorkspaceRoleModal({
         }),
         onSubmit: (values) => {
             if (!member) return;
+            setError(null);
             if (member.owner) {
-                onError?.(t('CannotAssignRoleToOwner'));
+                const errorMsg = t('CannotAssignRoleToOwner');
+                setError(errorMsg);
+                onError?.(errorMsg);
                 return;
             }
             if (!values.roleId) {
-                onError?.(t('SelectRoleErrorMessage'));
+                const errorMsg = t('SelectRoleErrorMessage');
+                setError(errorMsg);
+                onError?.(errorMsg);
                 return;
             }
             assignRoleMutation.mutate(
                 { workspaceId, memberId: member.userId, roleId: Number.parseInt(values.roleId, 10) },
                 {
                     onSuccess: () => {
+                        setError(null);
                         onSuccess?.(t('RoleAssignedSuccessfully'));
                         validation.resetForm();
                         onClose();
                     },
                     onError: (error: any) => {
                         if (isForbiddenError(error)) {
-                            onError?.(t('WorkspacePermissions.AssignMemberRoleDenied') || 'Bạn không có quyền gán role cho thành viên.');
+                            const errorMsg = t('WorkspacePermissions.AssignMemberRoleDenied');
+                            setError(errorMsg);
+                            onError?.(errorMsg);
                             return;
                         }
-                        onError?.(error?.message || t('FailedToAssignRole'));
+                        const errorMsg = error?.message || t('FailedToAssignRole');
+                        setError(errorMsg);
+                        onError?.(errorMsg);
                     },
                 }
             );
@@ -83,6 +94,7 @@ export default function AssignWorkspaceRoleModal({
     useEffect(() => {
         if (member) {
             validation.setFieldValue('roleId', member.roleId?.toString() || '');
+            setError(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [member]);
@@ -91,9 +103,15 @@ export default function AssignWorkspaceRoleModal({
 
     const isOwner = !!member.owner;
 
+    const handleToggle = () => {
+        if (onClose) {
+            onClose();
+        }
+    };
+
     return (
-        <Modal id="assignWorkspaceRoleModal" isOpen={show} toggle={onClose} centered>
-            <ModalHeader className="bg-light p-3" toggle={onClose}>
+        <Modal id="assignWorkspaceRoleModal" isOpen={show} toggle={handleToggle} centered>
+            <ModalHeader className="bg-light p-3" toggle={handleToggle}>
                 {t('AssignRoleTitle')}
             </ModalHeader>
             <Form className="tablelist-form" onSubmit={(e: any) => {
@@ -102,6 +120,11 @@ export default function AssignWorkspaceRoleModal({
                 return false;
             }}>
                 <ModalBody>
+                    {error && (
+                        <Alert color="warning" className="mb-3">
+                            <strong>⚠️ {t('Error')}:</strong> {error}
+                        </Alert>
+                    )}
                     {isOwner && (
                         <div className="alert alert-warning">
                             {t('CannotAssignRoleToOwner')}

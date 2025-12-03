@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Spinner, Card, CardBody, CardHeader, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
+import { Spinner, Card, CardBody, CardHeader, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Alert } from 'reactstrap';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getWorkspaceMembers, WorkspaceMember, getWorkspaceById, Workspace, transferWorkspaceOwnership, deleteWorkspaceMember } from '../../apiCaller/workspaceDetails';
 import TableContainer from '../../Components/Common/TableContainer';
@@ -21,6 +21,7 @@ const MemberTab: React.FC = () => {
     const [showAdd, setShowAdd] = useState(false);
     const [showAssign, setShowAssign] = useState(false);
     const [assignMember, setAssignMember] = useState<WorkspaceMember | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const toggleDropdown = useCallback((userId: string) => {
         setOpenDropdownId(prev => (prev === userId ? null : userId));
     }, []);
@@ -94,13 +95,26 @@ const MemberTab: React.FC = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
             toast.success(t('MemberDeletedSuccessfully'));
+            setDeleteError(null);
         },
         onError: (e: any) => {
             if (isForbiddenError(e)) {
-                toast.warning(t('WorkspacePermissions.DeleteMemberDenied') || 'Bạn không có quyền xóa thành viên workspace.');
+                const errorMsg = t('WorkspacePermissions.DeleteMemberDenied');
+                setDeleteError(errorMsg);
+                toast.warning(errorMsg, {
+                    position: 'top-right',
+                    autoClose: 5000,
+                    style: { zIndex: 99999 }
+                });
                 return;
             }
-            toast.error(e?.message || t('FailedDeleteMember'));
+            const errorMsg = e?.message || t('FailedDeleteMember');
+            setDeleteError(errorMsg);
+            toast.error(errorMsg, {
+                position: 'top-right',
+                autoClose: 5000,
+                style: { zIndex: 99999 }
+            });
         }
     });
 
@@ -221,6 +235,11 @@ const MemberTab: React.FC = () => {
 
     return (
         <div className="px-4 py-4">
+            {deleteError && (
+                <Alert color="warning" className="mb-3">
+                    <strong>⚠️ {t('Error')}:</strong> {deleteError}
+                </Alert>
+            )}
             <Card>
                 <CardHeader>
                     <div className="d-flex align-items-center justify-content-between gap-2">
