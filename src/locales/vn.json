@@ -478,7 +478,7 @@
     "DefaultRoleCannotBeEdited": "Đây là vai trò mặc định và không thể chỉnh sửa.",
     "EditRolePermissions": "Chỉnh sửa quyền vai trò",
     "CannotDetermineCompanyOrRoleId": "Không thể xác định ID công ty hoặc vai trò",
-    "LoadPermissionsError": "Không thể tải quyền",
+    "LoadPermissionsError": "Không thể tải quyền: {{status}} - {{text}}",
     "ErrorLoadingData": "Lỗi tải dữ liệu",
     "ProjectPermissions.AssignRolePermissionDenied": "Bạn không có quyền xem hoặc gán permission cho role này.",
     "LoadingPermissions": "Đang tải quyền...",
