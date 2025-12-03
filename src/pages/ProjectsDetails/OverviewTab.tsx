@@ -559,22 +559,36 @@ const OverviewTab = () => {
                             })()}
                         </CardBody>
                     </Card>
-                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
-                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
-                            <h6 className="fw-bold text-uppercase mb-3">{t("PriorityDistribution")}</h6>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody
+                            className="d-flex flex-column"
+                            style={{ height: "100%", overflow: "hidden" }}
+                        >
+                            <h6 className="fw-bold text-uppercase mb-3">
+                            {t("PriorityDistribution")}
+                            </h6>
 
-            <div className="d-flex align-items-center justify-content-center" style={{ height: 260, minHeight: 260 }}>
-                {(() => {
-                    const src = priorityDist || {};
-                    const dist: Record<string, number> = {
-                        Low: Number(src['Low'] ?? src['low'] ?? src['LOW'] ?? 0),
-                        Medium: Number(src['Medium'] ?? src['medium'] ?? src['MEDIUM'] ?? 0),
-                        High: Number(src['High'] ?? src['high'] ?? src['HIGH'] ?? 0),
-                        Highest: Number(src['Highest'] ?? src['highest'] ?? src['HIGHEST'] ?? 0),
-                    };
-                    return renderPriorityBarChart(dist);
-                })()}
-            </div>
+                            {/* Chart wrapper scrollable */}
+                            <div
+                            style={{
+                                flex: 1,
+                                overflowX: "auto",
+                                overflowY: "hidden",
+                                minHeight: 0,
+                            }}
+                            className="d-flex align-items-center justify-content-center"
+                            >
+                            {(() => {
+                                const src = priorityDist || {};
+                                const dist: Record<string, number> = {
+                                Low: Number(src['Low'] ?? src['low'] ?? src['LOW'] ?? 0),
+                                Medium: Number(src['Medium'] ?? src['medium'] ?? src['MEDIUM'] ?? 0),
+                                High: Number(src['High'] ?? src['high'] ?? src['HIGH'] ?? 0),
+                                Highest: Number(src['Highest'] ?? src['highest'] ?? src['HIGHEST'] ?? 0),
+                                };
+                                return renderPriorityBarChart(dist);
+                            })()}
+                            </div>
                         </CardBody>
                     </Card>
                     <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
