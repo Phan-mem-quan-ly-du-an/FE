@@ -37,6 +37,9 @@ interface Task {
 const OverviewTab = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
+    const BASE_CARD_HEIGHT = 300;
+    const CARD_GAP = 24;
+    const DOUBLE_CARD_HEIGHT = BASE_CARD_HEIGHT * 2 + CARD_GAP;
 
     // Fetch project
     const {
@@ -80,9 +83,9 @@ const OverviewTab = () => {
         isLoading: isLoadingTasks,
         error: tasksError,
     } = useQuery<any>({
-        queryKey: ["myTasks", projectId, board?.activeSprintId],
-        queryFn: () => taskAPI.listMyTasks(projectId!, board?.activeSprintId || undefined),
-        enabled: !!projectId && !!board?.activeSprintId,
+        queryKey: ["myTasks", projectId],
+        queryFn: () => taskAPI.listMyTasks(projectId!),
+        enabled: !!projectId,
         retry: 1,
         meta: {
             onError: () => toast.error(t("FailedToLoadTasks")),
@@ -287,9 +290,7 @@ const OverviewTab = () => {
     };
 
     const myTasks = useMemo(() => {
-        if (!tasksResponse?.content || !board?.activeSprintId) {
-            return [];
-        }
+        if (!tasksResponse?.content) return [];
 
         let rawTaskList: any[] = [];
         if (Array.isArray(tasksResponse.content)) {
@@ -301,15 +302,9 @@ const OverviewTab = () => {
         }
 
         const normalizedTasks = rawTaskList.map(normalizeTask);
-
-        const filtered = normalizedTasks.filter((task: Task) => {
-            const projectMatch = task.projectId === projectId;
-            const sprintMatch = task.sprintId === board.activeSprintId;
-            return projectMatch && sprintMatch;
-        });
-
+        const filtered = normalizedTasks.filter((task: Task) => task.projectId === projectId);
         return filtered;
-    }, [tasksResponse, board, projectId]);
+    }, [tasksResponse, projectId]);
 
     const isLoading = isLoadingProject || isLoadingSession || isLoadingBoard || isLoadingTasks || isLoadingMetrics;
 
@@ -461,10 +456,10 @@ const OverviewTab = () => {
                 </Row>
             </Card>
             <Row>
-                {/* Left Column: StatusDistribution first, then Epic Progress */}
+                {/* Left Column: StatusDistribution, Epic Progress, Priority Distribution, Team Workload */}
                 <Col md={6}>
-                    <Card>
-                        <CardBody>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
                             <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
                             <div className="d-flex align-items-center justify-content-between gap-3">
                                 <div className="vstack gap-3" style={{ minWidth: "180px" }}>
@@ -493,8 +488,8 @@ const OverviewTab = () => {
                             </div>
                         </CardBody>
                     </Card>
-                    <Card className="mt-3" style={{ maxHeight: 340 }}>
-                        <CardBody>
+                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
                             <h5 className="fw-bold text-uppercase mb-1">{t("EpicProgress")}</h5>
                             <div className="d-flex align-items-center gap-3 mb-3">
                                 <div className="d-flex align-items-center gap-2">
@@ -534,7 +529,7 @@ const OverviewTab = () => {
                                 }
 
                                 return (
-                                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                    <div style={{ maxHeight: BASE_CARD_HEIGHT - 100, overflowY: 'auto' }}>
                                         {items.map(([id, rec]) => {
                                             const donePct = rec.total ? Math.round((rec.done / rec.total) * 100) : 0;
                                             const otherPct = rec.total ? Math.round((rec.other / rec.total) * 100) : 0;
@@ -564,9 +559,9 @@ const OverviewTab = () => {
                             })()}
                         </CardBody>
                     </Card>
-                    <Card className="mt-3" style={{ maxHeight: 340 }}>
-                        <CardBody>
-            <h6 className="fw-bold text-uppercase mb-3">{t("PriorityDistribution")}</h6>
+                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
+                            <h6 className="fw-bold text-uppercase mb-3">{t("PriorityDistribution")}</h6>
 
             <div className="d-flex align-items-center justify-content-center" style={{ height: 260, minHeight: 260 }}>
                 {(() => {
@@ -582,71 +577,8 @@ const OverviewTab = () => {
             </div>
                         </CardBody>
                     </Card>
-                </Col>
-
-                <Col md={6}>
-                    <Card>
-                        <CardBody>
-                            <h5 className="fw-bold text-uppercase mb-3">{t("RecentLogs")}</h5>
-                            {(() => {
-                                const list = Array.isArray(recentLogs) ? recentLogs.slice() : [];
-                                list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                                if (list.length === 0) return <p className="text-muted mb-0">{t("NoData")}</p>;
-                                return (
-                                    <div className="vstack gap-3">
-                                        {list.map((log: any) => (
-                                            <div key={log.logId} className="d-flex flex-column">
-                                                <div className="fw-semibold">{String(log.description || '')}</div>
-                                                <div className="text-muted small">{new Date(log.createdAt).toLocaleString()}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                );
-                            })()}
-                        </CardBody>
-                    </Card>
-                    <Card className="mt-3">
-                        <CardBody>
-                            <h5 className="fw-bold text-uppercase mb-3">{t("MyTasks")}</h5>
-
-                            {!board?.activeSprintId ? (
-                                <p className="text-muted mb-0">
-                                    {t("NoActiveSprint")}
-                                </p>
-                            ) : myTasks.length === 0 ? (
-                                <p className="text-muted mb-0">
-                                    {t("NoTasksAssigned")}
-                                </p>
-                            ) : (
-                                <div className="vstack gap-2">
-                                    {myTasks.map((task: Task) => (
-                                        <Card key={task.id} className="border">
-                                            <CardBody className="p-3">
-                                                <div className="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 className="mb-0">{task.title}</h6>
-                                                    <Badge color={getPriorityColor(task.priority)} className="ms-2">
-                                                        {task.priority}
-                                                    </Badge>
-                                                </div>
-                                                {task.description && (
-                                                    <p className="text-muted small mb-2">{task.description}</p>
-                                                )}
-                                                {task.statusColumn && (
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        <Badge color="light" className="text-dark">
-                                                            {task.statusColumn.name}
-                                                        </Badge>
-                                                    </div>
-                                                )}
-                                            </CardBody>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </CardBody>
-                    </Card>
-                    <Card className="mt-3">
-                        <CardBody>
+                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
                             <h5 className="fw-bold text-uppercase mb-3">{t("TeamWorkload")}</h5>
                             {(() => {
                                 const dist = workloadDist || {};
@@ -667,7 +599,7 @@ const OverviewTab = () => {
                                         return b.count - a.count;
                                     });
                                 return (
-                                    <div className="vstack gap-3">
+                                    <div className="vstack gap-3" style={{ maxHeight: BASE_CARD_HEIGHT - 60, overflowY: 'auto' }}>
                                         <div className="d-flex align-items-center gap-3 mb-1">
                                             <div className="flex-shrink-0 text-muted small" style={{ minWidth: 160 }}>{t('Assignee') || 'Assignee'}</div>
                                             <div className="flex-grow-1 text-muted small">{t('WorkDistribution') || 'Work Distribution'}</div>
@@ -692,6 +624,67 @@ const OverviewTab = () => {
                                     </div>
                                 );
                             })()}
+                        </CardBody>
+                    </Card>
+                </Col>
+
+                <Col md={6}>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody className="d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("RecentLogs")}</h5>
+                            {(() => {
+                                const list = Array.isArray(recentLogs) ? recentLogs.slice() : [];
+                                list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                                if (list.length === 0) return <p className="text-muted mb-0">{t("NoData")}</p>;
+                                return (
+                                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                                        <div className="vstack gap-3">
+                                            {list.map((log: any) => (
+                                                <div key={log.logId} className="d-flex flex-column">
+                                                    <div className="fw-semibold">{String(log.description || '')}</div>
+                                                    <div className="text-muted small">{new Date(log.createdAt).toLocaleString()}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3" style={{ height: DOUBLE_CARD_HEIGHT }}>
+                        <CardBody className="d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("MyTasks")}</h5>
+
+                            {myTasks.length === 0 ? (
+                                <p className="text-muted mb-0">{t("NoTasksAssigned")}</p>
+                            ) : (
+                                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                                    <div className="vstack gap-2">
+                                        {myTasks.map((task: Task) => (
+                                            <Card key={task.id} className="border">
+                                                <CardBody className="p-3">
+                                                    <div className="d-flex justify-content-between align-items-start mb-2">
+                                                        <h6 className="mb-0">{task.title}</h6>
+                                                        <Badge color={getPriorityColor(task.priority)} className="ms-2">
+                                                            {task.priority}
+                                                        </Badge>
+                                                    </div>
+                                                    {task.description && (
+                                                        <p className="text-muted small mb-2">{task.description}</p>
+                                                    )}
+                                                    {task.statusColumn && (
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <Badge color="light" className="text-dark">
+                                                                {task.statusColumn.name}
+                                                            </Badge>
+                                                        </div>
+                                                    )}
+                                                </CardBody>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </CardBody>
                     </Card>
                 </Col>
