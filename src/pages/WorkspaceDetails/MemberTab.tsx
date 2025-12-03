@@ -280,6 +280,7 @@ const MemberTab: React.FC = () => {
                     onClose={() => { setShowAssign(false); setAssignMember(null); }}
                     workspaceId={workspaceId}
                     member={assignMember}
+                    memberEmail={assignMember ? (idToEmail[assignMember.userId] || undefined) : undefined}
                     onSuccess={(msg) => toast.success(msg)}
                     onError={(msg) => toast.error(msg)}
                 />
@@ -311,6 +312,7 @@ const MemberTab: React.FC = () => {
                     }
                 }}
                 targetMember={targetMember}
+                memberEmail={targetMember ? (idToEmail[targetMember.userId] || undefined) : undefined}
                 roles={roles}
                 selectedDowngradeRoleId={selectedDowngradeRoleId}
                 onRoleChange={setSelectedDowngradeRoleId}

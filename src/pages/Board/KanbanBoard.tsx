@@ -7,6 +7,7 @@ import {
   Row,
   Col,
   Card,
+  CardBody,
   Button,
   Badge,
   Modal,
@@ -22,6 +23,10 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
+  UncontrolledDropdown,
+  InputGroup,
+  InputGroupText,
+  Input,
 } from "reactstrap";
 import {
   DragDropContext,
@@ -42,9 +47,11 @@ import {
   BoardResponse,
   BoardColumnResponse,
   TaskResponse,
+  reorderColumns,
 } from "../../apiCaller/boards";
 import { sprintAPI } from "../../apiCaller/backlogSprint";
 import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
+import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
 import SprintDetailModal from "./SprintDetailModal";
 import EditSprintModal from "../BacklogSprint/EditSprintModal";
 import TaskDetailModal from "../BacklogSprint/TaskDetailModal";
@@ -91,11 +98,18 @@ const KanbanBoard: React.FC = () => {
   ]);
   const [openAssigneeDropdown, setOpenAssigneeDropdown] = useState<number | null>(null);
 
+  // All tasks across project (for stats like List)
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+
   // Filter states
   const [filterAssignee, setFilterAssignee] = useState<string[]>([]);
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
+  const [filterEpic, setFilterEpic] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  // Epics list
+  const [epics, setEpics] = useState<EpicDto[]>([]);
 
   // Bulk selection states
   const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
@@ -103,9 +117,10 @@ const KanbanBoard: React.FC = () => {
   // View density state
   const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable'>('comfortable');
 
+  // Search query
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   // Toolbar dropdown states
-  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
-  const [viewDensityOpen, setViewDensityOpen] = useState(false);
 
   // Task detail modal states
   const [showTaskDetail, setShowTaskDetail] = useState(false);
@@ -114,6 +129,14 @@ const KanbanBoard: React.FC = () => {
   // Delete column modal states
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [deletingColumn, setDeletingColumn] = useState<BoardColumnResponse | null>(null);
+
+  const stats = React.useMemo(() => {
+    const total = allTasks.length;
+    const highPriority = allTasks.filter(t => (t.priority || '').toString().toUpperCase() === 'HIGH').length;
+    const assigned = allTasks.filter(t => t.assigneeId).length;
+    const unassigned = total - assigned;
+    return { total, highPriority, assigned, unassigned };
+  }, [allTasks]);
 
   // ============= HELPER FUNCTIONS =============
   // Convert TaskResponse to Task format for TaskDetailModal
@@ -136,6 +159,7 @@ const KanbanBoard: React.FC = () => {
     let count = 0;
     if (filterAssignee.length > 0) count++;
     if (filterPriority.length > 0) count++;
+    if (filterEpic.length > 0) count++;
     return count;
   };
 
@@ -201,6 +225,23 @@ const KanbanBoard: React.FC = () => {
       await loadBoard();
     }
   };
+    // ============= LOAD EPICS =============
+    const loadEpics = async () => {
+        if (!projectId) return;
+
+        try {
+            // Gọi API lấy danh sách Epic
+            const data = await getEpicsByProject(projectId);
+
+            // API trả về dạng PageResponse (có thuộc tính content chứa mảng)
+            // Dựa vào JSON bạn gửi: data.content là mảng các epic
+            if (data && data.content) {
+                setEpics(data.content);
+            }
+        } catch (error) {
+            console.error("❌ Error loading epics:", error);
+        }
+    };
 
   // Export to CSV
   const exportToCSV = () => {
@@ -209,15 +250,19 @@ const KanbanBoard: React.FC = () => {
     const allTasks = board.columns.flatMap(col => col.tasks);
     const filteredTasks = filterTasks(allTasks);
 
-    const headers = ['Key', 'Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Est. Hours', 'Tags'];
+    const headers = ['Key', 'Title', 'Description', 'Status', 'Priority', 'Assignee', 'Epic', 'Sprint', 'Due Date', 'Est. Hours', 'Tags'];
     const rows = filteredTasks.map(task => {
       const assignee = projectMembers.find(m => m.userId === task.assigneeId);
+      
       return [
         getTaskKey(task),
-        task.title,
+        task.title || '',
+        task.description || '',
         task.statusColumn?.name || 'N/A',
         task.priority || 'N/A',
         assignee?.displayName || 'Unassigned',
+        task.epicTitle || 'N/A',
+        task.sprintId || 'N/A',
         task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A',
         task.estimatedHours?.toString() || 'N/A',
         task.tags || 'N/A'
@@ -225,10 +270,10 @@ const KanbanBoard: React.FC = () => {
     });
 
     const csv = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\\n');
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -324,15 +369,22 @@ const KanbanBoard: React.FC = () => {
   useEffect(() => {
     loadBoard();
     loadProjectMembers();
+    loadEpics();
   }, [projectId]);
 
   // ============= FILTER TASKS =============
   const filterTasks = (tasks: TaskResponse[]): TaskResponse[] => {
-    if (filterAssignee.length === 0 && filterPriority.length === 0) {
-      return tasks;
-    }
+    const q = (searchQuery || '').trim().toLowerCase();
 
-    return tasks.filter(task => {
+    const applyQuery = (task: TaskResponse) => {
+      if (!q) return true;
+      const titleMatch = (task.title || '').toLowerCase().includes(q);
+      const idMatch = String(task.id || '').toLowerCase().includes(q);
+      const keyMatch = getTaskKey(task).toLowerCase().includes(q);
+      return titleMatch || idMatch || keyMatch;
+    };
+
+    const applyFilters = (task: TaskResponse) => {
       if (filterAssignee.length > 0) {
         const taskAssignee = task.assigneeId || 'unassigned';
         if (!filterAssignee.includes(taskAssignee)) return false;
@@ -344,13 +396,20 @@ const KanbanBoard: React.FC = () => {
         if (!normalized || !filterPriority.includes(normalized)) return false;
       }
 
+      if (filterEpic.length > 0) {
+        console.log('Filtering epic - task:', task.title, 'epicId:', task.epicId, 'filterEpic:', filterEpic);
+        if (!task.epicId || !filterEpic.includes(task.epicId)) return false;
+      }
+
       return true;
-    });
+    };
+
+    return tasks.filter(task => applyQuery(task) && applyFilters(task));
   };
 
   // ============= HANDLE DRAG & DROP =============
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
 
     // Không có destination hoặc không di chuyển
     if (
@@ -361,24 +420,65 @@ const KanbanBoard: React.FC = () => {
       return;
     }
 
-    console.log("🎯 Drag end:", { source, destination, draggableId });
+    console.log("🎯 Drag end:", { source, destination, draggableId, type });
 
-    // Parse IDs - Remove prefix if exists
+    if (!board) return;
+
+    // ============= COLUMN REORDERING =============
+    if (type === "COLUMN") {
+      const columnId = parseInt(draggableId.replace("column-", ""));
+      console.log("📋 Reordering column:", columnId, "from", source.index, "to", destination.index);
+
+      // Optimistic update - reorder columns in UI
+      const newColumns = Array.from(board.columns);
+      const [movedColumn] = newColumns.splice(source.index, 1);
+      newColumns.splice(destination.index, 0, movedColumn);
+
+      setBoard({
+        ...board,
+        columns: newColumns,
+      });
+
+      try {
+        // Call API to persist column order
+        const columnIds = newColumns.map((col) => col.id);
+        await reorderColumns(board.id, columnIds);
+        console.log("✅ Column reordered successfully");
+        toast.success("Column reordered", { autoClose: 1500 });
+      } catch (err: any) {
+        console.error("❌ Error reordering column:", err);
+        toast.error("Failed to reorder column");
+        // Revert by reloading
+        await loadBoard();
+      }
+      return;
+    }
+
+    // ============= TASK MOVEMENT =============
+    // Parse task and column IDs
     const taskId = parseInt(draggableId.replace("task-", ""));
     const sourceColumnId = parseInt(source.droppableId);
     const destColumnId = parseInt(destination.droppableId);
 
-    console.log("📦 Parsed IDs:", { taskId, sourceColumnId, destColumnId });
+    console.log("📦 Moving task:", { taskId, sourceColumnId, destColumnId });
 
-    if (!board) return;
+    // Validate parsed IDs
+    if (isNaN(taskId) || isNaN(sourceColumnId) || isNaN(destColumnId)) {
+      console.error("❌ Invalid IDs:", { taskId, sourceColumnId, destColumnId });
+      return;
+    }
+
+    // Find the task to move
+    const sourceColumn = board.columns.find((c) => c.id === sourceColumnId);
+    const taskToMove = sourceColumn?.tasks.find((t) => t.id === taskId);
+
+    if (!taskToMove) {
+      console.error("❌ Task not found:", taskId);
+      return;
+    }
 
     // 🎯 OPTIMISTIC UPDATE - Cập nhật UI ngay lập tức
     const updatedColumns = board.columns.map((col) => {
-      // Tìm task cần di chuyển
-      const sourceColumn = board.columns.find((c) => c.id === sourceColumnId);
-      const taskToMove = sourceColumn?.tasks.find((t) => t.id === taskId);
-
-      if (!taskToMove) return col;
 
       if (col.id === sourceColumnId) {
         // Xóa task khỏi source column
@@ -694,53 +794,55 @@ const KanbanBoard: React.FC = () => {
   // Warning nếu không có active sprint
   if (!board.activeSprintId) {
     return (
-      <div className="page-content" style={{ paddingTop: "1rem" }}>
-        <Container fluid>
-          <Alert color="warning" className="mb-3">
-            <h5 className="alert-heading">
-              <i className="ri-information-line me-2"></i>
-              No Active Sprint
-            </h5>
-            <p className="mb-0">
-              Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
-              <strong>Sprint</strong> tab và set một sprint thành{" "}
-              <strong>"Active"</strong> để xem tasks trong Board.
-            </p>
-          </Alert>
-        </Container>
-      </div>
+      <>
+        <Alert color="warning" className="mb-3">
+          <h5 className="alert-heading">
+            <i className="ri-information-line me-2"></i>
+            No Active Sprint
+          </h5>
+          <p className="mb-0">
+            Board chỉ hiển thị tasks của sprint đang active. Vui lòng vào{" "}
+            <strong>Sprint</strong> tab và set một sprint thành{" "}
+            <strong>"Active"</strong> để xem tasks trong Board.
+          </p>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: "1rem" }}>
-      <Container fluid>
+    <>
         {/* HEADER - Compact */}
-        <Row className="mb-2">
+        <Row className="align-items-center mb-3">
           <Col>
             <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h5 className="mb-1">{board.name}</h5>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted small">
-                    {board.description || ""}
-                  </span>
-                  {board.activeSprintId ? (
-                    <Badge color="success" className="ms-2">
-                      <i className="ri-play-circle-line me-1"></i>
-                      {board.activeSprintName}
-                    </Badge>
-                  ) : (
-                    <Badge color="secondary" className="ms-2">
-                      <i className="ri-information-line me-1"></i>
-                      No active sprint
-                    </Badge>
-                  )}
-                </div>
+              <div style={{ maxWidth: 420, width: '100%' }}>
+                <InputGroup>
+                  <InputGroupText>
+                    <i className="ri-search-line"></i>
+                  </InputGroupText>
+                  <Input
+                    type="text"
+                    placeholder={t('SearchTasksPlaceholder')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
               </div>
 
               {/* ACTION BUTTONS */}
-              <div className="d-flex gap-2">
+              <div className="d-flex align-items-center justify-content-end gap-2 flex-wrap">
+                {board.activeSprintId ? (
+                  <Badge color="success" className="me-1">
+                    <i className="ri-play-circle-line me-1"></i>
+                    {board.activeSprintName}
+                  </Badge>
+                ) : (
+                  <Badge color="secondary" className="me-1">
+                    <i className="ri-information-line me-1"></i>
+                    No active sprint
+                  </Badge>
+                )}
                 {board.activeSprintId && (
                   <>
                     {/* Sprint Detail Button */}
@@ -790,10 +892,10 @@ const KanbanBoard: React.FC = () => {
 
                 {/* Bulk Actions Bar */}
                 {selectedTasks.length > 0 && (
-                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded">
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 bg-light border rounded flex-wrap">
                     <CheckSquare size={18} className="text-primary" />
                     <span className="fw-medium">{selectedTasks.length} {t('Selected')}</span>
-                    <Dropdown isOpen={bulkActionsOpen} toggle={() => setBulkActionsOpen(!bulkActionsOpen)}>
+                    <UncontrolledDropdown>
                       <DropdownToggle caret color="primary" size="sm">
                         {t('BulkAssign')}
                       </DropdownToggle>
@@ -801,22 +903,20 @@ const KanbanBoard: React.FC = () => {
                         {projectMembers.map(member => (
                           <DropdownItem
                             key={member.userId}
-                            onClick={() => {
-                              bulkAssign(member.userId);
-                              setBulkActionsOpen(false);
-                            }}
+                            onClick={() => bulkAssign(member.userId)}
                           >
                             {member.displayName}
                           </DropdownItem>
                         ))}
                       </DropdownMenu>
-                    </Dropdown>
+                    </UncontrolledDropdown>
                     <Button
-                      color="light"
+                      color="secondary"
+                      outline
                       size="sm"
                       onClick={() => setSelectedTasks([])}
                     >
-                      {t('Cancel')}
+                      {t('Clear')}
                     </Button>
                   </div>
                 )}
@@ -837,26 +937,20 @@ const KanbanBoard: React.FC = () => {
                 </Button>
 
                 {/* View Density Dropdown */}
-                <Dropdown isOpen={viewDensityOpen} toggle={() => setViewDensityOpen(!viewDensityOpen)}>
+                <UncontrolledDropdown>
                   <DropdownToggle caret color="light" size="sm">
                     <Layers size={14} className="me-1" />
                     {viewDensity === 'compact' ? t('Compact') : t('Comfortable')}
                   </DropdownToggle>
                   <DropdownMenu>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('comfortable');
-                      setViewDensityOpen(false);
-                    }}>
+                    <DropdownItem onClick={() => setViewDensity('comfortable')}>
                       {t('Comfortable')}
                     </DropdownItem>
-                    <DropdownItem onClick={() => {
-                      setViewDensity('compact');
-                      setViewDensityOpen(false);
-                    }}>
+                    <DropdownItem onClick={() => setViewDensity('compact')}>
                       {t('Compact')}
                     </DropdownItem>
                   </DropdownMenu>
-                </Dropdown>
+                </UncontrolledDropdown>
 
                 {/* Export CSV Button */}
                 <Button color="light" size="sm" onClick={exportToCSV}>
@@ -971,32 +1065,47 @@ const KanbanBoard: React.FC = () => {
           onDragEnd={handleDragEnd}
           key={board.columns.map((c) => c.id).join("-")}
         >
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              overflowX: "auto",
-              paddingBottom: "16px",
-              // Custom scrollbar
-              scrollbarWidth: "thin",
-              scrollbarColor: "#888 #f1f1f1",
-            }}
-            className="kanban-board-container"
-          >
-            {board.columns.map((column) => (
+          <Droppable droppableId="board" direction="horizontal" type="COLUMN">
+            {(provided) => (
               <div
-                key={`column-${column.id}`}
+                ref={provided.innerRef}
+                {...provided.droppableProps}
                 style={{
-                  minWidth: "320px",
-                  maxWidth: "320px",
-                  flexShrink: 0,
+                  display: "flex",
+                  gap: "16px",
+                  overflowX: "auto",
+                  paddingBottom: "8px",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#888 #f1f1f1",
                 }}
+                className="kanban-board-container"
               >
-                <Card className="h-100">
+                {board.columns.map((column, index) => (
+                  <Draggable
+                    key={`column-${column.id}`}
+                    draggableId={`column-${column.id}`}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        style={{
+                          minWidth: "320px",
+                          maxWidth: "320px",
+                          flexShrink: 0,
+                          ...provided.draggableProps.style,
+                        }}
+                      >
+                        <Card className="h-100" style={{
+                          opacity: snapshot.isDragging ? 0.8 : 1,
+                          transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
+                        }}>
                   {/* COLUMN HEADER */}
                   <div
+                    {...provided.dragHandleProps}
                     className="card-header d-flex justify-content-between align-items-center"
-                    style={{ backgroundColor: column.color, color: "#fff" }}
+                    style={{ backgroundColor: column.color, color: "#fff", cursor: 'grab' }}
                   >
                     <div className="d-flex align-items-center gap-2">
                       <input
@@ -1107,9 +1216,14 @@ const KanbanBoard: React.FC = () => {
                     )}
                   </Droppable>
                 </Card>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
-            ))}
-          </div>
+            )}
+          </Droppable>
         </DragDropContext>
 
         {/* MODAL ADD COLUMN */}
@@ -1421,6 +1535,38 @@ const KanbanBoard: React.FC = () => {
                     ))}
                   </div>
                 </FormGroup>
+
+                {/* Epic Filter */}
+                <FormGroup className="mt-3">
+                  <Label className="fw-semibold">
+                    Epic
+                  </Label>
+                  <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {epics.length === 0 ? (
+                      <p className="text-muted small">No epics available</p>
+                    ) : (
+                      epics.map(epic => (
+                        <FormGroup check key={epic.id}>
+                          <Label check>
+                            <input
+                              type="checkbox"
+                              checked={filterEpic.includes(epic.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFilterEpic([...filterEpic, epic.id]);
+                                } else {
+                                  setFilterEpic(filterEpic.filter(e => e !== epic.id));
+                                }
+                              }}
+                              className="me-2"
+                            />
+                            {epic.title}
+                          </Label>
+                        </FormGroup>
+                      ))
+                    )}
+                  </div>
+                </FormGroup>
               </Col>
             </Row>
           </ModalBody>
@@ -1430,6 +1576,7 @@ const KanbanBoard: React.FC = () => {
               onClick={() => {
                 setFilterPriority([]);
                 setFilterAssignee([]);
+                setFilterEpic([]);
               }}
             >
               {t('ClearAll')}
@@ -1439,8 +1586,7 @@ const KanbanBoard: React.FC = () => {
             </Button>
           </ModalFooter>
         </Modal>
-      </Container>
-    </div>
+    </>
   );
 };
 
@@ -1560,6 +1706,19 @@ const TaskCard: React.FC<TaskCardProps & {
                 {tag.trim()}
               </Badge>
             ))}
+            {task.epicTitle && (
+              <Badge
+                color="info"
+                className="me-1 mb-1"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: '500',
+                  padding: '4px 8px'
+                }}
+              >
+                {task.epicTitle}
+              </Badge>
+            )}
           </div>
         )}
 

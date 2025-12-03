@@ -39,6 +39,7 @@ export default function EditRolePermissionPage() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
+    const [isPermissionError, setIsPermissionError] = useState(false);
 
     const loc = useLocation() as { state?: { roleName?: string; roleCode?: string } };
     const initialRole = { name: loc.state?.roleName || "", code: loc.state?.roleCode || "" };
@@ -78,12 +79,19 @@ export default function EditRolePermissionPage() {
         }
         setLoading(true);
         setMsg(null);
+        setIsPermissionError(false);
         try {
             const pRes = await fetch(new URL(`/api/permissions?scope=company`, base).toString(), {
                 headers: getAuthHeaders(),
             });
             if (!pRes.ok) {
-                setMsg(t("LoadPermissionsError", { status: pRes.status, text: await pRes.text() }));
+                if (pRes.status === 403) {
+                    setIsPermissionError(true);
+                    setMsg('Bạn không có quyền này');
+                } else {
+                    setIsPermissionError(false);
+                    setMsg(t("LoadPermissionsError", { status: pRes.status, text: await pRes.text() }));
+                }
                 setLoading(false);
                 return;
             }
@@ -104,7 +112,13 @@ export default function EditRolePermissionPage() {
                 setSelected(new Set());
             }
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorLoadingData"));
+            if (e?.message && /^403\s/.test(e.message)) {
+                setIsPermissionError(true);
+                setMsg('Bạn không có quyền này');
+            } else {
+                setIsPermissionError(false);
+                setMsg(e?.message || t("ErrorLoadingData"));
+            }
         } finally {
             setLoading(false);
         }
@@ -143,12 +157,25 @@ export default function EditRolePermissionPage() {
             );
             if (!res.ok) {
                 const txt = await res.text();
-                setMsg(t("SaveFailed", { status: res.status, text: txt }));
+                if (res.status === 403) {
+                    setIsPermissionError(true);
+                    setMsg('Bạn không có quyền này');
+                } else {
+                    setIsPermissionError(false);
+                    setMsg(t("SaveFailed", { status: res.status, text: txt }));
+                }
                 return;
             }
+            setIsPermissionError(false);
             setMsg(t("Saved"));
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorSaving"));
+            if (e?.message && /^403\s/.test(e.message)) {
+                setIsPermissionError(true);
+                setMsg('Bạn không có quyền này');
+            } else {
+                setIsPermissionError(false);
+                setMsg(e?.message || t("ErrorSaving"));
+            }
         } finally {
             setSaving(false);
         }
@@ -211,7 +238,7 @@ export default function EditRolePermissionPage() {
                                 {msg && (
                                     <div className="row mb-3">
                                         <div className="col">
-                                            <div className="alert alert-info mb-0">{msg}</div>
+                                            <div className={`alert ${isPermissionError ? 'alert-warning' : 'alert-info'} mb-0`}>{msg}</div>
                                         </div>
                                     </div>
                                 )}

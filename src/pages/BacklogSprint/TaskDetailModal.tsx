@@ -3,7 +3,9 @@ import { Modal, Button, Form, Badge, Row, Col, Card, Dropdown, ButtonGroup, Tabs
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { taskAPI } from '../../apiCaller/backlogSprint';
+import ApiCaller from '../../apiCaller/caller/apiCaller';
 import { getProjectMembers, ProjectMember } from '../../apiCaller/projectMembers';
+import { getBoardByProjectId } from '../../apiCaller/boards';
 import AttachmentsTab from './AttachmentsTab';
 import '../../assets/scss/pages/TaskDetailModal.scss';
 
@@ -22,9 +24,11 @@ interface Task {
   statusColumn?: {
     id: number;
     name: string;
+    color?: string;
   };
   createdAt?: string;
   updatedAt?: string;
+  epicId?: number | null;
 }
 
 interface StatusColumn {
@@ -52,16 +56,39 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [formData, setFormData] = useState<Task>(task);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const [epics, setEpics] = useState<{ id: number; title: string }[]>([]);
 
-  // Mock data - Replace with actual API calls
-  const [statusColumns] = useState<StatusColumn[]>([
-    { id: 1, name: 'TO DO', color: '#6b7280' },
+  // Status columns - loaded from API
+  const [statusColumns, setStatusColumns] = useState<StatusColumn[]>([
+    { id: 1, name: 'TO DO', color: '#840417ff' },
     { id: 2, name: 'IN PROGRESS', color: '#3b82f6' },
-    { id: 3, name: 'IN REVIEW', color: '#f59e0b' },
-    { id: 4, name: 'DONE', color: '#10b981' }
+    { id: 3, name: 'DONE', color: '#10b981' }
   ]);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+
+  // Load status columns from board API
+  const loadStatusColumns = async () => {
+    try {
+      setLoadingStatus(true);
+      const boardData = await getBoardByProjectId(projectId);
+      if (boardData && boardData.columns && boardData.columns.length > 0) {
+        const columns = boardData.columns.map((col: any) => ({
+          id: col.id,
+          name: col.name,
+          color: col.color || '#3b82f6'
+        }));
+        setStatusColumns(columns);
+        console.log('✅ TaskDetailModal: Loaded board columns:', columns);
+      }
+    } catch (error) {
+      console.error('❌ TaskDetailModal: Error loading board columns:', error);
+      // Keep default columns if load fails
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
 
   // Load project members
   useEffect(() => {
@@ -81,6 +108,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
     if (show) {
       loadMembers();
+      loadStatusColumns(); // Load status columns when modal opens
     }
   }, [projectId, show]);
 
@@ -89,31 +117,41 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     const anyTask: any = task as any;
     const normalizedTask: Task = {
       ...task,
-      assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined
+      assignedTo: task.assignedTo ?? anyTask.assigneeId ?? undefined,
+      epicId: anyTask.epicId ?? task.epicId ?? null
     };
     setFormData(normalizedTask);
   }, [task]);
 
-  const handleStatusChange = async (statusColumnId: number, statusName: string) => {
-    try {
-      const updatedTask = {
-        ...formData,
-        statusColumn: { id: statusColumnId, name: statusName }
-      };
-      setFormData(updatedTask);
-      
-      await taskAPI.update(projectId, task.id, updatedTask);
-      const translatedStatus = statusName === 'TO DO' ? t('StatusTodo') :
-                               statusName === 'IN PROGRESS' ? t('StatusInProgress') :
-                               statusName === 'IN REVIEW' ? t('StatusInReview') :
-                               statusName === 'DONE' ? t('StatusDone') : statusName;
-      toast.success(t('StatusUpdatedTo', { status: translatedStatus }));
-      onUpdate();
-    } catch (error: any) {
-      console.error('Error updating status:', error);
-      toast.error(t('FailedToUpdateStatus'));
-      setFormData(task); // Revert on error
+  // Enrich statusColumn with color from loaded columns
+  useEffect(() => {
+    if (formData.statusColumn && statusColumns.length > 0) {
+      const matchedColumn = statusColumns.find(
+        col => col.id === formData.statusColumn?.id || 
+               col.name.toUpperCase() === formData.statusColumn?.name?.toUpperCase()
+      );
+      if (matchedColumn && matchedColumn.color !== formData.statusColumn.color) {
+        setFormData(prev => ({
+          ...prev,
+          statusColumn: {
+            ...prev.statusColumn!,
+            color: matchedColumn.color
+          }
+        }));
+      }
     }
+  }, [statusColumns, formData.statusColumn?.id]);
+
+  const handleStatusChange = (statusColumnId: number, statusName: string) => {
+    // Only update local state, don't save to API yet
+    // User must click Save button to persist changes
+    const selectedStatus = statusColumns.find(s => s.id === statusColumnId);
+    const statusColor = selectedStatus?.color || '#3b82f6';
+    
+    setFormData(prev => ({
+      ...prev,
+      statusColumn: { id: statusColumnId, name: statusName, color: statusColor }
+    }));
   };
 
   const handleAssigneeChange = (userId: string, displayName: string) => {
@@ -123,6 +161,23 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       ...formData,
       assignedTo: userId === 'unassigned' ? undefined : userId
     });
+  };
+
+  useEffect(() => {
+    const loadEpics = async () => {
+      try {
+        const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics`).get();
+        const data = res?.data?.data || res?.data || [];
+        setEpics(Array.isArray(data) ? data : (data.content || []));
+      } catch {
+        setEpics([]);
+      }
+    };
+    if (show) loadEpics();
+  }, [projectId, show]);
+
+  const handleEpicChange = (epicId: number | null) => {
+    setFormData({ ...formData, epicId });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,11 +204,22 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         estimatedHours: formData.estimatedHours,
         tags: formData.tags,
         orderIndex: formData.orderIndex,
-        statusColumn: formData.statusColumn
+        statusColumn: formData.statusColumn,
+        // Do not rely on generic update for epic; patch epic via dedicated endpoint
       };
       
       await taskAPI.update(projectId, task.id, apiPayload);
-      toast.success(t('TaskUpdatedSuccessfully'));
+
+      // Patch epic if changed
+      const previousEpicId = (task as any).epicId ?? null;
+      const currentEpicId = formData.epicId ?? null;
+      if (previousEpicId !== currentEpicId) {
+        await new ApiCaller()
+          .setUrl(`/projects/${projectId}/tasks/${task.id}/epic`)
+          .setQueryParams({ epicId: currentEpicId ?? '' })
+          .patch({ data: {} });
+      }
+      toast.success('Task updated successfully');
       onUpdate();
       onHide();
     } catch (error: any) {
@@ -206,6 +272,18 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const getCurrentStatus = () => {
     if (formData.statusColumn) {
+      // Try to find matching status from loaded columns by ID
+      const matchedById = statusColumns.find(col => col.id === formData.statusColumn?.id);
+      if (matchedById) {
+        return { ...formData.statusColumn, color: matchedById.color };
+      }
+      // Try to find matching status from loaded columns by name
+      const matchedByName = statusColumns.find(
+        col => col.name.toUpperCase() === formData.statusColumn?.name?.toUpperCase()
+      );
+      if (matchedByName) {
+        return { ...formData.statusColumn, color: matchedByName.color };
+      }
       return formData.statusColumn;
     }
     // If no status, default to first status column
@@ -233,12 +311,17 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <Button 
                 variant="outline-secondary" 
                 size="sm"
+                disabled={loadingStatus}
                 style={{ 
                   borderColor: getStatusColor(getCurrentStatus().name),
                   color: getStatusColor(getCurrentStatus().name)
                 }}
               >
-                <i className="ri-checkbox-circle-line me-1"></i>
+                {loadingStatus ? (
+                  <i className="ri-loader-4-line me-1 spin-animation"></i>
+                ) : (
+                  <i className="ri-checkbox-circle-line me-1"></i>
+                )}
                 {getCurrentStatus().name?.toUpperCase() === 'TO DO' ? t('StatusTodo') :
                  getCurrentStatus().name?.toUpperCase() === 'IN PROGRESS' ? t('StatusInProgress') :
                  getCurrentStatus().name?.toUpperCase() === 'IN REVIEW' ? t('StatusInReview') :
@@ -249,6 +332,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 split 
                 variant="outline-secondary" 
                 size="sm"
+                disabled={loadingStatus}
                 style={{ 
                   borderColor: getStatusColor(getCurrentStatus().name),
                   color: getStatusColor(getCurrentStatus().name)
@@ -365,7 +449,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </div>
               </div>
 
-              <div className="row">
+              <div className="row inline-four">
                 <div className="col-md-6">
                   <Form.Group className="mb-3">
                     <Form.Label>{t('EstimatedHours')}</Form.Label>
@@ -378,6 +462,23 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         estimatedHours: e.target.value ? parseInt(e.target.value) : undefined 
                       })}
                     />
+                  </Form.Group>
+                </div>
+                <div className="col-md-6">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Epic</Form.Label>
+                    <Form.Select
+                      value={formData.epicId ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleEpicChange(v === '' ? null : parseInt(v));
+                      }}
+                    >
+                      <option value="">None</option>
+                      {epics.map(epic => (
+                        <option key={epic.id} value={epic.id}>{epic.title}</option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </div>
               </div>

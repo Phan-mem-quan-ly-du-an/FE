@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Modal, ModalHeader, ModalBody, Form, Label, Input, FormFeedback, Button } from 'reactstrap';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -7,6 +7,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ProjectMember } from '../../apiCaller/projectMembers';
 import { assignProjectMemberRole } from '../../apiCaller/projectMembers';
 import { getProjectRoles, ProjectRole } from '../../apiCaller/projectRoles';
+import { useAuth } from 'react-oidc-context';
+import { isForbiddenError } from '../../helpers/permissions';
+
+// Permission interface
+export type Permission = {
+    id: number;
+    scope: "company" | "workspace" | "project";
+    code: string;
+    name: string;
+};
 
 interface AssignProjectRoleModalProps {
     show: boolean;
@@ -27,6 +37,13 @@ export default function AssignProjectRoleModal({
 }: AssignProjectRoleModalProps) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const auth = useAuth();
+    const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
+
+    function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
+        const accessToken = auth.user?.access_token;
+        return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
+    }
 
     const { data: roles = [] } = useQuery<ProjectRole[]>({
         queryKey: ['project-roles', projectId],
@@ -41,6 +58,62 @@ export default function AssignProjectRoleModal({
             queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
         },
     });
+
+    const [permissions, setPermissions] = useState<Permission[]>([]);
+    const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
+    const [loadingPermissions, setLoadingPermissions] = useState(false);
+    const [permissionsError, setPermissionsError] = useState<string | null>(null);
+
+    const { data: allProjectPermissions = [] } = useQuery<Permission[]>({
+        queryKey: ['allProjectPermissions'],
+        queryFn: async () => {
+            const res = await fetch(new URL(`/api/permissions?scope=project`, base).toString(), {
+                headers: getAuthHeaders(),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            console.log("All Project Permissions:", data);
+            return data;
+        },
+        enabled: !!auth.user?.access_token && show,
+    });
+
+    const fetchRolePermissions = useCallback(async (roleId: number) => {
+        setLoadingPermissions(true);
+        setPermissionsError(null);
+        try {
+            const res = await fetch(new URL(`/api/roles/${roleId}/permissions`, base).toString(), {
+                headers: getAuthHeaders(),
+            });
+            if (!res.ok) {
+                if (res.status === 403) {
+                    setPermissionsError(t("ProjectPermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+                } else {
+                    setPermissionsError(t("LoadPermissionsError", { status: res.status, text: await res.text() }) || "");
+                }
+                setSelectedPermissions(new Set());
+                return;
+            }
+            const ids: number[] = await res.json();
+            console.log(`Permissions for role ${roleId}:`, ids);
+            setSelectedPermissions(new Set(ids || []));
+        } catch (e: any) {
+            if (isForbiddenError(e)) {
+                setPermissionsError(t("ProjectPermissions.AssignRolePermissionDenied") || "Bạn không có quyền xem hoặc gán permission cho role này.");
+            } else {
+                setPermissionsError(e?.message || t("ErrorLoadingData") || "Lỗi tải dữ liệu");
+            }
+            setSelectedPermissions(new Set());
+        } finally {
+            setLoadingPermissions(false);
+        }
+    }, [auth.user?.access_token, base, getAuthHeaders, t]);
+
+    useEffect(() => {
+        if (allProjectPermissions.length > 0) {
+            setPermissions(allProjectPermissions);
+        }
+    }, [allProjectPermissions]);
 
     const validation = useFormik({
         enableReinitialize: true,
@@ -76,6 +149,15 @@ export default function AssignProjectRoleModal({
             );
         },
     });
+
+    useEffect(() => {
+        const selectedRoleId = validation.values.roleId;
+        if (show && selectedRoleId) {
+            fetchRolePermissions(parseInt(selectedRoleId));
+        } else if (!show) {
+            setSelectedPermissions(new Set());
+        }
+    }, [show, validation.values.roleId, fetchRolePermissions]);
 
     useEffect(() => {
         if (member) {
@@ -144,6 +226,49 @@ export default function AssignProjectRoleModal({
                             <FormFeedback type="invalid">{validation.errors.roleId}</FormFeedback>
                         ) : null}
                     </div>
+
+                    {validation.values.roleId && ( // Only show permissions if a role is selected
+                        <div className="mb-3">
+                            <Label className="form-label">{t('Permissions')}</Label>
+                            {permissionsError && (
+                                <div className="alert alert-danger">
+                                    {permissionsError}
+                                </div>
+                            )}
+                            {loadingPermissions ? (
+                                <div>{t('LoadingPermissions')}</div>
+                            ) : (
+                                <div className="table-responsive table-card mb-1 mt-0">
+                                    <table className="table align-middle table-nowrap">
+                                        <thead className="table-light text-muted text-uppercase">
+                                            <tr>
+                                                <th style={{ width: 320 }}>{t('PermissionName')}</th>
+                                                <th className="text-center" style={{ width: 140 }}>{t('Tick')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {permissions.map(p => (
+                                                <tr key={p.id}>
+                                                    <td>
+                                                        <div className="fw-semibold">{p.name}</div>
+                                                        {p.code && <div className="text-muted small">{p.code}</div>}
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="form-check-input"
+                                                            checked={selectedPermissions.has(p.id)}
+                                                            disabled={true} // Permissions are read-only in this modal
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="text-muted small">{t('SelectRoleAndSave')}</div>
                 </ModalBody>

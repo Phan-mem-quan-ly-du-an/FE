@@ -9,6 +9,7 @@ interface TransferOwnershipModalProps {
     targetMember: {
         userId: string;
     } | null;
+    memberEmail?: string;
     roles: WorkspaceRole[];
     selectedDowngradeRoleId: number | '';
     onRoleChange: (roleId: number | '') => void;
@@ -20,6 +21,7 @@ export default function TransferOwnershipModal({
     onClose,
     onConfirm,
     targetMember,
+    memberEmail,
     roles,
     selectedDowngradeRoleId,
     onRoleChange,
@@ -41,7 +43,7 @@ export default function TransferOwnershipModal({
                         <div className="modal-body">
                             <p className="mb-2">
                                 {t('RoleForOldOwner')}: <span
-                                className="font-monospace">{targetMember?.userId}</span>
+                                className="font-monospace">{memberEmail || targetMember?.userId}</span>
                             </p>
                             <div className="mb-3">
                                 <label htmlFor="roleSelect" className="form-label">{t('RoleForOldOwner')}</label>
