@@ -196,17 +196,31 @@ aside.EmojiPickerReact.epr-main {
   right: 23px !important;
   left: unset !important;
 }
-// Toast
+// Toast - Ensure it appears above modals
 .Toastify {
-  z-index: 9999 !important;
+  z-index: 99999 !important;
+  position: fixed !important;
   
   .Toastify__toast-container {
-    z-index: 9999 !important;
+    z-index: 99999 !important;
+    position: fixed !important;
+    pointer-events: none;
+    
+    &--top-right {
+      z-index: 99999 !important;
+    }
   }
   
   .Toastify__toast {
     min-height: 43px;
-    z-index: 9999 !important;
+    z-index: 99999 !important;
+    position: relative !important;
+    pointer-events: auto;
+  }
+  
+  // Ensure toast appears above modal backdrop (z-index 1050) and modal (z-index 1055)
+  &--top-right {
+    z-index: 99999 !important;
   }
 
   .Toastify__close-button {
@@ -229,6 +243,15 @@ aside.EmojiPickerReact.epr-main {
       max-height: 20px !important;
     }
   }
+}
+
+// Override modal backdrop z-index to ensure toast is always visible
+.modal-backdrop {
+  z-index: 1050 !important;
+}
+
+.modal {
+  z-index: 1055 !important;
 }
 
 // Tranfer List

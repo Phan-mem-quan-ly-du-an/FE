@@ -209,7 +209,7 @@ export default function EditWorkspaceRolePermissionPage() {
                                 {msg && (
                                     <div className="row mb-3">
                                         <div className="col">
-                                            <div className="alert alert-info mb-0">{msg}</div>
+                                            <div className="alert alert-warning mb-0">{msg}</div>
                                         </div>
                                     </div>
                                 )}

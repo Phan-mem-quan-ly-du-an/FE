@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, Button, Input, Row, Col, FormFeedback, Label, Alert } from 'reactstrap';
 import { toast } from 'react-toastify';
 import { getCompanyMembers, CompanyMember } from '../../apiCaller/companyMembers';
 import { getWorkspaceRoles, WorkspaceRole } from '../../apiCaller/workspaceRoles';
@@ -29,9 +29,11 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
     const [members, setMembers] = useState<CompanyMember[]>([]);
     const [roles, setRoles] = useState<WorkspaceRole[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!show) return;
+        setError(null);
         (async () => {
             try {
                 const [cm, rs] = await Promise.all([
@@ -42,13 +44,25 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
                 setRoles(rs || []);
             } catch (e) {
                 if (isForbiddenError(e)) {
-                    toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+                    const errorMsg = t('WorkspacePermissions.AddMemberDenied');
+                    setError(errorMsg);
+                    toast.warning(errorMsg, {
+                        position: 'top-right',
+                        autoClose: 5000,
+                        style: { zIndex: 99999 }
+                    });
                 } else {
-                    toast.error(t('FailedToInviteMembers') || 'Không thể tải dữ liệu phục vụ thêm thành viên.');
+                    const errorMsg = t('FailedToInviteMembers') || 'Không thể tải dữ liệu phục vụ thêm thành viên.';
+                    setError(errorMsg);
+                    toast.error(errorMsg, {
+                        position: 'top-right',
+                        autoClose: 5000,
+                        style: { zIndex: 99999 }
+                    });
                 }
             }
         })();
-    }, [show, companyId, workspaceId]); // Added dependencies to comply with hooks rules, though intended logic might rely only on show
+    }, [show, companyId, workspaceId, t]);
 
     useEffect(() => {
         const rows = emailsText
@@ -85,6 +99,7 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
     async function handleInvite() {
         if (!canSubmit) return;
         setSubmitting(true);
+        setError(null);
         try {
             for (const e of entries) {
                 if (!e.userId || !e.roleId) continue;
@@ -93,21 +108,44 @@ const AddWorkspaceMemberModal: React.FC<Props> = ({ show, onClose, workspaceId, 
             onSuccess?.();
             onClose();
             setEmailsText('');
-        } catch (err) {
+        } catch (err: any) {
             if (isForbiddenError(err)) {
-                toast.warning(t('WorkspacePermissions.AddMemberDenied') || 'Bạn không có quyền thêm thành viên vào workspace.');
+                const errorMsg = t('WorkspacePermissions.AddMemberDenied');
+                setError(errorMsg);
+                toast.warning(errorMsg, {
+                    position: 'top-right',
+                    autoClose: 5000,
+                    style: { zIndex: 99999 }
+                });
             } else {
-                toast.error(t('FailedToInviteMembers') || 'Không thể mời thành viên');
+                const errorMsg = t('FailedToInviteMembers') || 'Không thể mời thành viên';
+                setError(errorMsg);
+                toast.error(errorMsg, {
+                    position: 'top-right',
+                    autoClose: 5000,
+                    style: { zIndex: 99999 }
+                });
             }
         } finally {
             setSubmitting(false);
         }
     }
 
+    const handleToggle = () => {
+        if (onClose) {
+            onClose();
+        }
+    };
+
     return (
-        <Modal isOpen={show} toggle={onClose} centered size="lg">
-            <ModalHeader toggle={onClose}>{t('InviteMembersTitle')}</ModalHeader>
+        <Modal isOpen={show} toggle={handleToggle} centered size="lg">
+            <ModalHeader toggle={handleToggle}>{t('InviteMembersTitle')}</ModalHeader>
             <ModalBody>
+                {error && (
+                    <Alert color="warning" className="mb-3">
+                        <strong>⚠️ {t('Error')}:</strong> {error}
+                    </Alert>
+                )}
                 <Row className="g-3">
                     <Col md={12}>
                         <Label className="form-label">{t('EnterEmailAddresses')}</Label>

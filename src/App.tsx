@@ -3,6 +3,7 @@ import {QueryClient, QueryClientProvider,} from '@tanstack/react-query';
 import {ReactQueryDevtools} from '@tanstack/react-query-devtools';
 
 import './assets/scss/themes.scss';
+import 'react-toastify/dist/ReactToastify.css';
 
 import Route from './Routes';
 import {ToastContainer} from 'react-toastify';
@@ -18,7 +19,7 @@ function App() {
                     <Route/>
                     <ToastContainer
                         position="top-right"
-                        autoClose={3000}
+                        autoClose={5000}
                         hideProgressBar={false}
                         newestOnTop={true}
                         closeOnClick
@@ -27,10 +28,11 @@ function App() {
                         draggable
                         pauseOnHover
                         theme="light"
-                        style={{ zIndex: 9999 }}
+                        style={{ zIndex: 99999 }}
                         toastStyle={{
                             fontSize: '14px',
-                            padding: '12px'
+                            padding: '12px',
+                            zIndex: 99999
                         }}
                         icon={({ type }) => {
                             if (type === 'success') return '✅';
