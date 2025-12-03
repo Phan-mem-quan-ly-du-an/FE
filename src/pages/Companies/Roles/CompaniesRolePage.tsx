@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from 'react-toastify';
 import { getCompanyRoles, deleteRole, createCompanyRole, updateCompanyRole, Role } from "../../../apiCaller/companyRoles";
 import { Card, CardBody, CardHeader, Col, Container, Row, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
@@ -10,6 +11,7 @@ import CreateRoleModal from "./CreateRoleModal";
 import EditRoleModal from "./EditRoleModal";
 import ConfirmDeleteRoleModal from "./ConfirmDeleteRoleModal";
 import { useAuth } from "react-oidc-context";
+import { isForbiddenError } from "../../../helpers/permissions";
 
 export default function CompaniesRolePage() {
     const auth = useAuth();
@@ -43,6 +45,15 @@ export default function CompaniesRolePage() {
     });
 
     useEffect(() => {
+        if (rolesQuery.error && isForbiddenError(rolesQuery.error)) {
+            toast.warning('Bạn không có quyền này', { 
+                autoClose: 4000,
+                position: 'top-right'
+            });
+        }
+    }, [rolesQuery.error]);
+
+    useEffect(() => {
         if (rolesQuery.isError) {
             const anyErr: any = rolesQuery.error as any;
             const text = anyErr?.response?.data?.error || anyErr?.message || "";
@@ -58,7 +69,14 @@ export default function CompaniesRolePage() {
             });
         },
         onError: async (error: any) => {
-            setMsg(t("DeleteFailed", { status: "", text: error?.message || "" }));
+            if (isForbiddenError(error)) {
+                toast.warning('Bạn không có quyền này', { 
+                    autoClose: 4000,
+                    position: 'top-right'
+                });
+            } else {
+                setMsg(t("DeleteFailed", { status: "", text: error?.message || "" }));
+            }
         },
     });
 
@@ -263,7 +281,14 @@ export default function CompaniesRolePage() {
                                 queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
                             });
                         } catch (e: any) {
-                            setMsg(e?.message || t('ErrorSaving'));
+                            if (isForbiddenError(e)) {
+                                toast.warning('Bạn không có quyền này', { 
+                                    autoClose: 4000,
+                                    position: 'top-right'
+                                });
+                            } else {
+                                setMsg(e?.message || t('ErrorSaving'));
+                            }
                         } finally {
                             setCreating(false);
                         }
@@ -293,7 +318,14 @@ export default function CompaniesRolePage() {
                                 queryKey: ["companyRoles", resolvedCompanyId, { includeGlobal: true }],
                             });
                         } catch (e: any) {
-                            setMsg(e?.message || t('ErrorSaving'));
+                            if (isForbiddenError(e)) {
+                                toast.warning('Bạn không có quyền này', { 
+                                    autoClose: 4000,
+                                    position: 'top-right'
+                                });
+                            } else {
+                                setMsg(e?.message || t('ErrorSaving'));
+                            }
                         } finally {
                             setEditing(false);
                         }

@@ -13,9 +13,11 @@ function toRelPath(u?: string | null, base?: string) {
 }
 function friendlyNetworkMessage(msg?: string) {
     const s = (msg || '').toLowerCase();
-    return (s.includes('500') || s.includes('failed to fetch') || s.includes('network'))
-        ? 'Network error. Please reload.'
-        : (msg || 'An error occurred.');
+    if (s.includes('403')) return 'Bạn không có quyền này';
+    if (s.includes('500') || s.includes('failed to fetch') || s.includes('network')) {
+        return 'Network error. Please reload.';
+    }
+    return msg || 'An error occurred.';
 }
 
 export default function EditCompanyModal({

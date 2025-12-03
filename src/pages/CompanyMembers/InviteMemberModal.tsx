@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, ModalHeader, ModalBody, Form, Label, Input, Button } from 'reactstrap';
 import { getCompanyRoles, inviteMember, Role } from '../../apiCaller/companyMembers';
 import { isForbiddenError } from '../../helpers/permissions';
+import { toast } from 'react-toastify';
 
 interface InviteMemberModalProps {
     show: boolean;
@@ -34,7 +35,6 @@ export default function InviteMemberModal(props: InviteMemberModalProps) {
 
     const [emailsRaw, setEmailsRaw] = useState(''); // textarea content
     const [roleMap, setRoleMap] = useState<Record<string, number | ''>>({});
-    const [msg, setMsg] = useState<string | null>(null);
     const defaultRoleId = roles?.[0]?.id ?? '';
 
     // Extract and normalize emails list from textarea
@@ -78,13 +78,24 @@ export default function InviteMemberModal(props: InviteMemberModalProps) {
             );
             const ok = results.filter(r => r.status === 'fulfilled').length;
             const fail = results.length - ok;
-            return { ok, fail };
+            const hasPermissionError = results.some(r => 
+                r.status === 'rejected' && isForbiddenError(r.reason)
+            );
+            return { ok, fail, hasPermissionError };
         },
-        onSuccess: ({ ok, fail }) => {
+        onSuccess: ({ ok, fail, hasPermissionError }) => {
+            if (hasPermissionError) {
+                toast.warning('Bạn không có quyền này', {
+                    position: 'top-right',
+                    autoClose: 4000,
+                });
+                onError?.({ message: 'Permission denied' });
+                return;
+            }
             const text = fail === 0
                 ? `Invited ${ok} member${ok>1?'s':''} successfully.`
                 : `Invited ${ok} member${ok>1?'s':''}. Failed: ${fail}.`;
-            setMsg(text);
+            toast.success(text, { position: 'top-right', autoClose: 3000 });
             qc.invalidateQueries({ queryKey: ['company-members', companyId] });
             onSuccess?.(text);
             // reset and close
@@ -94,13 +105,15 @@ export default function InviteMemberModal(props: InviteMemberModalProps) {
         },
         onError: (error: any) => {
             if (isForbiddenError(error)) {
-                const text = 'Bạn không có quyền mời thành viên vào công ty.';
-                setMsg(text);
+                toast.warning('Bạn không có quyền này', {
+                    position: 'top-right',
+                    autoClose: 4000,
+                });
                 onError?.(error);
                 onClose();
             } else {
                 const text = friendlyNetworkMessage(error?.message);
-                setMsg(text);
+                toast.error(text, { position: 'top-right', autoClose: 3000 });
                 onError?.(error);
             }
         },
@@ -134,8 +147,6 @@ export default function InviteMemberModal(props: InviteMemberModalProps) {
           .per-email tbody td { vertical-align: middle; }
           .chip-invalid { color:#dc3545; font-size: .85rem; }
         `}</style>
-
-                {msg && <div className="alert alert-warning py-2">{msg}</div>}
 
                 <Form onSubmit={(e) => { e.preventDefault(); if (canSubmit) mutation.mutate(); }}>
                     {/* Emails textarea */}

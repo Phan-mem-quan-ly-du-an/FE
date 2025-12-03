@@ -28,34 +28,27 @@ export default function CompanyMemberPage() {
     const { companyId } = useParams<{ companyId: string }>();
     // Unified toast for invite-permission denied
     const showInviteDeniedToast = () => {
-        console.log('[DEBUG] showInviteDeniedToast called');
-        toast.warning(
-            (
-                <div>
-                    <div className="fw-semibold">
-                        {t('CompanyPermissions.InviteMemberDeniedTitle') || 'Không có quyền'}
-                    </div>
-                    <div className="mt-1">
-                        {t('CompanyPermissions.InviteMemberDeniedDetail') || 'Bạn không có quyền mời thành viên vào công ty này. Hãy liên hệ quản trị viên để được cấp quyền.'}
-                    </div>
-                </div>
-            ),
-            { 
-                autoClose: 4000,
-                position: 'top-right',
-                style: {
-                    minWidth: '350px'
-                }
-            }
-        );
+        toast.warning('Bạn không có quyền này', { 
+            autoClose: 4000,
+            position: 'top-right'
+        });
     };
 
     // React Query hooks
-    const { data: members = [], error: membersError } = useQuery({
+    const { data: members = [], error: membersError } = useQuery<CompanyMember[]>({
         queryKey: ['companyMembers', companyId],
         queryFn: () => getCompanyMembers(companyId!),
         enabled: !!companyId,
     });
+
+    useEffect(() => {
+        if (membersError && isForbiddenError(membersError)) {
+            toast.warning('Bạn không có quyền này', { 
+                autoClose: 4000,
+                position: 'top-right'
+            });
+        }
+    }, [membersError]);
 
     const { data: roles = [] } = useQuery({
         queryKey: ['companyRoles', companyId],
@@ -99,6 +92,14 @@ export default function CompanyMemberPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
         },
+        onError: (error: any) => {
+            if (isForbiddenError(error)) {
+                toast.warning('Bạn không có quyền này', { 
+                    autoClose: 4000,
+                    position: 'top-right'
+                });
+            }
+        },
     });
 
     const transferOwnershipMutation = useMutation({
@@ -106,6 +107,14 @@ export default function CompanyMemberPage() {
             transferOwnership(companyId, transferData),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['companyMembers', companyId] });
+        },
+        onError: (error: any) => {
+            if (isForbiddenError(error)) {
+                toast.warning('Bạn không có quyền này', { 
+                    autoClose: 4000,
+                    position: 'top-right'
+                });
+            }
         },
     });
 
@@ -168,7 +177,9 @@ export default function CompanyMemberPage() {
             setDeletingUserId(member.userId);
             await deleteMemberMutation.mutateAsync({ companyId, userId: member.userId });
         } catch (e: any) {
-            setMsg(e?.message || t('DeleteError'));
+            if (!isForbiddenError(e)) {
+                setMsg(e?.message || t('DeleteError'));
+            }
         } finally {
             setDeletingUserId(null);
         }
@@ -234,9 +245,7 @@ export default function CompanyMemberPage() {
     };
 
     const handleInviteError = (error: any) => {
-        if (isForbiddenError(error)) {
-            toast.warning(t('CompanyPermissions.InviteMemberDenied') || 'Bạn không có quyền mời thành viên vào công ty', { autoClose: 3000 });
-        } else {
+        if (!isForbiddenError(error) && !(error?.message && error.message.includes('Permission denied'))) {
             toast.error(error?.message || t('InviteError'), { autoClose: 3000 });
         }
     };
@@ -263,7 +272,9 @@ export default function CompanyMemberPage() {
             });
             closeTransferModal();
         } catch (e: any) {
-            setMsg(e?.message || t('TransferOwnerError'));
+            if (!isForbiddenError(e)) {
+                setMsg(e?.message || t('TransferOwnerError'));
+            }
         }
     };
 
@@ -304,8 +315,14 @@ export default function CompanyMemberPage() {
                 {(msg || membersError) && (
                     <Row className="mb-3">
                         <Col>
-                            <div className={`alert ${membersError ? 'alert-danger' : 'alert-info'} mb-0`}>
-                                {msg || membersError?.message}
+                            <div className={`alert ${
+                                (msg && msg.includes('Bạn không có quyền này')) || (membersError && isForbiddenError(membersError))
+                                    ? 'alert-warning' 
+                                    : membersError 
+                                        ? 'alert-danger' 
+                                        : 'alert-info'
+                            } mb-0`}>
+                                {msg || (membersError && isForbiddenError(membersError) ? 'Bạn không có quyền này' : membersError?.message)}
                             </div>
                         </Col>
                     </Row>
@@ -382,7 +399,12 @@ export default function CompanyMemberPage() {
                     show={showInviteModal}
                     onClose={closeInviteModal}
                     companyId={companyId!}
-                    onSuccess={(message) => setMsg(message)}
+                    onSuccess={(message) => {
+                        // Only set msg if it's not a permission error (permission errors are handled in onError)
+                        if (!message.includes('Bạn không có quyền này')) {
+                            setMsg(message);
+                        }
+                    }}
                     onError={handleInviteError}
                 />
 
@@ -391,11 +413,8 @@ export default function CompanyMemberPage() {
                     onClose={closeAssignRoleModal}
                     companyId={companyId!}
                     member={assignRoleMember}
-                    onSuccess={(message) => {
-                        setMsg(message);
-                        closeAssignRoleModal();
-                    }}
-                    onError={(message) => setMsg(message)}
+                    onSuccess={() => closeAssignRoleModal()}
+                    onError={() => {}}
                 />
             </Container>
         </div>
