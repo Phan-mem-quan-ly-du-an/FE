@@ -489,74 +489,80 @@ const OverviewTab = () => {
                         </CardBody>
                     </Card>
                     <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
-                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
-                            <h5 className="fw-bold text-uppercase mb-1">{t("EpicProgress")}</h5>
-                            <div className="d-flex align-items-center gap-3 mb-3">
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-success">{t('Done')}</span>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-primary">{t('InProgress')}</span>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-secondary">{t('ToDo')}</span>
-                                </div>
+                        <CardBody className="d-flex flex-column" style={{ height: BASE_CARD_HEIGHT, overflow: "hidden" }}>
+                            
+                            {/* HEADER: Title + Counts */}
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <h5 className="fw-bold text-uppercase mb-0">
+                                    {t("EpicProgress")}
+                                </h5>
+
+                                {/* RIGHT INFO BADGES */}
+                                {(() => {
+                                    const res: any = epicsPage?.data || epicsPage || {};
+                                    const epicCount = (res?.totalEpics ?? res?.epics?.totalElements ?? 0);
+                                    const totalTasks = (res?.totalTasks ?? 0);
+                                    return (
+                                        <div className="d-flex align-items-center gap-3">
+                                            <span className="badge bg-primary">
+                                                {epicCount} {t("Epics")}
+                                            </span>
+                                            <span className="badge bg-info">
+                                                {totalTasks} {t("Tasks")}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
-                            {(() => {
-                                const raw = (allTasksResp?.content || (allTasksResp?.data?.content)) || [];
-                                const tasks: Task[] = raw.map(normalizeTask);
+                            {/* Status Badge Legend */}
+                            <div className="d-flex align-items-center gap-3 mb-3">
+                                <span className="badge bg-success">{t('Done')}</span>
+                                <span className="badge bg-primary">{t('InProgress')}</span>
+                                <span className="badge bg-secondary">{t('ToDo')}</span>
+                            </div>
 
-                                const byEpic = new Map<number, { title: string; done: number; todo: number; other: number; total: number }>();
-                                tasks.forEach(taskItem => {
-                                    const epicId = (taskItem.epicId ?? -1) as number;
-                                    const epicTitle = epicId === -1
-                                        ? t('NoEpic')
-                                        : (epicTitleMap.get(epicId) || taskItem.epicTitle || `Epic #${epicId}`);
-                                    const status = (taskItem.statusColumn?.name || '').toLowerCase();
-                                    const rec = byEpic.get(epicId) || { title: epicTitle, done: 0, todo: 0, other: 0, total: 0 };
-                                    rec.total += 1;
-                                    if (status.includes('done') || status.includes('completed')) rec.done += 1;
-                                    else if (status.includes('to do') || status === 'todo') rec.todo += 1;
-                                    else rec.other += 1;
-                                    rec.title = epicTitle;
-                                    byEpic.set(epicId, rec);
-                                });
-
-                                const items = Array.from(byEpic.entries()).filter(([id]) => id !== -1);
-                                if (items.length === 0) {
-                                    return <p className="text-muted mb-0">{t('NoEpics')}</p>;
-                                }
-
-                                return (
-                                    <div style={{ maxHeight: BASE_CARD_HEIGHT - 100, overflowY: 'auto' }}>
-                                        {items.map(([id, rec]) => {
-                                            const donePct = rec.total ? Math.round((rec.done / rec.total) * 100) : 0;
-                                            const otherPct = rec.total ? Math.round((rec.other / rec.total) * 100) : 0;
-                                            const todoPct = Math.max(0, 100 - donePct - otherPct);
-                                            return (
-                                                <div key={id} className="mb-3">
+                            {/* CONTENT SCROLL AREA */}
+                            <div style={{ overflowY: "auto", flexGrow: 1 }}>
+                                {(() => {
+                                    const res: any = epicsPage?.data || epicsPage || {};
+                                    const epicContents: any[] = (res?.epics?.content || res?.content || []);
+                                    if (!Array.isArray(epicContents) || epicContents.length === 0) {
+                                        return <p className="text-muted mb-0">{t('NoEpics')}</p>;
+                                    }
+                                    const items = epicContents.map((ep: any) => {
+                                        const total = Number(ep.totalTasks || 0);
+                                        const done = Number(ep.doneTasks || 0);
+                                        const donePct = total ? Math.round((done / total) * 100) : 0;
+                                        const otherPct = Math.max(0, 100 - donePct);
+                                        const todoPct = 0;
+                                        return { id: ep.id, title: ep.title, total, donePct, otherPct, todoPct };
+                                    });
+                                    return (
+                                        <div className="vstack gap-3">
+                                            {items.map((rec) => (
+                                                <div key={rec.id}>
                                                     <div className="d-flex justify-content-between align-items-center mb-1">
                                                         <span className="fw-semibold">{rec.title}</span>
-                                                        <span className="text-muted small">{rec.total} {t('Tasks')}</span>
+                                                        <span className="text-muted small">{rec.total} {t("Tasks")}</span>
                                                     </div>
                                                     <Progress multi style={{ height: 18 }}>
-                                                        {donePct > 0 && (
-                                                            <Progress bar color="success" value={donePct}>{donePct}%</Progress>
+                                                        {rec.donePct > 0 && (
+                                                            <Progress bar color="success" value={rec.donePct}>{rec.donePct}%</Progress>
                                                         )}
-                                                        {otherPct > 0 && (
-                                                            <Progress bar color="primary" value={otherPct}>{otherPct}%</Progress>
+                                                        {rec.otherPct > 0 && (
+                                                            <Progress bar color="primary" value={rec.otherPct}>{rec.otherPct}%</Progress>
                                                         )}
-                                                        {todoPct > 0 && (
-                                                            <Progress bar color="secondary" value={todoPct}>{todoPct}%</Progress>
+                                                        {rec.todoPct > 0 && (
+                                                            <Progress bar color="secondary" value={rec.todoPct}>{rec.todoPct}%</Progress>
                                                         )}
                                                     </Progress>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </CardBody>
                     </Card>
                     <Card style={{ height: BASE_CARD_HEIGHT }}>
