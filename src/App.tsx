@@ -27,7 +27,11 @@ function App() {
                         draggable
                         pauseOnHover
                         theme="light"
-                        style={{ zIndex: 9999 }}
+                        style={{ 
+                            zIndex: 9999,
+                            top: '20px',
+                            right: '20px'
+                        }}
                         toastStyle={{
                             fontSize: '14px',
                             padding: '12px'

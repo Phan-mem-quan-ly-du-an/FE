@@ -4,7 +4,9 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { getCompanyRoles, assignMemberRole, Role, CompanyMember } from '../../apiCaller/companyMembers';
+import { isForbiddenError } from '../../helpers/permissions';
 
 interface AssignRoleModalProps {
     show: boolean;
@@ -64,12 +66,28 @@ export default function AssignRoleModal({
                 },
                 {
                     onSuccess: () => {
+                        toast.success(t('RoleAssignedSuccessfully') || 'Gán role thành công', {
+                            position: 'top-right',
+                            autoClose: 3000,
+                        });
                         onSuccess?.(t('RoleAssignedSuccessfully'));
                         validation.resetForm();
                         onClose();
                     },
                     onError: (error: any) => {
-                        onError?.(error?.message || t('FailedToAssignRole'));
+                        if (isForbiddenError(error)) {
+                            toast.warning('Bạn không có quyền này', { 
+                                autoClose: 4000,
+                                position: 'top-right'
+                            });
+                            onError?.('Bạn không có quyền này');
+                        } else {
+                            toast.error(error?.message || t('FailedToAssignRole') || 'Failed to assign role', {
+                                position: 'top-right',
+                                autoClose: 3000,
+                            });
+                            onError?.(error?.message || t('FailedToAssignRole'));
+                        }
                     },
                 }
             );
