@@ -40,10 +40,10 @@ export default function AssignProjectRoleModal({
     const auth = useAuth();
     const base = (process.env.REACT_APP_API_URL as string) || window.location.origin;
 
-    function getAuthHeaders(extra?: Record<string, string>): HeadersInit {
+    const getAuthHeaders = useCallback((extra?: Record<string, string>): HeadersInit => {
         const accessToken = auth.user?.access_token;
         return { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(extra ?? {}) };
-    }
+    }, [auth.user?.access_token]);
 
     const { data: roles = [] } = useQuery<ProjectRole[]>({
         queryKey: ['project-roles', projectId],
@@ -107,7 +107,7 @@ export default function AssignProjectRoleModal({
         } finally {
             setLoadingPermissions(false);
         }
-    }, [auth.user?.access_token, base, getAuthHeaders, t]);
+    }, [base, getAuthHeaders, t]);
 
     useEffect(() => {
         if (allProjectPermissions.length > 0) {
@@ -154,10 +154,14 @@ export default function AssignProjectRoleModal({
         const selectedRoleId = validation.values.roleId;
         if (show && selectedRoleId) {
             fetchRolePermissions(parseInt(selectedRoleId));
-        } else if (!show) {
-            setSelectedPermissions(new Set());
         }
     }, [show, validation.values.roleId, fetchRolePermissions]);
+
+    useEffect(() => {
+        if (!show) {
+            setSelectedPermissions(new Set());
+        }
+    }, [show]);
 
     useEffect(() => {
         if (member) {

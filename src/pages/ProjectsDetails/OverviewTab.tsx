@@ -9,6 +9,7 @@ import { getSession, SessionInfo } from "../../apiCaller/session";
 import { getBoardByProjectId, BoardResponse } from "../../apiCaller/boards";
 import { taskAPI } from "../../apiCaller/backlogSprint";
 import { getEpicsByProject, EpicDto } from "../../apiCaller/epics";
+import { getProjectMembers, ProjectMember } from "../../apiCaller/projectMembers";
 
 interface Task {
     id: number;
@@ -36,6 +37,9 @@ interface Task {
 const OverviewTab = () => {
     const { t } = useTranslation();
     const { projectId } = useParams<{ projectId: string }>();
+    const BASE_CARD_HEIGHT = 300;
+    const CARD_GAP = 24;
+    const DOUBLE_CARD_HEIGHT = BASE_CARD_HEIGHT * 2 + CARD_GAP;
 
     // Fetch project
     const {
@@ -79,9 +83,9 @@ const OverviewTab = () => {
         isLoading: isLoadingTasks,
         error: tasksError,
     } = useQuery<any>({
-        queryKey: ["myTasks", projectId, board?.activeSprintId],
-        queryFn: () => taskAPI.listMyTasks(projectId!, board?.activeSprintId || undefined),
-        enabled: !!projectId && !!board?.activeSprintId,
+        queryKey: ["myTasks", projectId],
+        queryFn: () => taskAPI.listMyTasks(projectId!),
+        enabled: !!projectId,
         retry: 1,
         meta: {
             onError: () => toast.error(t("FailedToLoadTasks")),
@@ -109,6 +113,34 @@ const OverviewTab = () => {
     const { data: allTasksResp } = useQuery<any>({
         queryKey: ["tasksByProject", projectId],
         queryFn: () => taskAPI.listByProject(projectId!, true),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: priorityDist } = useQuery<Record<string, number>>({
+        queryKey: ["priorityDistribution", projectId],
+        queryFn: () => taskAPI.getPriorityDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: workloadDist } = useQuery<Record<string, number>>({
+        queryKey: ["workloadDistribution", projectId],
+        queryFn: () => taskAPI.getWorkloadDistribution(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: members } = useQuery<ProjectMember[]>({
+        queryKey: ["projectMembers", projectId],
+        queryFn: () => getProjectMembers(projectId!),
+        enabled: !!projectId,
+        retry: 1,
+    });
+
+    const { data: recentLogs } = useQuery<any[]>({
+        queryKey: ["recentLogs", projectId],
+        queryFn: () => taskAPI.getRecentLogs(projectId!),
         enabled: !!projectId,
         retry: 1,
     });
@@ -179,10 +211,86 @@ const OverviewTab = () => {
         return map;
     }, [epicsPage]);
 
+    const resolvePriorityColor = (name: string) => {
+        const n = (name || '').toLowerCase();
+        if (n.includes('highest')) return '#dc3545';
+        if (n.includes('high')) return '#fd7e14';
+        if (n.includes('medium')) return '#ffc107';
+        if (n.includes('low')) return '#20c997';
+        return '#0d6efd';
+    };
+
+    const renderPriorityBarChart = (dist: Record<string, number>) => {
+        const order = ["Low", "Medium", "High", "Highest"];
+        const values = order.map(k => dist[k] || 0);
+        const maxValRaw = Math.max(0, ...values);
+        const maxGrid = Math.max(10, Math.ceil(maxValRaw / 10) * 10);
+        const gridStep = 10;
+        const chartWidth = 480;
+        const chartHeight = 240;
+        const margin = { top: 10, right: 16, bottom: 28, left: 28 };
+        const innerW = chartWidth - margin.left - margin.right;
+        const innerH = chartHeight - margin.top - margin.bottom;
+        const barGap = 16;
+        const axisGapX = 12;
+        const barW = Math.floor((innerW - axisGapX - barGap * (order.length - 1)) / order.length);
+
+        const yScale = (v: number) => (v / maxGrid) * innerH;
+        const yTicks: number[] = [];
+        for (let t = 0; t <= maxGrid; t += gridStep) yTicks.push(t);
+
+        return (
+            <svg
+                width={chartWidth}
+                height={chartHeight}
+                style={{ minWidth: chartWidth, minHeight: chartHeight }}
+            >
+
+                <g transform={`translate(${margin.left},${margin.top})`}>
+                    <line x1={0} y1={innerH} x2={innerW} y2={innerH} stroke="#adb5bd" strokeWidth={1} />
+                    <line x1={0} y1={0} x2={0} y2={innerH} stroke="#adb5bd" strokeWidth={1} />
+
+                    {yTicks.map((t) => {
+                        const y = innerH - yScale(t);
+                        return (
+                            <g key={`grid-${t}`}>
+                                <line x1={0} y1={y} x2={innerW} y2={y} stroke="#e9ecef" strokeDasharray="3 3" />
+                                <text x={-6} y={y} textAnchor="end" dominantBaseline="middle" fill="#6c757d" fontSize={11}>{t}</text>
+                            </g>
+                        );
+                    })}
+
+                    {order.map((label, i) => {
+                        const val = dist[label] || 0;
+                        const h = yScale(val);
+                        const x = axisGapX + i * (barW + barGap);
+                        const y = innerH - h;
+                        const color = resolvePriorityColor(label);
+                        return (
+                            <g key={`bar-${label}`} transform={`translate(${x},${y})`}>
+                                <rect width={barW} height={h} fill={color} rx={4} ry={4} />
+                                <text
+                                    x={barW / 2}
+                                    y={h > 22 ? h / 2 : -8}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                    fill={h > 22 ? '#fff' : '#212529'}
+                                    fontSize={13}
+                                    fontWeight={600}
+                                >
+                                    {val}
+                                </text>
+                                <text x={barW / 2} y={h + 20} textAnchor="middle" fill="#495057" fontSize={12}>{label}</text>
+                            </g>
+                        );
+                    })}
+                </g>
+            </svg>
+        );
+    };
+
     const myTasks = useMemo(() => {
-        if (!tasksResponse?.content || !board?.activeSprintId) {
-            return [];
-        }
+        if (!tasksResponse?.content) return [];
 
         let rawTaskList: any[] = [];
         if (Array.isArray(tasksResponse.content)) {
@@ -194,15 +302,9 @@ const OverviewTab = () => {
         }
 
         const normalizedTasks = rawTaskList.map(normalizeTask);
-
-        const filtered = normalizedTasks.filter((task: Task) => {
-            const projectMatch = task.projectId === projectId;
-            const sprintMatch = task.sprintId === board.activeSprintId;
-            return projectMatch && sprintMatch;
-        });
-
+        const filtered = normalizedTasks.filter((task: Task) => task.projectId === projectId);
         return filtered;
-    }, [tasksResponse, board, projectId]);
+    }, [tasksResponse, projectId]);
 
     const isLoading = isLoadingProject || isLoadingSession || isLoadingBoard || isLoadingTasks || isLoadingMetrics;
 
@@ -354,10 +456,10 @@ const OverviewTab = () => {
                 </Row>
             </Card>
             <Row>
-                {/* Left Column: StatusDistribution first, then Epic Progress */}
+                {/* Left Column: StatusDistribution, Epic Progress, Priority Distribution, Team Workload */}
                 <Col md={6}>
-                    <Card>
-                        <CardBody>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
                             <h6 className="fw-bold text-uppercase mb-3">{t("StatusDistribution")}</h6>
                             <div className="d-flex align-items-center justify-content-between gap-3">
                                 <div className="vstack gap-3" style={{ minWidth: "180px" }}>
@@ -386,69 +488,156 @@ const OverviewTab = () => {
                             </div>
                         </CardBody>
                     </Card>
-                    <Card className="mt-3" style={{ maxHeight: 340 }}>
-                        <CardBody>
-                            <h5 className="fw-bold text-uppercase mb-1">{t("EpicProgress")}</h5>
-                            <div className="d-flex align-items-center gap-3 mb-3">
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-success">{t('Done')}</span>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-primary">{t('InProgress')}</span>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge bg-secondary">{t('ToDo')}</span>
-                                </div>
+                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody className="d-flex flex-column" style={{ height: BASE_CARD_HEIGHT, overflow: "hidden" }}>
+                            
+                            {/* HEADER: Title + Counts */}
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <h5 className="fw-bold text-uppercase mb-0">
+                                    {t("EpicProgress")}
+                                </h5>
+
+                                {/* RIGHT INFO BADGES */}
+                                {(() => {
+                                    const res: any = epicsPage?.data || epicsPage || {};
+                                    const epicCount = (res?.totalEpics ?? res?.epics?.totalElements ?? 0);
+                                    const totalTasks = (res?.totalTasks ?? 0);
+                                    return (
+                                        <div className="d-flex align-items-center gap-3">
+                                            <span className="badge bg-primary">
+                                                {epicCount} {t("Epics")}
+                                            </span>
+                                            <span className="badge bg-info">
+                                                {totalTasks} {t("Tasks")}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
-                            {(() => {
-                                const raw = (allTasksResp?.content || (allTasksResp?.data?.content)) || [];
-                                const tasks: Task[] = raw.map(normalizeTask);
+                            {/* Status Badge Legend */}
+                            <div className="d-flex align-items-center gap-3 mb-3">
+                                <span className="badge bg-success">{t('Done')}</span>
+                                <span className="badge bg-primary">{t('InProgress')}</span>
+                                <span className="badge bg-secondary">{t('ToDo')}</span>
+                            </div>
 
-                                const byEpic = new Map<number, { title: string; done: number; todo: number; other: number; total: number }>();
-                                tasks.forEach(taskItem => {
-                                    const epicId = (taskItem.epicId ?? -1) as number;
-                                    const epicTitle = epicId === -1
-                                        ? t('NoEpic')
-                                        : (epicTitleMap.get(epicId) || taskItem.epicTitle || `Epic #${epicId}`);
-                                    const status = (taskItem.statusColumn?.name || '').toLowerCase();
-                                    const rec = byEpic.get(epicId) || { title: epicTitle, done: 0, todo: 0, other: 0, total: 0 };
-                                    rec.total += 1;
-                                    if (status.includes('done') || status.includes('completed')) rec.done += 1;
-                                    else if (status.includes('to do') || status === 'todo') rec.todo += 1;
-                                    else rec.other += 1;
-                                    rec.title = epicTitle;
-                                    byEpic.set(epicId, rec);
-                                });
-
-                                const items = Array.from(byEpic.entries()).filter(([id]) => id !== -1);
-                                if (items.length === 0) {
-                                    return <p className="text-muted mb-0">{t('NoEpics')}</p>;
-                                }
-
-                                return (
-                                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-                                        {items.map(([id, rec]) => {
-                                            const donePct = rec.total ? Math.round((rec.done / rec.total) * 100) : 0;
-                                            const otherPct = rec.total ? Math.round((rec.other / rec.total) * 100) : 0;
-                                            const todoPct = Math.max(0, 100 - donePct - otherPct);
-                                            return (
-                                                <div key={id} className="mb-3">
+                            {/* CONTENT SCROLL AREA */}
+                            <div style={{ overflowY: "auto", flexGrow: 1 }}>
+                                {(() => {
+                                    const res: any = epicsPage?.data || epicsPage || {};
+                                    const epicContents: any[] = (res?.epics?.content || res?.content || []);
+                                    if (!Array.isArray(epicContents) || epicContents.length === 0) {
+                                        return <p className="text-muted mb-0">{t('NoEpics')}</p>;
+                                    }
+                                    const items = epicContents.map((ep: any) => {
+                                        const total = Number(ep.totalTasks || 0);
+                                        const done = Number(ep.doneTasks || 0);
+                                        const donePct = total ? Math.round((done / total) * 100) : 0;
+                                        const otherPct = Math.max(0, 100 - donePct);
+                                        const todoPct = 0;
+                                        return { id: ep.id, title: ep.title, total, donePct, otherPct, todoPct };
+                                    });
+                                    return (
+                                        <div className="vstack gap-3">
+                                            {items.map((rec) => (
+                                                <div key={rec.id}>
                                                     <div className="d-flex justify-content-between align-items-center mb-1">
                                                         <span className="fw-semibold">{rec.title}</span>
-                                                        <span className="text-muted small">{rec.total} {t('Tasks')}</span>
+                                                        <span className="text-muted small">{rec.total} {t("Tasks")}</span>
                                                     </div>
                                                     <Progress multi style={{ height: 18 }}>
-                                                        {donePct > 0 && (
-                                                            <Progress bar color="success" value={donePct}>{donePct}%</Progress>
+                                                        {rec.donePct > 0 && (
+                                                            <Progress bar color="success" value={rec.donePct}>{rec.donePct}%</Progress>
                                                         )}
-                                                        {otherPct > 0 && (
-                                                            <Progress bar color="primary" value={otherPct}>{otherPct}%</Progress>
+                                                        {rec.otherPct > 0 && (
+                                                            <Progress bar color="primary" value={rec.otherPct}>{rec.otherPct}%</Progress>
                                                         )}
-                                                        {todoPct > 0 && (
-                                                            <Progress bar color="secondary" value={todoPct}>{todoPct}%</Progress>
+                                                        {rec.todoPct > 0 && (
+                                                            <Progress bar color="secondary" value={rec.todoPct}>{rec.todoPct}%</Progress>
                                                         )}
                                                     </Progress>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </CardBody>
+                    </Card>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody
+                            className="d-flex flex-column"
+                            style={{ height: "100%", overflow: "hidden" }}
+                        >
+                            <h6 className="fw-bold text-uppercase mb-3">
+                            {t("PriorityDistribution")}
+                            </h6>
+
+                            {/* Chart wrapper scrollable */}
+                            <div
+                            style={{
+                                flex: 1,
+                                overflowX: "auto",
+                                overflowY: "hidden",
+                                minHeight: 0,
+                            }}
+                            className="d-flex align-items-center justify-content-center"
+                            >
+                            {(() => {
+                                const src = priorityDist || {};
+                                const dist: Record<string, number> = {
+                                Low: Number(src['Low'] ?? src['low'] ?? src['LOW'] ?? 0),
+                                Medium: Number(src['Medium'] ?? src['medium'] ?? src['MEDIUM'] ?? 0),
+                                High: Number(src['High'] ?? src['high'] ?? src['HIGH'] ?? 0),
+                                Highest: Number(src['Highest'] ?? src['highest'] ?? src['HIGHEST'] ?? 0),
+                                };
+                                return renderPriorityBarChart(dist);
+                            })()}
+                            </div>
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3" style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody style={{ height: BASE_CARD_HEIGHT, overflowY: 'auto' }}>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("TeamWorkload")}</h5>
+                            {(() => {
+                                const dist = workloadDist || {};
+                                const entries = Object.entries(dist);
+                                const total = entries.reduce((s, [, v]) => s + Number(v || 0), 0);
+                                if (total === 0) {
+                                    return <p className="text-muted mb-0">{t("NoData")}</p>;
+                                }
+                                const nameOf = (uid: string) => {
+                                    const m = (members || []).find(mm => mm.userId === uid);
+                                    return m?.displayName || uid;
+                                };
+                                const items = entries
+                                    .map(([uid, v]) => ({ uid, count: Number(v || 0), name: nameOf(uid) }))
+                                    .sort((a, b) => {
+                                        if (a.uid === 'unassigned' && b.uid !== 'unassigned') return -1;
+                                        if (b.uid === 'unassigned' && a.uid !== 'unassigned') return 1;
+                                        return b.count - a.count;
+                                    });
+                                return (
+                                    <div className="vstack gap-3" style={{ maxHeight: BASE_CARD_HEIGHT - 60, overflowY: 'auto' }}>
+                                        <div className="d-flex align-items-center gap-3 mb-1">
+                                            <div className="flex-shrink-0 text-muted small" style={{ minWidth: 160 }}>{t('Assignee') || 'Assignee'}</div>
+                                            <div className="flex-grow-1 text-muted small">{t('WorkDistribution') || 'Work Distribution'}</div>
+                                        </div>
+                                        {items.map(item => {
+                                            const pct = Math.round((item.count / total) * 100);
+                                            return (
+                                                <div key={item.uid} className="d-flex align-items-center gap-3">
+                                                    <div className="flex-shrink-0" style={{ minWidth: 160 }}>
+                                                        <span className="fw-semibold">{item.name}</span>
+                                                    </div>
+                                                    <div className="flex-grow-1">
+                                                        <div className="progress" style={{ height: 22 }}>
+                                                            <div className="progress-bar bg-primary px-2" role="progressbar" style={{ width: `${pct}%` }} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                                                                {pct}% ({item.count})
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -460,42 +649,60 @@ const OverviewTab = () => {
                 </Col>
 
                 <Col md={6}>
-                    <Card>
-                        <CardBody>
+                    <Card style={{ height: BASE_CARD_HEIGHT }}>
+                        <CardBody className="d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
+                            <h5 className="fw-bold text-uppercase mb-3">{t("RecentLogs")}</h5>
+                            {(() => {
+                                const list = Array.isArray(recentLogs) ? recentLogs.slice() : [];
+                                list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                                if (list.length === 0) return <p className="text-muted mb-0">{t("NoData")}</p>;
+                                return (
+                                    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                                        <div className="vstack gap-3">
+                                            {list.map((log: any) => (
+                                                <div key={log.logId} className="d-flex flex-column">
+                                                    <div className="fw-semibold">{String(log.description || '')}</div>
+                                                    <div className="text-muted small">{new Date(log.createdAt).toLocaleString()}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </CardBody>
+                    </Card>
+                    <Card className="mt-3" style={{ height: DOUBLE_CARD_HEIGHT }}>
+                        <CardBody className="d-flex flex-column" style={{ height: "100%", overflow: "hidden" }}>
                             <h5 className="fw-bold text-uppercase mb-3">{t("MyTasks")}</h5>
 
-                            {!board?.activeSprintId ? (
-                                <p className="text-muted mb-0">
-                                    {t("NoActiveSprint")}
-                                </p>
-                            ) : myTasks.length === 0 ? (
-                                <p className="text-muted mb-0">
-                                    {t("NoTasksAssigned")}
-                                </p>
+                            {myTasks.length === 0 ? (
+                                <p className="text-muted mb-0">{t("NoTasksAssigned")}</p>
                             ) : (
-                                <div className="vstack gap-2">
-                                    {myTasks.map((task: Task) => (
-                                        <Card key={task.id} className="border">
-                                            <CardBody className="p-3">
-                                                <div className="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 className="mb-0">{task.title}</h6>
-                                                    <Badge color={getPriorityColor(task.priority)} className="ms-2">
-                                                        {task.priority}
-                                                    </Badge>
-                                                </div>
-                                                {task.description && (
-                                                    <p className="text-muted small mb-2">{task.description}</p>
-                                                )}
-                                                {task.statusColumn && (
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        <Badge color="light" className="text-dark">
-                                                            {task.statusColumn.name}
+                                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                                    <div className="vstack gap-2">
+                                        {myTasks.map((task: Task) => (
+                                            <Card key={task.id} className="border">
+                                                <CardBody className="p-3">
+                                                    <div className="d-flex justify-content-between align-items-start mb-2">
+                                                        <h6 className="mb-0">{task.title}</h6>
+                                                        <Badge color={getPriorityColor(task.priority)} className="ms-2">
+                                                            {task.priority}
                                                         </Badge>
                                                     </div>
-                                                )}
-                                            </CardBody>
-                                        </Card>
-                                    ))}
+                                                    {task.description && (
+                                                        <p className="text-muted small mb-2">{task.description}</p>
+                                                    )}
+                                                    {task.statusColumn && (
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <Badge color="light" className="text-dark">
+                                                                {task.statusColumn.name}
+                                                            </Badge>
+                                                        </div>
+                                                    )}
+                                                </CardBody>
+                                            </Card>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </CardBody>

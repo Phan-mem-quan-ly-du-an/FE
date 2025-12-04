@@ -277,8 +277,11 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
         try {
             const query = sprintId ? `?sprintId=${sprintId}` : '';
             const res: any = await new ApiCaller().setUrl(`/projects/${projectId}/epics${query}`).get();
-            const data: any = res.data?.data || res.data || [];
-            setEpics(Array.isArray(data) ? data : (data.content || []));
+            const raw: any = res.data?.data || res.data || {};
+            const list: any[] = Array.isArray(raw)
+                ? raw
+                : (raw?.epics?.content || raw?.content || []);
+            setEpics(list);
         } catch (e) {
             setEpics([]);
         }
