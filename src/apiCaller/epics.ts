@@ -27,7 +27,15 @@ export interface PageResponse<T> {
  */
 export const getEpicsByProject = async (projectId: string, page = 0, size = 100): Promise<PageResponse<EpicDto>> => {
   const response = await axiosClient.get(`/projects/${projectId}/epics?page=${page}&size=${size}&sort=id,desc`);
-  return response.data.data || response.data;
+  const raw = response.data?.data || response.data || {};
+  const epicsPage = raw?.epics || raw;
+  return {
+    content: Array.isArray(epicsPage?.content) ? epicsPage.content : [],
+    totalElements: Number(epicsPage?.totalElements || 0),
+    totalPages: Number(epicsPage?.totalPages || 0),
+    size: Number(epicsPage?.size ?? size),
+    number: Number(epicsPage?.number ?? page),
+  };
 };
 
 /**
