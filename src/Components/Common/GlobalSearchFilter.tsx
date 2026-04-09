@@ -36,16 +36,12 @@ const CustomersGlobalFilter = () => {
         setcustomerStatus(customerStatus);
     }
 
-    const customerstatus = [
-        {
-            options: [
+const customerstatus = [
                 { label: "Status", value: "Status" },
                 { label: "All", value: "All" },
                 { label: "Active", value: "Active" },
                 { label: "Block", value: "Block" },
-            ],
-        },
-    ];
+            ];
 
     return (
         <React.Fragment>
@@ -204,15 +200,11 @@ const ContactsGlobalFilter = () => {
         setsortBy(sortBy);
     }
 
-    const sortbyname = [
-        {
-            options: [
+const sortbyname = [
                 { label: "Owner", value: "Owner" },
                 { label: "Company Members", value: "CompanyMembers" },
                 { label: "Location", value: "Location" }
-            ],
-        },
-    ];
+            ];
     return (
         <React.Fragment>
             <div className="col-md-auto ms-auto">

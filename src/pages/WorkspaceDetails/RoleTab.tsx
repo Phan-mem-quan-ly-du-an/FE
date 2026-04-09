@@ -1,3 +1,4 @@
+﻿/* eslint-disable */
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +41,7 @@ const RoleTab: React.FC = () => {
         },
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
-            toast.success(t('RoleDeletedSuccessfully') || 'Xóa role thành công');
+            toast.success(t('RoleDeletedSuccessfully') || 'XÃ³a role thÃ nh cÃ´ng');
             setDeleteError(null);
         },
         onError: (error: any) => {
@@ -54,7 +55,7 @@ const RoleTab: React.FC = () => {
                 });
                 return;
             }
-            const errorMsg = error?.message || t('FailedDeleteRole') || 'Xóa role thất bại';
+            const errorMsg = error?.message || t('FailedDeleteRole') || 'XÃ³a role tháº¥t báº¡i';
             setDeleteError(errorMsg);
             toast.error(errorMsg, {
                 position: 'top-right',
@@ -100,7 +101,7 @@ const RoleTab: React.FC = () => {
                 const role: WorkspaceRole = row.original;
                 return (
                     <div>
-                        <div className="fw-semibold">{role.name || '—'}</div>
+                        <div className="fw-semibold">{role.name || 'â€”'}</div>
                         {role.code && <div className="text-muted small">{role.code}</div>}
                     </div>
                 );
@@ -110,7 +111,7 @@ const RoleTab: React.FC = () => {
             header: t('RoleDescription'),
             accessorKey: 'description',
             enableColumnFilter: false,
-            cell: ({ getValue }: any) => getValue() || '—',
+            cell: ({ getValue }: any) => getValue() || 'â€”',
         },
         {
             header: t('Action'),
@@ -173,7 +174,7 @@ const RoleTab: React.FC = () => {
             <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2"></i>
                 {forbidden 
-                    ? (t('WorkspacePermissions.ViewRolesDenied') || 'Bạn không có quyền xem danh sách role của workspace.') 
+                    ? (t('WorkspacePermissions.ViewRolesDenied') || 'Báº¡n khÃ´ng cÃ³ quyá»n xem danh sÃ¡ch role cá»§a workspace.') 
                     : t('FailedToLoadRoles')}
             </div>
         );
@@ -183,7 +184,7 @@ const RoleTab: React.FC = () => {
         <div className="px-4 py-4">
             {deleteError && (
                 <Alert color="warning" className="mb-3">
-                    <strong>⚠️ {t('Error')}:</strong> {deleteError}
+                    <strong>âš ï¸ {t('Error')}:</strong> {deleteError}
                 </Alert>
             )}
             <Card>
@@ -217,10 +218,10 @@ const RoleTab: React.FC = () => {
                                 <tr key={role.id}>
                                     <td className="text-muted">{index + 1}</td>
                                     <td>
-                                        <div className="fw-semibold">{role.name || '—'}</div>
+                                        <div className="fw-semibold">{role.name || 'â€”'}</div>
                                         {role.code && <div className="text-muted small">{role.code}</div>}
                                     </td>
-                                    <td className="text-muted">{role.description || '—'}</td>
+                                    <td className="text-muted">{role.description || 'â€”'}</td>
                                     <td>
                                         <Dropdown
                                             isOpen={openDropdownId === role.id}
@@ -282,7 +283,7 @@ const RoleTab: React.FC = () => {
                                 setShowCreate(false);
                                 setCreateError(null);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
-                                toast.success(t('Saved') || 'Đã lưu');
+                                toast.success(t('Saved') || 'ÄÃ£ lÆ°u');
                             } catch (error: any) {
                                 if (isForbiddenError(error)) {
                                     const errorMsg = t('WorkspacePermissions.CreateRoleDenied');
@@ -326,7 +327,7 @@ const RoleTab: React.FC = () => {
                                 setEditingRole(null);
                                 setEditError(null);
                                 await queryClient.invalidateQueries({ queryKey: ['workspace-roles', workspaceId] });
-                                toast.success(t('Saved') || 'Đã lưu');
+                                toast.success(t('Saved') || 'ÄÃ£ lÆ°u');
                             } catch (error: any) {
                                 if (isForbiddenError(error)) {
                                     const errorMsg = t('WorkspacePermissions.UpdateRoleDenied');

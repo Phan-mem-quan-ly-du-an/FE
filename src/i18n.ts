@@ -1,4 +1,4 @@
-import i18n from "i18next";
+import i18n, { Resource } from "i18next";
 import detector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
@@ -6,7 +6,7 @@ import translationENG from "./locales/en.json";
 import translationVN from "./locales/vn.json";
 
 // the translations
-const resources = {
+const resources: Resource = {
     vn: {
         translation: translationVN,
     },
@@ -27,6 +27,7 @@ i18n
     resources,
     lng: localStorage.getItem("I18N_LANGUAGE") || "en",
     fallbackLng: "en", // use en if detected lng is not available
+    returnNull: false,
 
     keySeparator: false, // we do not use keys in form messages.welcome
 

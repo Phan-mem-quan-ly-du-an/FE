@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Modal, ModalHeader, ModalBody, Button, Form, Label, Input, InputGroup, InputGroupText } from "reactstrap";
 import FeatherIcon from "feather-icons-react";
-import { changePassword } from "helpers/account/changePassword";
+import { changePassword } from "../../helpers/account/changePassword";
 
 type Props = {
     open: boolean;

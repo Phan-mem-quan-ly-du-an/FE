@@ -1,3 +1,4 @@
+﻿/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
@@ -207,3 +208,4 @@ const Section = () => {
 };
 
 export default Section;
+

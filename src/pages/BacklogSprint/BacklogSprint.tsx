@@ -188,9 +188,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             ]);
         } catch (error) {
             console.error('Error loading project members:', error);
-            setProjectMembers([
-                { userId: 'unassigned', displayName: t('Unassigned'), email: '' }
-            ]);
+setProjectMembers([
+        { userId: 'unassigned', displayName: (t('Unassigned') || 'Unassigned') as string, email: '' }
+    ]);
         }
     };
 
@@ -1013,7 +1013,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 size="sm"
                                 className="p-0 text-muted"
                                 onClick={(e) => handleArchiveTask(task, e)}
-                                title={t('ArchiveThisTask')}
+title={(t('ArchiveThisTask') || 'Archive this task') as string}
                                 style={{
                                     width: '20px',
                                     height: '20px',

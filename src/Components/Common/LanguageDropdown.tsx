@@ -40,7 +40,7 @@ const LanguageDropdown = () => {
                     />
                 </DropdownToggle>
                 <DropdownMenu className="notify-item language py-2">
-                    {map(Object.keys(languages), key => (
+                    {map(Object.keys(languages), (key: string) => (
                         <DropdownItem
                             key={key}
                             onClick={() => changeLanguageAction(key)}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from "react-i18next";
 import {
@@ -9,16 +9,12 @@ import {
     Card,
     CardHeader,
     CardBody,
-    Button,
-    Input,
-    Pagination,
-    PaginationItem,
-    PaginationLink
+    Input
 } from "reactstrap";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
 import TableContainer from "../../Components/Common/TableContainer";
 import Loader from "../../Components/Common/Loader";
-import { toast, ToastContainer } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getWorkspacesByCompanyIdParams, Workspace, Page } from "../../apiCaller/workspaces";
 import AddEditWorkspaceModal from "./AddEditWorkspaceModal";
@@ -33,6 +29,7 @@ const WorkspaceList = () => {
 
     const [page, setPage] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(''); // Thêm state cho Debounce
     const [paginationData, setPaginationData] = useState({ totalPages: 0, totalElements: 0, number: 0, size: 0 });
 
     // Modals state
@@ -41,17 +38,26 @@ const WorkspaceList = () => {
     const [isEdit, setIsEdit] = useState<boolean>(false);
     const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
 
+    // Xử lý Debounce cho ô tìm kiếm (sau 500ms ngừng gõ mới update debouncedSearchQuery)
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    // useQuery sử dụng debouncedSearchQuery thay vì searchQuery
     const { data, isLoading, isError } = useQuery<Page<Workspace>>({
-        queryKey: ['workspaces', companyId, page, searchQuery],
+        queryKey: ['workspaces', companyId, page, debouncedSearchQuery],
         queryFn: () => getWorkspacesByCompanyIdParams({
-            companyId,
+            companyId: companyId as string, // Ép kiểu an toàn để pass TypeScript
             page: page,
             size: 10,
-            q: searchQuery
+            q: debouncedSearchQuery
         }),
-        enabled: !!companyId,
+        enabled: !!companyId, // Đảm bảo chỉ gọi khi đã có companyId
     });
-    
+
     useEffect(() => {
         if (data) {
             setPaginationData({
@@ -66,31 +72,31 @@ const WorkspaceList = () => {
     const workspaces = data?.content || [];
 
     const handleMutationSuccess = () => {
-        queryClient.invalidateQueries({ queryKey: ['workspaces', companyId, page, searchQuery] });
+        queryClient.invalidateQueries({ queryKey: ['workspaces', companyId, page, debouncedSearchQuery] });
     };
-    
-    // Other handlers remain the same...
-    const toggle = () => setModal(!modal);
 
-    const handleEditClick = (workspace: Workspace) => {
+    // Tối ưu hóa handlers bằng useCallback
+    const toggle = useCallback(() => setModal(prev => !prev), []);
+
+    const handleEditClick = useCallback((workspace: Workspace) => {
         setIsEdit(true);
         setCurrentWorkspace(workspace);
         toggle();
-    };
+    }, [toggle]);
 
-    const handleDeleteClick = (workspace: Workspace) => {
+    const handleDeleteClick = useCallback((workspace: Workspace) => {
         setCurrentWorkspace(workspace);
         setDeleteModal(true);
-    };
-    
-    const handleAddClick = () => {
+    }, []);
+
+    const handleAddClick = useCallback(() => {
         setIsEdit(false);
         setCurrentWorkspace(null);
         toggle();
-    };
+    }, [toggle]);
 
 
-    // Column
+    // Đã cập nhật đúng dependencies cho useMemo
     const columns = useMemo(
         () => [
             {
@@ -98,7 +104,7 @@ const WorkspaceList = () => {
                 accessorKey: "name",
                 enableColumnFilter: false,
                 cell: (cell: any) => (
-                                                <span className="fw-medium link-primary">{cell.getValue()}</span>
+                    <span className="fw-medium link-primary">{cell.getValue()}</span>
                 ),
             },
             {
@@ -116,41 +122,41 @@ const WorkspaceList = () => {
             },
             {
                 header: t('t-workspace-action-col'),
-                            cell: (cell: any) => {
+                cell: (cell: any) => {
                     return (
                         <ul className="list-inline hstack gap-2 mb-0">
                             <li className="list-inline-item" title={t('t-workspace-view-details-tooltip')}>
-                                            <a
-                                                href="#"
-                                                className="text-primary d-inline-block"
-                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/workspaces/${cell.row.original.id}`); }}
-                                            >
-                                                <i className="ri-eye-fill fs-16"></i>
-                                            </a>
+                                <button
+                                    className="btn btn-link text-primary d-inline-block p-0 m-0 border-0"
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); navigate(`/workspaces/${cell.row.original.id}`); }}
+                                >
+                                    <i className="ri-eye-fill fs-16"></i>
+                                </button>
                             </li>
                             <li className="list-inline-item" title={t('t-workspace-edit-tooltip')}>
-                                <a className="edit-item-btn" href="#" onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleEditClick(cell.row.original); }}>
+                                <button className="btn btn-link edit-item-btn p-0 m-0 border-0" onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleEditClick(cell.row.original); }}>
                                     <i className="ri-pencil-fill align-bottom text-muted"></i>
-                                </a>
+                                </button>
                             </li>
                             <li className="list-inline-item" title={t('t-workspace-delete-tooltip')}>
-                                <a
-                                    className="remove-item-btn"
-                                    href="#"
+                                <button
+                                    className="btn btn-link remove-item-btn p-0 m-0 border-0"
                                     onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteClick(cell.row.original); }}
                                 >
                                     <i className="ri-delete-bin-fill align-bottom text-muted"></i>
-                                </a>
+                                </button>
                             </li>
                         </ul>
                     );
                 },
             },
         ],
-        [companyId, t]
+        // Cập nhật đầy đủ dependency ở đây
+        [t, navigate, handleEditClick, handleDeleteClick]
     );
 
     document.title = t('t-workspace-title') + " | Velzon - React Admin & Dashboard Template";
+
     return (
         <React.Fragment>
             <div className="page-content">
@@ -174,8 +180,8 @@ const WorkspaceList = () => {
                                                 placeholder={t('t-workspace-search-placeholder')}
                                                 value={searchQuery}
                                                 onChange={(e) => {
-                                                    setPage(0); // Reset to first page on new search
-                                                    setSearchQuery(e.target.value);
+                                                    setPage(0); // Vẫn reset trang liền để cho UX mượt
+                                                    setSearchQuery(e.target.value); // Nhưng API chỉ call khi debounce kết thúc
                                                 }}
                                             />
                                         </div>
@@ -193,27 +199,26 @@ const WorkspaceList = () => {
                                                     <h4>{t('t-workspace-failed-to-load')}</h4>
                                                 </div>
                                             ) :
-                                            workspaces.length > 0 ? (
-                                                <TableContainer
-                                                    columns={columns}
-                                                    data={workspaces}
-                                                    isGlobalFilter={false} // Search is handled externally
-                                                    customPageSize={10}
-                                                    divClass="table-responsive table-card mb-2 mt-0"
-                                                    tableClass="align-middle table-nowrap"
-                                                    theadClass="table-light"
-                                                    // --- Server side pagination props ---
-                                                    isServerSidePagination={true}
-                                                    pageCount={paginationData.totalPages}
-                                                    currentPage={page}
-                                                    onPageChange={setPage}
-                                                    onRowClick={(row: any) => navigate(`/workspaces/${row.original.id}`)}
-                                                />
-                                            ) : (
-                                                <div className="text-center py-4">
-                                                    <h4>{t('t-workspace-no-workspaces-found')}</h4>
-                                                </div>
-                                            )
+                                                workspaces.length > 0 ? (
+                                                    <TableContainer
+                                                        columns={columns}
+                                                        data={workspaces}
+                                                        isGlobalFilter={false}
+                                                        customPageSize={10}
+                                                        divClass="table-responsive table-card mb-2 mt-0"
+                                                        tableClass="align-middle table-nowrap"
+                                                        theadClass="table-light"
+                                                        isServerSidePagination={true}
+                                                        pageCount={paginationData.totalPages}
+                                                        currentPage={page}
+                                                        onPageChange={setPage}
+                                                        onRowClick={(row: any) => navigate(`/workspaces/${row.original.id}`)}
+                                                    />
+                                                ) : (
+                                                    <div className="text-center py-4">
+                                                        <h4>{t('t-workspace-no-workspaces-found')}</h4>
+                                                    </div>
+                                                )
                                         }
                                     </div>
                                     <ToastContainer closeButton={false} limit={1} />
