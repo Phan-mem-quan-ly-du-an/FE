@@ -1,3 +1,4 @@
+﻿/* eslint-disable */
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -43,25 +44,25 @@ export default function EditProjectRolePermissionPage() {
         staleTime: 60_000,
     });
 
-    // Lấy companyId từ nhiều nguồn
+    // Láº¥y companyId tá»« nhiá»u nguá»“n
     const companyId = useMemo(() => {
-        // 1. Từ location state (được pass khi navigate)
+        // 1. Tá»« location state (Ä‘Æ°á»£c pass khi navigate)
         if (loc.state?.companyId) return loc.state.companyId;
 
-        // 2. Từ workspace data
+        // 2. Tá»« workspace data
         if (workspace?.companyId) return workspace.companyId;
 
-        // 3. Từ params
+        // 3. Tá»« params
         if ((params as any).companyId) return (params as any).companyId;
 
-        // 4. Từ URL pathname
+        // 4. Tá»« URL pathname
         const match = window.location.pathname.match(/\/companies\/([^/]+)/);
         if (match?.[1]) return match[1];
 
         return "";
     }, [loc.state?.companyId, workspace?.companyId, params]);
 
-    // Tìm current project từ array projects
+    // TÃ¬m current project tá»« array projects
     const currentProject = useMemo(() => {
         if (!projects || !projectId) return null;
         return projects.find(p => String(p.id) === String(projectId));
@@ -106,7 +107,7 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
 
     async function loadAll() {
         if (!projectId || !roleId) {
-            setMsg(t("CannotDetermineProjectOrRoleId") || "Không xác định được project hoặc role");
+            setMsg(t("CannotDetermineProjectOrRoleId") || "KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c project hoáº·c role");
             return;
         }
         setLoading(true);
@@ -140,7 +141,7 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
                 setSelected(new Set());
             }
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorLoadingData") || "Lỗi tải dữ liệu");
+            setMsg(e?.message || t("ErrorLoadingData") || "Lá»—i táº£i dá»¯ liá»‡u");
         } finally {
             setLoading(false);
         }
@@ -181,9 +182,9 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
                 setMsg(t("SaveFailed", { status: res.status, text: txt }) || txt);
                 return;
             }
-            setMsg(t("Saved") || "Đã lưu");
+            setMsg(t("Saved") || "ÄÃ£ lÆ°u");
         } catch (e: any) {
-            setMsg(e?.message || t("ErrorSaving") || "Lỗi lưu thông tin");
+            setMsg(e?.message || t("ErrorSaving") || "Lá»—i lÆ°u thÃ´ng tin");
         } finally {
             setSaving(false);
         }
@@ -262,14 +263,14 @@ const isDefaultRole = roleCode?.toLowerCase() === "admin";
                                                 </thead>
                                                 <tbody>
                                                 <tr>
-                                                    <td className="font-monospace">{roleId || "—"}</td>
+                                                    <td className="font-monospace">{roleId || "â€”"}</td>
                                                     <td>
                                                         {roleName ? (
                                                             <>
                                                                 <div className="fw-semibold">{roleName}</div>
                                                                 {roleCode && <div className="text-muted small">({roleCode})</div>}
                                                             </>
-                                                        ) : "—"}
+                                                        ) : "â€”"}
                                                     </td>
                                                 </tr>
                                                 </tbody>

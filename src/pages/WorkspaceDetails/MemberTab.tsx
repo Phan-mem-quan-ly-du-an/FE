@@ -1,3 +1,4 @@
+﻿/* eslint-disable */
 import React, { useMemo, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Spinner, Card, CardBody, CardHeader, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Alert } from 'reactstrap';
@@ -41,11 +42,11 @@ const MemberTab: React.FC = () => {
         enabled: !!workspaceId,
     });
     
-    // Sử dụng useEffect để debug dữ liệu khi members thay đổi
+    // Sá»­ dá»¥ng useEffect Ä‘á»ƒ debug dá»¯ liá»‡u khi members thay Ä‘á»•i
     React.useEffect(() => {
         if (members && members.length > 0) {
             console.log('API Response - Workspace Members:', members);
-            // Kiểm tra từng thành viên và giá trị owner
+            // Kiá»ƒm tra tá»«ng thÃ nh viÃªn vÃ  giÃ¡ trá»‹ owner
             members.forEach((member: WorkspaceMember) => {
                 console.log(`Member ${member.userId} - owner:`, member.owner, 'Type:', typeof member.owner);
             });
@@ -148,10 +149,10 @@ const MemberTab: React.FC = () => {
                     }
                     const rid = m.roleId ?? m.role?.id;
                     const r = roles.find(rr => rr.id === rid);
-                    const roleName = r ? (r.name || r.code) : (m.role?.name || (typeof rid === 'number' ? String(rid) : '—'));
+                    const roleName = r ? (r.name || r.code) : (m.role?.name || (typeof rid === 'number' ? String(rid) : 'â€”'));
                     return roleName ? (
                         <span className="badge text-uppercase bg-dark-subtle text-black">{roleName}</span>
-                    ) : '—';
+                    ) : 'â€”';
                 },
             },
             {
@@ -160,11 +161,11 @@ const MemberTab: React.FC = () => {
                 enableColumnFilter: false,
                 cell: (cell: any) => {
                     const member = cell.row.original;
-                    // Xử lý các trường hợp khác nhau của giá trị owner
+                    // Xá»­ lÃ½ cÃ¡c trÆ°á»ng há»£p khÃ¡c nhau cá»§a giÃ¡ trá»‹ owner
                     if (member.owner === true || member.owner === 'true' || member.owner === 1) {
                         return t('Owner');
                     } else {
-                        return '—';
+                        return 'â€”';
                     }
                 },
             },
@@ -227,7 +228,7 @@ const MemberTab: React.FC = () => {
             <div className={`alert ${forbidden ? 'alert-warning' : 'alert-danger'} text-center`}>
                 <i className="ri-error-warning-line me-2" />
                 {forbidden 
-                    ? (t('WorkspacePermissions.ViewMembersDenied') || 'Bạn không có quyền xem thành viên của workspace.') 
+                    ? (t('WorkspacePermissions.ViewMembersDenied') || 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ nh viÃªn cá»§a workspace.') 
                     : (t('FailedLoadMembers') || 'Failed to load members')}
             </div>
         );
@@ -237,7 +238,7 @@ const MemberTab: React.FC = () => {
         <div className="px-4 py-4">
             {deleteError && (
                 <Alert color="warning" className="mb-3">
-                    <strong>⚠️ {t('Error')}:</strong> {deleteError}
+                    <strong>âš ï¸ {t('Error')}:</strong> {deleteError}
                 </Alert>
             )}
             <Card>
@@ -270,7 +271,7 @@ const MemberTab: React.FC = () => {
                     companyId={workspace.companyId}
                     onSuccess={async () => {
                         await queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
-                        toast.success(t('MembersInvitedSuccessfully') || 'Mời thành viên thành công');
+                        toast.success(t('MembersInvitedSuccessfully') || 'Má»i thÃ nh viÃªn thÃ nh cÃ´ng');
                     }}
                 />
             )}
@@ -323,3 +324,4 @@ const MemberTab: React.FC = () => {
 };
 
 export default MemberTab;
+

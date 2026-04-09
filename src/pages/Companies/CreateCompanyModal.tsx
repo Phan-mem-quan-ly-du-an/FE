@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback } from 'reactstrap';
-import { uploadImageTo } from 'lib/uploader';
+import { uploadImageTo } from '../../lib/uploader';
 
 function toAbsUrl(u?: string | null, base?: string) {
     try { if (!u) return ''; return new URL(u, base).toString(); } catch { return ''; }

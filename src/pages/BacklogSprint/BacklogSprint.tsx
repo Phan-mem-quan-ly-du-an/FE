@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form, ProgressBar, Card, Modal, Spinner } from 'react-bootstrap';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw, ChevronDown, ChevronLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -188,9 +188,9 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
             ]);
         } catch (error) {
             console.error('Error loading project members:', error);
-            setProjectMembers([
-                { userId: 'unassigned', displayName: t('Unassigned'), email: '' }
-            ]);
+setProjectMembers([
+        { userId: 'unassigned', displayName: (t('Unassigned') || 'Unassigned') as string, email: '' }
+    ]);
         }
     };
 
@@ -1013,7 +1013,7 @@ const BacklogSprint: React.FC<BacklogSprintProps> = ({ projectId }) => {
                                 size="sm"
                                 className="p-0 text-muted"
                                 onClick={(e) => handleArchiveTask(task, e)}
-                                title={t('ArchiveThisTask')}
+title={(t('ArchiveThisTask') || 'Archive this task') as string}
                                 style={{
                                     width: '20px',
                                     height: '20px',

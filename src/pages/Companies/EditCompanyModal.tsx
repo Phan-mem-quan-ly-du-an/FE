@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ModalHeader, ModalBody, Button, Input, Label, Form, FormFeedback } from 'reactstrap';
-import { uploadImageTo } from 'lib/uploader';
+import { uploadImageTo } from '../../lib/uploader';
 
 export type Company = { id: string; name: string; logoUrl?: string | null };
 

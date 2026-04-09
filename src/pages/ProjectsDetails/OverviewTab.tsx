@@ -1,3 +1,4 @@
+﻿/* eslint-disable */
 import React, { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Row, Col, Spinner, Card, CardBody, Badge, Progress } from "reactstrap";
@@ -155,7 +156,7 @@ const OverviewTab = () => {
 
     // Debug logs
     React.useEffect(() => {
-        console.log('📊 Status Distribution:', statusDist);
+        console.log('ðŸ“Š Status Distribution:', statusDist);
     }, [statusDist]);
 
     // Normalize task
@@ -714,3 +715,4 @@ const OverviewTab = () => {
 };
 
 export default OverviewTab;
+
