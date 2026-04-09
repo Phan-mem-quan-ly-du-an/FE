@@ -33,7 +33,7 @@ import {
   Droppable,
   Draggable,
   DropResult,
-} from "react-beautiful-dnd";
+} from "@hello-pangea/dnd";
 import { Check, Eye, Edit, User, Download, Layers, CheckSquare, Square } from "lucide-react";
 import {
   getBoardByProjectId,

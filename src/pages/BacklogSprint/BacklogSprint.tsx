@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Badge, Dropdown, Accordion, Form, ProgressBar, Card, Modal, Spinner } from 'react-bootstrap';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Play, Check, MoreVertical, Calendar, Clock, User, CheckCircle, Archive, RotateCcw, ChevronDown, ChevronLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';

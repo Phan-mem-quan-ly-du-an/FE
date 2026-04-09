@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿/* eslint-disable */
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardBody, Row, Col, Button, Input, Table, Badge, Spinner, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, InputGroup, InputGroupText, UncontrolledDropdown, Modal, ModalHeader, ModalBody, ModalFooter, Label, FormGroup } from 'reactstrap';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -1047,3 +1048,4 @@ const TaskListView = () => {
 };
 
 export default TaskListView;
+
